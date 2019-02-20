@@ -6,29 +6,29 @@ sourceSets {
 }
 
 dependencies {
-    implementation project(':auto-value-utils').sourceSetDependency('annotations')
+    implementation libs.slimAutoValueUtilsAnnotations
     implementation libs.autoValueAnnotations
     implementation libs.rxJava
-    implementation libs.googleJsr305
+    implementation libs.jsr305
     implementation libs.jacksonAnnotations, libs.jacksonDataBind
     implementation libs.guava
-    implementation project(':reflect-utils')
+    implementation libs.slimReflectUtils
     annotationProcessor libs.autoValue
-    annotationProcessor project(':auto-value-utils')
+    annotationProcessor libs.slimAutoValueUtils
 
-    implementation project(':reflect-utils')
+    implementation libs.slimReflectUtils
     implementation libs.jacksonAnnotations, libs.jacksonDataBind
     annotationProcessor libs.autoService, libs.autoValue
     compileOnly libs.autoService
     implementation libs.autoValueAnnotations
 
-    aptImplementation project(':auto-value-utils')
-    aptImplementation project(':apt-utils')
-    aptImplementation project(':stream-utils')
+    aptImplementation libs.slimAutoValueUtils
+    aptImplementation libs.slimAptUtils
+    aptImplementation libs.slimStreamUtils
     aptImplementation libs.guava
     aptImplementation libs.slf4j, libs.logbackClassic, libs.logbackCore
 
     testAnnotationProcessor libs.autoValue
-    testAnnotationProcessor project(':auto-value-utils')
+    testAnnotationProcessor libs.slimAutoValueUtils
     testAnnotationProcessor sourceSets.apt.output
 }

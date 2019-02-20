@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/repository/com.slimgears.rxorm.repository.iml" filepath="$PROJECT_DIR$/.idea/modules/repository/com.slimgears.rxorm.repository.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/repository/com.slimgears.rxorm.repository.apt.iml" filepath="$PROJECT_DIR$/.idea/modules/repository/com.slimgears.rxorm.repository.apt.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/repository/com.slimgears.rxorm.repository.main.iml" filepath="$PROJECT_DIR$/.idea/modules/repository/com.slimgears.rxorm.repository.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/repository/com.slimgears.rxorm.repository.test.iml" filepath="$PROJECT_DIR$/.idea/modules/repository/com.slimgears.rxorm.repository.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.slimgears.rxorm.rxorm.iml" filepath="$PROJECT_DIR$/.idea/modules/com.slimgears.rxorm.rxorm.iml" />
+    </modules>
+  </component>
+</project>
