@@ -5,6 +5,11 @@
       <module name="com.slimgears.rxorm.repository.apt" target="1.8" />
       <module name="com.slimgears.rxorm.repository.main" target="1.8" />
       <module name="com.slimgears.rxorm.repository.test" target="1.8" />
+      <module name="com.slimgears.rxorm.rxorm-apt.main" target="1.8" />
+      <module name="com.slimgears.rxorm.rxorm-apt.test" target="1.8" />
+      <module name="com.slimgears.rxorm.rxorm-core.apt" target="1.8" />
+      <module name="com.slimgears.rxorm.rxorm-core.main" target="1.8" />
+      <module name="com.slimgears.rxorm.rxorm-core.test" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>

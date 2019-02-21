@@ -22,12 +22,6 @@ dependencies {
     compileOnly libs.autoService
     implementation libs.autoValueAnnotations
 
-    aptImplementation libs.slimAutoValueUtils
-    aptImplementation libs.slimAptUtils
-    aptImplementation libs.slimStreamUtils
-    aptImplementation libs.guava
-    aptImplementation libs.slf4j, libs.logbackClassic, libs.logbackCore
-
     testAnnotationProcessor libs.autoValue
     testAnnotationProcessor libs.slimAutoValueUtils
     testAnnotationProcessor sourceSets.apt.output

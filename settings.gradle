@@ -1,1 +1,2 @@
-include 'repository'
+include 'rxorm-core'
+include 'rxorm-apt'

@@ -8,7 +8,8 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/repository" />
+            <option value="$PROJECT_DIR$/rxorm-apt" />
+            <option value="$PROJECT_DIR$/rxorm-core" />
           </set>
         </option>
         <option name="useAutoImport" value="true" />
