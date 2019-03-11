@@ -3,6 +3,7 @@ package com.slimgears.util.repository.query;
 import com.slimgears.util.autovalue.annotations.BuilderPrototype;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.repository.expressions.BooleanExpression;
 import com.slimgears.util.repository.expressions.ObjectExpression;
 import com.slimgears.util.repository.expressions.PropertyExpression;
 import io.reactivex.Maybe;
@@ -29,7 +30,7 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S, B>, B extends 
         return entities.flatMapSingle(this::update);
     }
 
-    default Observable<S> find(ObjectExpression<S, Boolean> predicate) {
+    default Observable<S> find(BooleanExpression<S> predicate) {
         return query().where(predicate).select().retrieve();
     }
 
@@ -40,7 +41,7 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S, B>, B extends 
                 .first();
     }
 
-    default Maybe<S> findFirst(ObjectExpression<S, Boolean> predicate) {
+    default Maybe<S> findFirst(BooleanExpression<S> predicate) {
         return query().where(predicate).limit(1).select().first();
     }
 

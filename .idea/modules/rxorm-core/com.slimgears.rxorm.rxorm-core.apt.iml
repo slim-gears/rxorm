@@ -3,7 +3,10 @@
   <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8">
     <output url="file://$MODULE_DIR$/../../../rxorm-core/out/apt/classes" />
     <exclude-output />
-    <content url="file://$MODULE_DIR$/../../../rxorm-core/src/apt" />
+    <content url="file://$MODULE_DIR$/../../../rxorm-core/src/apt">
+      <sourceFolder url="file://$MODULE_DIR$/../../../rxorm-core/src/apt/java" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/../../../rxorm-core/src/apt/resources" type="java-resource" />
+    </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

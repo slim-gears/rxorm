@@ -10,6 +10,8 @@
       <module name="com.slimgears.rxorm.rxorm-core.apt" target="1.8" />
       <module name="com.slimgears.rxorm.rxorm-core.main" target="1.8" />
       <module name="com.slimgears.rxorm.rxorm-core.test" target="1.8" />
+      <module name="com.slimgears.rxorm.rxorm-orientdb.main" target="1.8" />
+      <module name="com.slimgears.rxorm.rxorm-orientdb.test" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>

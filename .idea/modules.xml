@@ -10,6 +10,9 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.apt.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.apt.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.main.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.test.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.slimgears.rxorm.rxorm-orientdb.iml" filepath="$PROJECT_DIR$/.idea/modules/com.slimgears.rxorm.rxorm-orientdb.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-orientdb/com.slimgears.rxorm.rxorm-orientdb.main.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-orientdb/com.slimgears.rxorm.rxorm-orientdb.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-orientdb/com.slimgears.rxorm.rxorm-orientdb.test.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-orientdb/com.slimgears.rxorm.rxorm-orientdb.test.iml" />
     </modules>
   </component>
 </project>

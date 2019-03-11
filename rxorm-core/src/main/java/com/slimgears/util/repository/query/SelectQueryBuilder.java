@@ -7,9 +7,9 @@ import com.slimgears.util.repository.expressions.PropertyExpression;
 
 public interface SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S, B>, B extends BuilderPrototype<S, B>>
     extends QueryBuilder<SelectQueryBuilder<K, S, B>, K, S, B> {
-    SelectQueryBuilder<K, S, B> orderBy(PropertyExpression<S, ?, ?, ?> field, boolean ascending);
+    <V> SelectQueryBuilder<K, S, B> orderBy(PropertyExpression<S, S, B, V> field, boolean ascending);
 
-    default SelectQueryBuilder<K, S, B> orderBy(PropertyExpression<S, ?, ?, ?> field) {
+    default <V> SelectQueryBuilder<K, S, B> orderBy(PropertyExpression<S, S, B, V> field) {
         return orderBy(field, true);
     }
 

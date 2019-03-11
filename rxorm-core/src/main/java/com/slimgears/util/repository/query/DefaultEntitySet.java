@@ -17,6 +17,7 @@ import io.reactivex.Single;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S, B>, B extends BuilderPrototype<S, B>> implements EntitySet<K, S, B> {
@@ -40,16 +41,19 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S, B>, B exten
     @Override
     public EntityDeleteQuery<K, S, B> delete() {
         return new EntityDeleteQuery<K, S, B>() {
+            private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
             private final DeleteInfo.Builder<K, S, B> builder = DeleteInfo.builder();
 
             @Override
             public Completable execute() {
-                return queryProvider.delete(builder.build());
+                return queryProvider.delete(builder
+                        .predicate(predicate.get())
+                        .build());
             }
 
             @Override
-            public EntityDeleteQuery<K, S, B> where(ObjectExpression<S, Boolean> predicate) {
-                builder.predicate(predicate);
+            public EntityDeleteQuery<K, S, B> where(BooleanExpression<S> predicate) {
+                this.predicate.updateAndGet(exp -> Optional.ofNullable(exp).map(ex -> ex.and(predicate)).orElse(predicate));
                 return this;
             }
 
@@ -70,6 +74,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S, B>, B exten
     @Override
     public EntityUpdateQuery<K, S, B> update() {
         return new EntityUpdateQuery<K, S, B>() {
+            private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
             private final UpdateInfo.Builder<K, S, B> builder = UpdateInfo.builder();
 
             @Override
@@ -80,12 +85,14 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S, B>, B exten
 
             @Override
             public Observable<S> execute() {
-                return queryProvider.update(builder.build());
+                return queryProvider.update(builder
+                        .predicate(predicate.get())
+                        .build());
             }
 
             @Override
-            public EntityUpdateQuery<K, S, B> where(ObjectExpression<S, Boolean> predicate) {
-                builder.predicate(predicate);
+            public EntityUpdateQuery<K, S, B> where(BooleanExpression<S> predicate) {
+                this.predicate.updateAndGet(exp -> Optional.ofNullable(exp).map(ex -> ex.and(predicate)).orElse(predicate));
                 return this;
             }
 
@@ -106,14 +113,14 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S, B>, B exten
     @Override
     public SelectQueryBuilder<K, S, B> query() {
         return new SelectQueryBuilder<K, S, B>() {
-            private final ImmutableList.Builder<SortingInfo<S, ?>> sortingInfos = ImmutableList.builder();
-            private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>(BooleanExpression.ofTrue());
+            private final ImmutableList.Builder<SortingInfo<S, S, B, ?>> sortingInfos = ImmutableList.builder();
+            private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
             private Long limit;
             private Long skip;
 
             @Override
-            public SelectQueryBuilder<K, S, B> orderBy(PropertyExpression<S, ?, ?, ?> field, boolean ascending) {
-                sortingInfos.add(SortingInfo.create(field, ascending));
+            public <V> SelectQueryBuilder<K, S, B> orderBy(PropertyExpression<S, S, B, V> field, boolean ascending) {
+                sortingInfos.add(SortingInfo.create(ascending, field));
                 return this;
             }
 
@@ -182,8 +189,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S, B>, B exten
             }
 
             @Override
-            public SelectQueryBuilder<K, S, B> where(ObjectExpression<S, Boolean> predicate) {
-                this.predicate.updateAndGet(exp -> exp.and(predicate));
+            public SelectQueryBuilder<K, S, B> where(BooleanExpression<S> predicate) {
+                this.predicate.updateAndGet(exp -> Optional.ofNullable(exp).map(ex -> ex.and(predicate)).orElse(predicate));
                 return this;
             }
 
@@ -203,6 +210,6 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S, B>, B exten
 
     @Override
     public Single<List<S>> update(Iterable<S> entities) {
-        return queryProvider.update(entities);
+        return queryProvider.update(metaClass, entities);
     }
 }

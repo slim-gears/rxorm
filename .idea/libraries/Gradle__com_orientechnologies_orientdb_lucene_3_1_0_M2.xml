@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: com.orientechnologies:orientdb-lucene:3.1.0-M2">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.orientechnologies/orientdb-lucene/3.1.0-M2/6fef2e3d30d6a80242368cde9aa07711bf31ad53/orientdb-lucene-3.1.0-M2.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.orientechnologies/orientdb-lucene/3.1.0-M2/8d9b27a25b3d8d3e3d77ba64e58c0de415fb5f7c/orientdb-lucene-3.1.0-M2-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

@@ -1,2 +1,4 @@
 include 'rxorm-core'
 include 'rxorm-apt'
+include 'rxorm-orientdb'
+

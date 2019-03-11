@@ -1,5 +1,6 @@
 package com.slimgears.util.repository.expressions;
 
+import com.slimgears.util.autovalue.annotations.BuilderPrototype;
 import com.slimgears.util.repository.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.util.repository.expressions.internal.BooleanPropertyExpression;
 import com.slimgears.util.repository.expressions.internal.BooleanUnaryOperationExpression;
@@ -12,7 +13,7 @@ import com.slimgears.util.repository.expressions.internal.StringPropertyExpressi
 
 import java.util.Collection;
 
-public interface ObjectExpression<S, T> extends Expression {
+public interface ObjectExpression<S, T> extends Expression<S> {
     default BooleanExpression<S> eq(ObjectExpression<S, T> value) {
         return BooleanBinaryOperationExpression.create(Type.Equals, this, value);
     }
@@ -73,27 +74,27 @@ public interface ObjectExpression<S, T> extends Expression {
         return ComposedExpression.ofString(this, expression);
     }
 
-    default <B, V> ObjectExpression<S, V> ref(ObjectPropertyExpression<S, T, B, V> expression) {
+    default <B extends BuilderPrototype<T, B>, V> ObjectExpression<S, V> ref(ObjectPropertyExpression<S, T, B, V> expression) {
         return PropertyExpression.ofObject(this, expression.property());
     }
 
-    default <B, V extends Comparable<V>> ComparableExpression<S, V> ref(ComparablePropertyExpression<?, T, B, V> expression) {
+    default <B extends BuilderPrototype<T, B>, V extends Comparable<V>> ComparableExpression<S, V> ref(ComparablePropertyExpression<?, T, B, V> expression) {
         return PropertyExpression.ofComparable(this, expression.property());
     }
 
-    default <B, V extends Number & Comparable<V>> NumericExpression<S, V> ref(NumericPropertyExpression<?, T, B, V> expression) {
+    default <B extends BuilderPrototype<T, B>, V extends Number & Comparable<V>> NumericExpression<S, V> ref(NumericPropertyExpression<?, T, B, V> expression) {
         return PropertyExpression.ofNumeric(this, expression.property());
     }
 
-    default <B> BooleanExpression<S> ref(BooleanPropertyExpression<?, T, B> expression) {
+    default <B extends BuilderPrototype<T, B>> BooleanExpression<S> ref(BooleanPropertyExpression<?, T, B> expression) {
         return PropertyExpression.ofBoolean(this, expression.property());
     }
 
-    default <B> StringExpression<S> ref(StringPropertyExpression<?, T, B> expression) {
+    default <B extends BuilderPrototype<T, B>> StringExpression<S> ref(StringPropertyExpression<?, T, B> expression) {
         return PropertyExpression.ofString(this, expression.property());
     }
 
-    default <B, E> CollectionExpression<S, E> ref(CollectionPropertyExpression<?, T, B, E> expression) {
+    default <B extends BuilderPrototype<T, B>, E> CollectionExpression<S, E> ref(CollectionPropertyExpression<?, T, B, E> expression) {
         return PropertyExpression.ofCollection(this, expression.property());
     }
 

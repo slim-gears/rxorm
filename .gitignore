@@ -1,6 +1,6 @@
 .gradle
 build/
-
+rxorm-orientdb/databases
 # Ignore Gradle GUI config
 gradle-app.setting
 

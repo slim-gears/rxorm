@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: org.apache.lucene:lucene-join:7.3.0">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.lucene/lucene-join/7.3.0/da4af75a7e4fe7843fbfa4b58e6a238b6b706d64/lucene-join-7.3.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.lucene/lucene-join/7.3.0/d48760df168449a168fcf9033b70166ad812ae6f/lucene-join-7.3.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

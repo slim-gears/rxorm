@@ -6,7 +6,9 @@
       <excludeFolder url="file://$MODULE_DIR$/../../rxorm-apt/.gradle" />
       <excludeFolder url="file://$MODULE_DIR$/../../rxorm-apt/build/classes" />
       <excludeFolder url="file://$MODULE_DIR$/../../rxorm-apt/build/libs" />
+      <excludeFolder url="file://$MODULE_DIR$/../../rxorm-apt/build/reports" />
       <excludeFolder url="file://$MODULE_DIR$/../../rxorm-apt/build/resources" />
+      <excludeFolder url="file://$MODULE_DIR$/../../rxorm-apt/build/test-results" />
       <excludeFolder url="file://$MODULE_DIR$/../../rxorm-apt/build/tmp" />
       <excludeFolder url="file://$MODULE_DIR$/../../rxorm-apt/out" />
     </content>

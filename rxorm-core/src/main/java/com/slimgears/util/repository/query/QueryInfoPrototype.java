@@ -10,6 +10,6 @@ public interface QueryInfoPrototype<K, S extends HasMetaClassWithKey<K, S, B>, T
         HasPredicate<S>,
         HasProperties<T>,
         HasMapping<S, T>,
-        HasSortingInfo<S>,
+        HasSortingInfo<S, B>,
         HasPagination {
 }

@@ -63,7 +63,7 @@
 #end
     }
 
-    public static class ReferencePropertyExpression<__S, __T, __B#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> extends Expressions<__S#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> implements $[com.slimgears.util.repository.expressions.PropertyExpression]<__S, __T, __B, $targetClass.simpleName()#typeParams($sourceClass)> {
+    public static class ReferencePropertyExpression<__S, __T, __B extends $[com.slimgears.util.autovalue.annotations.BuilderPrototype]<__T, __B>#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> extends Expressions<__S#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> implements $[com.slimgears.util.repository.expressions.PropertyExpression]<__S, __T, __B, $targetClass.simpleName()#typeParams($sourceClass)> {
         private final $[com.slimgears.util.repository.expressions.ObjectExpression]<__S, __T> target;
         private final $[com.slimgears.util.autovalue.annotations.PropertyMeta]<__T, __B, $targetClass.simpleName()#typeParams($sourceClass)> property;
 
@@ -73,7 +73,7 @@
             this.property = property;
         }
 
-        static <__S, __T, __B#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> ReferencePropertyExpression<__S, __T, __B#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> create(ObjectExpression<__S, __T> target, PropertyMeta<__T, __B, $targetClass.simpleName()#typeParams($sourceClass)> property) {
+        static <__S, __T, __B extends $[com.slimgears.util.autovalue.annotations.BuilderPrototype]<__T, __B>#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> ReferencePropertyExpression<__S, __T, __B#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> create(ObjectExpression<__S, __T> target, PropertyMeta<__T, __B, $targetClass.simpleName()#typeParams($sourceClass)> property) {
             return new ReferencePropertyExpression<>(target, property);
         }
 

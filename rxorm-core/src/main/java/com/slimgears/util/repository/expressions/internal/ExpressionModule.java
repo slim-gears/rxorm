@@ -72,7 +72,7 @@ public class ExpressionModule extends Module {
             public void serialize(PropertyMeta value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
                 gen.writeStartObject();
                 gen.writeFieldName("type");
-                gen.writeString(value.declaringType().eliminateTypeVars().toString());
+                gen.writeString(value.declaringType().objectClass().eliminateTypeVars().toString());
                 gen.writeFieldName("name");
                 gen.writeString(value.name());
                 gen.writeEndObject();
