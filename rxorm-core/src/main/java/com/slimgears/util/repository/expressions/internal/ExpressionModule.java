@@ -43,7 +43,7 @@ public class ExpressionModule extends Module {
         simpleDeserializers.addDeserializer(TypeToken.class, new JsonDeserializer<TypeToken>() {
             @Override
             public TypeToken deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-                return TypeToken.valueOf(p.nextTextValue());
+                return TypeToken.valueOf(p.getText());
             }
         });
         simpleDeserializers.addDeserializer(PropertyMeta.class, new JsonDeserializer<PropertyMeta>() {

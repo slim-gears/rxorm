@@ -5,7 +5,7 @@ import com.slimgears.util.autovalue.annotations.BuilderPrototype;
 import com.slimgears.util.repository.expressions.PropertyExpression;
 
 @AutoValuePrototype
-public interface SortingInfoPrototype<S, T, B extends BuilderPrototype<T, B>, V> {
-    PropertyExpression<S, T, B, V> property();
+public interface SortingInfoPrototype<S, T, V> {
+    PropertyExpression<S, T, V> property();
     boolean ascending();
 }

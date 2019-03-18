@@ -10,7 +10,8 @@ import javax.annotation.Nullable;
 @AutoValuePrototype
 @AutoValueExpressions
 public interface ProductPrototype {
-    @Key long id();
+    @Key int id();
     @Nullable String name();
     @Reference @Nullable Inventory inventory();
+    int price();
 }

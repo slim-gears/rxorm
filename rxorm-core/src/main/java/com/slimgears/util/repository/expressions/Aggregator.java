@@ -1,5 +1,6 @@
 package com.slimgears.util.repository.expressions;
 
+import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.repository.expressions.internal.ComparableUnaryOperationExpression;
 import com.slimgears.util.repository.expressions.internal.NumericUnaryOperationExpression;
 
@@ -7,6 +8,10 @@ import java.util.Collection;
 
 public interface Aggregator<S, T, R, E extends UnaryOperationExpression<S, Collection<T>, R>> {
     E apply(ObjectExpression<S, Collection<T>> collection);
+
+    default TypeToken<? extends R> objectType(TypeToken<? extends T> element) {
+        return apply(CollectionExpression.indirectArg(element)).objectType();
+    }
 
     static <S, V> Aggregator<S, V, Long, NumericUnaryOperationExpression<S, Collection<V>, Long>> count() {
         return source -> NumericUnaryOperationExpression.create(Expression.Type.Count, source);

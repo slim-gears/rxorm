@@ -2,6 +2,7 @@ dependencies {
     implementation project(':rxorm-core')
     implementation libs.rxJava
     implementation libs.slimAutoValueUtilsAnnotations
+    implementation libs.slimRxUtils
     implementation libs.orientDbCore, libs.orientDbClient, libs.orientDbServer, libs.orientDbTools, libs.orientDbLucene, libs.orientDbStudio
     implementation libs.javaxAnnotationApi
     implementation libs.javaxInject
@@ -15,4 +16,5 @@ dependencies {
     testImplementation libs.autoValueAnnotations
     testImplementation libs.jsr305
     testImplementation libs.jacksonAnnotations, libs.jacksonDataBind
+    testImplementation libs.slimTestUtils
 }

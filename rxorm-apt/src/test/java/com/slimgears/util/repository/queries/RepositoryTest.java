@@ -5,11 +5,12 @@ import com.slimgears.util.repository.query.QueryProvider;
 import com.slimgears.util.repository.query.Repository;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 public class RepositoryTest {
-    @Mock private QueryProvider mockQueryProvider;
+    @Mock(answer = Answers.RETURNS_MOCKS) private QueryProvider mockQueryProvider;
     private Repository repository;
 
     @Before

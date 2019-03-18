@@ -10,12 +10,12 @@ import com.slimgears.util.repository.expressions.PropertyExpression;
 import com.slimgears.util.repository.expressions.StringExpression;
 
 @AutoValue
-public abstract class StringPropertyExpression<S, T, B extends BuilderPrototype<T, B>> implements PropertyExpression<S, T, B, String>, StringExpression<S> {
+public abstract class StringPropertyExpression<S, T> implements PropertyExpression<S, T, String>, StringExpression<S> {
     @JsonCreator
-    public static <S, T, B extends BuilderPrototype<T, B>> StringPropertyExpression<S, T, B> create(
+    public static <S, T> StringPropertyExpression<S, T> create(
             @JsonProperty("type") Type type,
             @JsonProperty("target") ObjectExpression<S, T> target,
-            @JsonProperty("property") PropertyMeta<T, B, ? extends String> property) {
+            @JsonProperty("property") PropertyMeta<T, ? extends String> property) {
         return new AutoValue_StringPropertyExpression<>(type, target, property);
     }
 }

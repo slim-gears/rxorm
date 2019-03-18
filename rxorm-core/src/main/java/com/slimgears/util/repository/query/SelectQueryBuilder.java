@@ -1,27 +1,22 @@
 package com.slimgears.util.repository.query;
 
-import com.slimgears.util.autovalue.annotations.BuilderPrototype;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.repository.expressions.ObjectExpression;
 import com.slimgears.util.repository.expressions.PropertyExpression;
 
-public interface SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S, B>, B extends BuilderPrototype<S, B>>
-    extends QueryBuilder<SelectQueryBuilder<K, S, B>, K, S, B> {
-    <V> SelectQueryBuilder<K, S, B> orderBy(PropertyExpression<S, S, B, V> field, boolean ascending);
+public interface SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
+    extends QueryBuilder<SelectQueryBuilder<K, S>, K, S> {
+    <V> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field, boolean ascending);
 
-    default <V> SelectQueryBuilder<K, S, B> orderBy(PropertyExpression<S, S, B, V> field) {
+    default <V> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field) {
         return orderBy(field, true);
     }
 
-    default SelectQuery<S, S> select() {
-        return select(ObjectExpression.arg());
-    }
+    SelectQuery<S> select();
 
-    <T> SelectQuery<S, T> select(ObjectExpression<S, T> expression);
+    <T> SelectQuery<T> select(ObjectExpression<S, T> expression);
 
-    default LiveSelectQuery<S, S> liveSelect() {
-        return liveSelect(ObjectExpression.arg());
-    }
+    LiveSelectQuery<S> liveSelect();
 
-    <T> LiveSelectQuery<S, T> liveSelect(ObjectExpression<S, T> expression);
+    <T> LiveSelectQuery<T> liveSelect(ObjectExpression<S, T> expression);
 }

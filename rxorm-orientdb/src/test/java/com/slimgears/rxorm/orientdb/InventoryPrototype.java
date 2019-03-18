@@ -9,6 +9,6 @@ import javax.annotation.Nullable;
 @AutoValuePrototype
 @AutoValueExpressions
 public interface InventoryPrototype {
-    @Key long id();
+    @Key int id();
     @Nullable String name();
 }

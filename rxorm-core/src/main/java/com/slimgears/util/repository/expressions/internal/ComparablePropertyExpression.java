@@ -10,12 +10,12 @@ import com.slimgears.util.repository.expressions.ObjectExpression;
 import com.slimgears.util.repository.expressions.PropertyExpression;
 
 @AutoValue
-public abstract class ComparablePropertyExpression<S, T, B extends BuilderPrototype<T, B>, V extends Comparable<V>> implements PropertyExpression<S, T, B, V>, ComparableExpression<S, V> {
+public abstract class ComparablePropertyExpression<S, T, V extends Comparable<V>> implements PropertyExpression<S, T, V>, ComparableExpression<S, V> {
     @JsonCreator
-    public static <S, T, B extends BuilderPrototype<T, B>, V extends Comparable<V>> ComparablePropertyExpression<S, T, B, V> create(
+    public static <S, T, V extends Comparable<V>> ComparablePropertyExpression<S, T, V> create(
             @JsonProperty("type") Type type,
             @JsonProperty("target") ObjectExpression<S, T> target,
-            @JsonProperty("property") PropertyMeta<T, B, ? extends V> property) {
+            @JsonProperty("property") PropertyMeta<T, ? extends V> property) {
         return new AutoValue_ComparablePropertyExpression<>(type, target, property);
     }
 }

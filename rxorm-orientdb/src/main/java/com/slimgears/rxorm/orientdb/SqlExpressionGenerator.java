@@ -1,8 +1,8 @@
 package com.slimgears.rxorm.orientdb;
 
 import com.google.common.collect.ImmutableMap;
-import com.slimgears.util.autovalue.annotations.BuilderPrototype;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.repository.expressions.Expression;
 import com.slimgears.util.repository.expressions.ExpressionVisitor;
 import com.slimgears.util.repository.expressions.ObjectExpression;
@@ -12,7 +12,7 @@ import com.slimgears.util.stream.Optionals;
 
 import java.util.Optional;
 
-public class SqlExpressionGenerator extends ExpressionVisitor<Void, String> {
+public class SqlExpressionGenerator extends ExpressionVisitor<SqlExpressionGenerator.Context, String> {
     private final static ImmutableMap<Expression.Type, String> expressionTypeFormatMap = ImmutableMap.<Expression.Type, String>builder()
             .put(Expression.Type.Add, "(%s + %s)")
             .put(Expression.Type.Sub, "(%s - %s)")
@@ -35,12 +35,17 @@ public class SqlExpressionGenerator extends ExpressionVisitor<Void, String> {
             .put(Expression.Type.ToLower, "LOWER(%s)")
             .put(Expression.Type.ToUpper, "UPPER(%s)")
             .put(Expression.Type.Trim, "TRIM(%s)")
+            .put(Expression.Type.Count, "COUNT(%s)")
+            .put(Expression.Type.Average, "AVERAGE(%s)")
+            .put(Expression.Type.Min, "MIN(%s)")
+            .put(Expression.Type.Max, "MAX(%s)")
+            .put(Expression.Type.Sum, "SUM(%s)")
             .build();
 
     private final static ImmutableMap<Expression.OperationType, String> operationTypeFormatMap = ImmutableMap.<Expression.OperationType, String>builder()
-            .put(Expression.OperationType.Argument, "")
+            .put(Expression.OperationType.Argument, "__argument__")
             .put(Expression.OperationType.Constant, "%s")
-            .put(Expression.OperationType.Property, "`%s`.`%s`")
+            .put(Expression.OperationType.Property, "%s.%s")
             .put(Expression.OperationType.Composition, "")
             .build();
 
@@ -50,6 +55,14 @@ public class SqlExpressionGenerator extends ExpressionVisitor<Void, String> {
             .put(Expression.ValueType.String, "'%s'")
             .build();
 
+    static class Context {
+        private final String arg;
+
+        Context(String arg) {
+            this.arg = arg;
+        }
+    }
+
     private String toFormat(Expression.Type type) {
         return Optionals.or(
                 () -> Optional.ofNullable(expressionTypeFormatMap.get(type)),
@@ -58,10 +71,19 @@ public class SqlExpressionGenerator extends ExpressionVisitor<Void, String> {
                 .orElse("%s");
     }
 
-    public static <S, T> String toSqlExpression(ObjectExpression<S, T> expression) {
-        String exp = new SqlExpressionGenerator().visit(expression, null);
+    private static <S, T> String toSqlExpression(ObjectExpression<S, T> expression, String arg) {
+        String exp = new SqlExpressionGenerator().visit(expression, new Context(arg));
         exp = exp.replaceAll("''", "");
         return exp;
+    }
+
+    public static <S, T> String toSqlExpression(ObjectExpression<S, T> expression) {
+        return toSqlExpression(expression, "");
+    }
+
+    public static <S, T> String toSqlExpression(ObjectExpression<S, T> expression, ObjectExpression<?, S> arg) {
+        String argStr = toSqlExpression(arg);
+        return toSqlExpression(expression, argStr);
     }
 
     @Override
@@ -75,31 +97,36 @@ public class SqlExpressionGenerator extends ExpressionVisitor<Void, String> {
     }
 
     @Override
-    protected <S, T> String visitOther(ObjectExpression<S, T> expression, Void arg) {
+    protected <S, T> String visitOther(ObjectExpression<S, T> expression, Context context) {
         return "";
     }
 
     @Override
-    protected <S, T, R> String visitUnaryOperator(UnaryOperationExpression<S, T, R> expression, Void arg) {
-        return super.visitUnaryOperator(expression, arg);
+    protected <S, T, R> String visitUnaryOperator(UnaryOperationExpression<S, T, R> expression, Context context) {
+        return super.visitUnaryOperator(expression, context);
     }
 
     @Override
-    protected <S, T, B extends BuilderPrototype<T, B>, V> String visitProperty(PropertyExpression<S, T, B, V> expression, Void arg) {
-        String target = visit(expression.target(), arg);
+    protected <S, T, V> String visitProperty(PropertyExpression<S, T, V> expression, Context context) {
+        String target = visit(expression.target(), context);
         if (!target.isEmpty()) {
             target = target + ".";
         }
-        return target + "`" + visitProperty(expression.property(), arg) + "`";
+        return target + visitProperty(expression.property(), context);
     }
 
     @Override
-    protected <T, B extends BuilderPrototype<T, B>, V> String visitProperty(PropertyMeta<T, B, V> propertyMeta, Void arg) {
+    protected <T, V> String visitProperty(PropertyMeta<T, V> propertyMeta, Context context) {
         return propertyMeta.name();
     }
 
     @Override
-    protected <V> String visitConstant(V value, Void arg) {
+    protected <T> String visitArgument(TypeToken<T> argType, Context context) {
+        return context.arg;
+    }
+
+    @Override
+    protected <V> String visitConstant(V value, Context context) {
         return Optional.ofNullable(value)
                 .map(val -> val instanceof String ? "'" + val + "'" : val.toString())
                 .orElse("null");

@@ -1,5 +1,6 @@
 package com.slimgears.util.repository.expressions;
 
+import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.repository.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.util.repository.expressions.internal.NumericUnaryOperationExpression;
 import com.slimgears.util.repository.expressions.internal.StringBinaryOperationExpression;

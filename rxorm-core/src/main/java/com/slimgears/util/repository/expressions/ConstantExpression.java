@@ -1,27 +1,34 @@
 package com.slimgears.util.repository.expressions;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.repository.expressions.internal.BooleanConstantExpression;
 import com.slimgears.util.repository.expressions.internal.CollectionConstantExpression;
 import com.slimgears.util.repository.expressions.internal.NumericConstantExpression;
 import com.slimgears.util.repository.expressions.internal.ObjectConstantExpression;
 import com.slimgears.util.repository.expressions.internal.StringConstantExpression;
 
+import javax.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.Collection;
 
 public interface ConstantExpression<S, T> extends ObjectExpression<S, T> {
     @JsonProperty T value();
 
-    static <S, V> ConstantExpression<S, V> of(V value) {
+    default TypeToken<T> objectType() {
+        //noinspection unchecked
+        return TypeToken.of((Class<T>)value().getClass());
+    }
+
+    static <S, V> ConstantExpression<S, V> of(@Nonnull V value) {
         return ObjectConstantExpression.create(Type.Constant, value);
     }
 
-    static <S, V extends Number & Comparable<V>> NumericConstantExpression<S, V> of(V value) {
+    static <S, V extends Number & Comparable<V>> NumericConstantExpression<S, V> of(@Nonnull V value) {
         return NumericConstantExpression.create(Type.NumericConstant, value);
     }
 
-    static <S> StringConstantExpression<S> of(String value) {
+    static <S> StringConstantExpression<S> of(@Nonnull String value) {
         return StringConstantExpression.create(Type.StringConstant, value);
     }
 
@@ -29,7 +36,7 @@ public interface ConstantExpression<S, T> extends ObjectExpression<S, T> {
         return BooleanConstantExpression.create(Type.BooleanConstant, value);
     }
 
-    static <S, E> CollectionConstantExpression<S, E> of(Collection<E> collection) {
+    static <S, E> CollectionConstantExpression<S, E> of(@Nonnull Collection<E> collection) {
         return CollectionConstantExpression.create(Type.CollectionConstant, collection);
     }
 

@@ -12,12 +12,12 @@ import com.slimgears.util.repository.expressions.PropertyExpression;
 import java.util.Collection;
 
 @AutoValue
-public abstract class CollectionPropertyExpression<S, T, B extends BuilderPrototype<T, B>, E> implements PropertyExpression<S, T, B, Collection<E>>, CollectionExpression<S, E> {
+public abstract class CollectionPropertyExpression<S, T, E> implements PropertyExpression<S, T, Collection<E>>, CollectionExpression<S, E> {
     @JsonCreator
-    public static <S, T, B extends BuilderPrototype<T, B>, E> CollectionPropertyExpression<S, T, B, E> create(
+    public static <S, T, E> CollectionPropertyExpression<S, T, E> create(
             @JsonProperty("type") Type type,
             @JsonProperty("target") ObjectExpression<S, T> target,
-            @JsonProperty("property") PropertyMeta<T, B, ? extends Collection<E>> property) {
+            @JsonProperty("property") PropertyMeta<T, ? extends Collection<E>> property) {
         return new AutoValue_CollectionPropertyExpression<>(type, target, property);
     }
 }

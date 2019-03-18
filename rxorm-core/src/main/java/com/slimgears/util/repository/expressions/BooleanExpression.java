@@ -1,5 +1,6 @@
 package com.slimgears.util.repository.expressions;
 
+import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.repository.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.util.repository.expressions.internal.BooleanConstantExpression;
 import com.slimgears.util.repository.expressions.internal.BooleanUnaryOperationExpression;
@@ -25,6 +26,10 @@ public interface BooleanExpression<S> extends ObjectExpression<S, Boolean> {
 
     static <S> BooleanExpression<S> ofFalse() {
         return BooleanConstantExpression.create(Type.BooleanConstant, false);
+    }
+
+    static <S> BooleanExpression<S> not(ObjectExpression<S, Boolean> source) {
+        return BooleanUnaryOperationExpression.create(Type.Not, source);
     }
 
     @SafeVarargs

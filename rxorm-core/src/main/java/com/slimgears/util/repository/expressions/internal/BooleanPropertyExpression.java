@@ -10,12 +10,12 @@ import com.slimgears.util.repository.expressions.ObjectExpression;
 import com.slimgears.util.repository.expressions.PropertyExpression;
 
 @AutoValue
-public abstract class BooleanPropertyExpression<S, T, B extends BuilderPrototype<T, B>> implements PropertyExpression<S, T, B, Boolean>, BooleanExpression<S> {
+public abstract class BooleanPropertyExpression<S, T> implements PropertyExpression<S, T, Boolean>, BooleanExpression<S> {
     @JsonCreator
-    public static <S, T, B extends BuilderPrototype<T, B>> BooleanPropertyExpression<S, T, B> create(
+    public static <S, T> BooleanPropertyExpression<S, T> create(
             @JsonProperty("type") Type type,
             @JsonProperty("target") ObjectExpression<S, T> target,
-            @JsonProperty("property") PropertyMeta<T, B, ? extends Boolean> property) {
+            @JsonProperty("property") PropertyMeta<T, ? extends Boolean> property) {
         return new AutoValue_BooleanPropertyExpression<>(type, target, property);
     }
 }

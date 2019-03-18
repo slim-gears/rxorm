@@ -1,6 +1,8 @@
 package com.slimgears.util.repository.expressions;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.slimgears.util.autovalue.annotations.BuilderPrototype;
+import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.repository.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.util.repository.expressions.internal.BooleanPropertyExpression;
 import com.slimgears.util.repository.expressions.internal.BooleanUnaryOperationExpression;
@@ -14,6 +16,10 @@ import com.slimgears.util.repository.expressions.internal.StringPropertyExpressi
 import java.util.Collection;
 
 public interface ObjectExpression<S, T> extends Expression<S> {
+    default @JsonIgnore TypeToken<? extends T> objectType() {
+        return type().resolveType(this);
+    }
+
     default BooleanExpression<S> eq(ObjectExpression<S, T> value) {
         return BooleanBinaryOperationExpression.create(Type.Equals, this, value);
     }
@@ -74,27 +80,27 @@ public interface ObjectExpression<S, T> extends Expression<S> {
         return ComposedExpression.ofString(this, expression);
     }
 
-    default <B extends BuilderPrototype<T, B>, V> ObjectExpression<S, V> ref(ObjectPropertyExpression<S, T, B, V> expression) {
+    default <V> ObjectExpression<S, V> ref(ObjectPropertyExpression<S, T, V> expression) {
         return PropertyExpression.ofObject(this, expression.property());
     }
 
-    default <B extends BuilderPrototype<T, B>, V extends Comparable<V>> ComparableExpression<S, V> ref(ComparablePropertyExpression<?, T, B, V> expression) {
+    default <V extends Comparable<V>> ComparableExpression<S, V> ref(ComparablePropertyExpression<?, T, V> expression) {
         return PropertyExpression.ofComparable(this, expression.property());
     }
 
-    default <B extends BuilderPrototype<T, B>, V extends Number & Comparable<V>> NumericExpression<S, V> ref(NumericPropertyExpression<?, T, B, V> expression) {
+    default <V extends Number & Comparable<V>> NumericExpression<S, V> ref(NumericPropertyExpression<?, T, V> expression) {
         return PropertyExpression.ofNumeric(this, expression.property());
     }
 
-    default <B extends BuilderPrototype<T, B>> BooleanExpression<S> ref(BooleanPropertyExpression<?, T, B> expression) {
+    default BooleanExpression<S> ref(BooleanPropertyExpression<?, T> expression) {
         return PropertyExpression.ofBoolean(this, expression.property());
     }
 
-    default <B extends BuilderPrototype<T, B>> StringExpression<S> ref(StringPropertyExpression<?, T, B> expression) {
+    default StringExpression<S> ref(StringPropertyExpression<?, T> expression) {
         return PropertyExpression.ofString(this, expression.property());
     }
 
-    default <B extends BuilderPrototype<T, B>, E> CollectionExpression<S, E> ref(CollectionPropertyExpression<?, T, B, E> expression) {
+    default <E> CollectionExpression<S, E> ref(CollectionPropertyExpression<?, T, E> expression) {
         return PropertyExpression.ofCollection(this, expression.property());
     }
 
@@ -106,11 +112,19 @@ public interface ObjectExpression<S, T> extends Expression<S> {
         return matches(ConstantExpression.of(pattern));
     }
 
-    static <S> ObjectExpression<S, S> arg() {
-        return ObjectArgumentExpression.create(Type.Argument);
+    static <S> ObjectExpression<S, S> arg(TypeToken<S> type) {
+        return ObjectArgumentExpression.create(Type.Argument, type);
     }
 
-    static <S, T> ObjectExpression<S, T> indirectArg() {
-        return ObjectArgumentExpression.create(Type.Argument);
+    static <S, T> ObjectExpression<S, T> indirectArg(TypeToken<T> type) {
+        return ObjectArgumentExpression.create(Type.Argument, type);
+    }
+
+    static <S> ObjectExpression<S, S> arg(Class<S> type) {
+        return arg(TypeToken.of(type));
+    }
+
+    static <S, T> ObjectExpression<S, T> indirectArg(Class<T> type) {
+        return indirectArg(TypeToken.of(type));
     }
 }

@@ -6,11 +6,11 @@ import com.slimgears.util.repository.expressions.ObjectExpression;
 import com.slimgears.util.repository.expressions.PropertyExpression;
 
 @AutoValue
-public abstract class PropertyUpdateInfo<S, T, TB extends BuilderPrototype<T, TB>, V> {
-    public abstract PropertyExpression<S, T, TB, V> property();
+public abstract class PropertyUpdateInfo<S, T, V> {
+    public abstract PropertyExpression<S, T, V> property();
     public abstract ObjectExpression<S, V> updater();
 
-    public static <S, T, TB extends BuilderPrototype<T, TB>, V> PropertyUpdateInfo<S, T, TB, V> create(PropertyExpression<S, T, TB, V> property, ObjectExpression<S, V> updater) {
+    public static <S, T, V> PropertyUpdateInfo<S, T, V> create(PropertyExpression<S, T, V> property, ObjectExpression<S, V> updater) {
         return new AutoValue_PropertyUpdateInfo<>(property, updater);
     }
 }

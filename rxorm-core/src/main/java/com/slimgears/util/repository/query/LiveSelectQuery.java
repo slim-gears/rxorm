@@ -1,6 +1,7 @@
 package com.slimgears.util.repository.query;
 
 import com.slimgears.util.repository.expressions.Aggregator;
+import com.slimgears.util.repository.expressions.PropertyExpression;
 import com.slimgears.util.repository.expressions.UnaryOperationExpression;
 import io.reactivex.Observable;
 import io.reactivex.functions.IntFunction;
@@ -8,7 +9,7 @@ import io.reactivex.functions.IntFunction;
 import java.util.Collection;
 import java.util.List;
 
-public interface LiveSelectQuery<S, T> {
+public interface LiveSelectQuery<T> {
     default Observable<Long> count() {
         return aggregate(Aggregator.count());
     }
@@ -18,7 +19,7 @@ public interface LiveSelectQuery<S, T> {
     }
 
     Observable<T> first();
-    Observable<List<T>> toList();
-    <R, E extends UnaryOperationExpression<S, Collection<T>, R>> Observable<R> aggregate(Aggregator<S, T, R, E> aggregator);
-    Observable<Notification<T>> observe();
+    Observable<List<? extends T>> toList();
+    <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Observable<R> aggregate(Aggregator<T, T, R, E> aggregator);
+    Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties);
 }

@@ -2,6 +2,7 @@ package com.slimgears.util.repository.apt;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.repository.expressions.BooleanExpression;
 import com.slimgears.util.repository.expressions.ObjectExpression;
 import com.slimgears.util.repository.expressions.internal.ExpressionModule;
@@ -21,7 +22,7 @@ public class ExpressionSerializationTest {
 
     @Test
     public void testSerialization() throws IOException {
-        ObjectExpression<TestEntity, Integer> intExpression =
+        ObjectExpression<TestEntity, ?> intExpression =
                 TestEntity.$.text
                 .concat(TestEntity.$.description)
                 .length()
@@ -31,9 +32,9 @@ public class ExpressionSerializationTest {
         Assert.assertNotNull(json);
         System.out.println(json);
 
-        ObjectExpression<TestEntity, Integer> deserializedExpression = objectMapper.readValue(json, new TypeReference<ObjectExpression<TestEntity, Integer>>(){});
+        ObjectExpression<TestEntity, ? extends Comparable<?>> deserializedExpression = objectMapper.readValue(json, new TypeReference<ObjectExpression<TestEntity<? extends Comparable<?>>, ? extends Comparable<?>>>(){});
         Assert.assertNotNull(deserializedExpression);
-        Assert.assertEquals(intExpression, deserializedExpression);
+        Assert.assertEquals(objectMapper.writeValueAsString(intExpression), objectMapper.writeValueAsString(deserializedExpression));
 
         BooleanExpression<TestEntity> expression = BooleanExpression.and(
                 TestEntity.$.text.eq("5"),

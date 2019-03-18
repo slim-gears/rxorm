@@ -1,6 +1,7 @@
 package com.slimgears.util.repository.expressions;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.repository.expressions.internal.BooleanComposedExpression;
 import com.slimgears.util.repository.expressions.internal.CollectionComposedExpression;
 import com.slimgears.util.repository.expressions.internal.ComparableComposedExpression;
@@ -11,6 +12,11 @@ import com.slimgears.util.repository.expressions.internal.StringComposedExpressi
 import java.util.Collection;
 
 public interface ComposedExpression<S, T, R> extends ObjectExpression<S, R> {
+    @Override
+    default TypeToken<? extends R> objectType() {
+        return expression().objectType();
+    }
+
     @JsonProperty ObjectExpression<S, T> source();
     @JsonProperty ObjectExpression<T, R> expression();
 

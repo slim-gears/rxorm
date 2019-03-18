@@ -42,4 +42,12 @@ public interface ComparableExpression<S, T extends Comparable<T>> extends Object
     default BooleanExpression<S> betweenExclusive(ObjectExpression<S, T> min, ObjectExpression<S, T> max) {
         return greaterThan(min).and(lessThan(max));
     }
+
+    default BooleanExpression<S> betweenInclusive(T min, T max) {
+        return lessThan(min).or(greaterThan(max)).not();
+    }
+
+    default BooleanExpression<S> betweenExclusive(T min, T max) {
+        return greaterThan(min).and(lessThan(max));
+    }
 }

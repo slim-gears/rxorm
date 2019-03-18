@@ -10,12 +10,12 @@ import com.slimgears.util.repository.expressions.ObjectExpression;
 import com.slimgears.util.repository.expressions.PropertyExpression;
 
 @AutoValue
-public abstract class NumericPropertyExpression<S, T, B extends BuilderPrototype<T, B>, V extends Number & Comparable<V>> implements PropertyExpression<S, T, B, V>, NumericExpression<S, V> {
+public abstract class NumericPropertyExpression<S, T, V extends Number & Comparable<V>> implements PropertyExpression<S, T, V>, NumericExpression<S, V> {
     @JsonCreator
-    public static <S, T, B extends BuilderPrototype<T, B>, V extends Number & Comparable<V>> NumericPropertyExpression<S, T, B, V> create(
+    public static <S, T, V extends Number & Comparable<V>> NumericPropertyExpression<S, T, V> create(
             @JsonProperty("type") Type type,
             @JsonProperty("target") ObjectExpression<S, T> target,
-            @JsonProperty("property") PropertyMeta<T, B, ? extends V> property) {
+            @JsonProperty("property") PropertyMeta<T, ? extends V> property) {
         return new AutoValue_NumericPropertyExpression<>(type, target, property);
     }
 }

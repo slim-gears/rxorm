@@ -1,12 +1,12 @@
 package com.slimgears.util.repository.expressions;
 
-import com.slimgears.util.autovalue.annotations.BuilderPrototype;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.reflect.TypeToken;
 
 public abstract class ExpressionVisitor<_T, _R> {
     public <S> _R visit(Expression<S> expression, _T arg) {
         if (expression instanceof PropertyExpression) {
-            return visitProperty((PropertyExpression<S, ?, ?, ?>)expression, arg);
+            return visitProperty((PropertyExpression<S, ?, ?>)expression, arg);
         } else if (expression instanceof UnaryOperationExpression) {
             return visitUnaryOperator((UnaryOperationExpression<S, ?, ?>)expression, arg);
         } else if (expression instanceof BinaryOperationExpression) {
@@ -15,6 +15,8 @@ public abstract class ExpressionVisitor<_T, _R> {
             return visitConstant((ConstantExpression<S, ?>)expression, arg);
         } else if (expression instanceof ComposedExpression) {
             return visitComposition((ComposedExpression<S, ?, ?>)expression, arg);
+        } else if (expression instanceof ArgumentExpression) {
+            return visitArgument((ArgumentExpression<S, ?>)expression, arg);
         } else {
             return visitOther((ObjectExpression<S, ?>)expression, arg);
         }
@@ -35,7 +37,7 @@ public abstract class ExpressionVisitor<_T, _R> {
         return reduceUnary(constantExpression.type(), visitConstant(constantExpression.value(), arg));
     }
 
-    protected <S, T, B extends BuilderPrototype<T, B>, V> _R visitProperty(PropertyExpression<S, T, B, V> expression, _T arg) {
+    protected <S, T, V> _R visitProperty(PropertyExpression<S, T, V> expression, _T arg) {
         return reduceBinary(expression.type(), visit(expression.target(), arg), visitProperty(expression.property(), arg));
     }
 
@@ -47,6 +49,11 @@ public abstract class ExpressionVisitor<_T, _R> {
         return reduceUnary(expression.type(), visit(expression.operand(), arg));
     }
 
-    protected abstract <T, B extends BuilderPrototype<T, B>, V> _R visitProperty(PropertyMeta<T, B, V> propertyMeta, _T arg);
+    protected <S, T> _R visitArgument(ArgumentExpression<S, T> expression, _T arg) {
+        return visitArgument(expression.argType(), arg);
+    }
+
+    protected abstract <T, V> _R visitProperty(PropertyMeta<T, V> propertyMeta, _T arg);
     protected abstract <V> _R visitConstant(V value, _T arg);
+    protected abstract <T> _R visitArgument(TypeToken<T> argType, _T arg);
 }
