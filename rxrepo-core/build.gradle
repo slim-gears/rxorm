@@ -1,0 +1,20 @@
+dependencies {
+    implementation libs.slimAutoValueUtilsAnnotations
+    implementation libs.autoValueAnnotations
+    implementation libs.rxJava
+    implementation libs.jsr305
+    implementation libs.jacksonAnnotations, libs.jacksonDataBind
+    implementation libs.guava
+    implementation libs.slimReflectUtils
+    annotationProcessor libs.autoValue
+    annotationProcessor libs.slimAutoValueUtils
+
+    implementation libs.slimReflectUtils
+    implementation libs.jacksonAnnotations, libs.jacksonDataBind
+    annotationProcessor libs.autoService, libs.autoValue
+    compileOnly libs.autoService
+    implementation libs.autoValueAnnotations
+
+    testAnnotationProcessor libs.autoValue
+    testAnnotationProcessor libs.slimAutoValueUtils
+}

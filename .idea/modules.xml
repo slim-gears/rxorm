@@ -2,17 +2,16 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.slimgears.rxorm.rxorm.iml" filepath="$PROJECT_DIR$/.idea/modules/com.slimgears.rxorm.rxorm.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.slimgears.rxorm.rxorm-apt.iml" filepath="$PROJECT_DIR$/.idea/modules/com.slimgears.rxorm.rxorm-apt.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-apt/com.slimgears.rxorm.rxorm-apt.main.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-apt/com.slimgears.rxorm.rxorm-apt.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-apt/com.slimgears.rxorm.rxorm-apt.test.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-apt/com.slimgears.rxorm.rxorm-apt.test.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.apt.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.apt.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.main.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.test.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-core/com.slimgears.rxorm.rxorm-core.test.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.slimgears.rxorm.rxorm-orientdb.iml" filepath="$PROJECT_DIR$/.idea/modules/com.slimgears.rxorm.rxorm-orientdb.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-orientdb/com.slimgears.rxorm.rxorm-orientdb.main.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-orientdb/com.slimgears.rxorm.rxorm-orientdb.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxorm-orientdb/com.slimgears.rxorm.rxorm-orientdb.test.iml" filepath="$PROJECT_DIR$/.idea/modules/rxorm-orientdb/com.slimgears.rxorm.rxorm-orientdb.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.slimgears.rxrepo.rxrepo.iml" filepath="$PROJECT_DIR$/.idea/modules/com.slimgears.rxrepo.rxrepo.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxrepo-apt/com.slimgears.rxrepo.rxrepo-apt.iml" filepath="$PROJECT_DIR$/.idea/modules/rxrepo-apt/com.slimgears.rxrepo.rxrepo-apt.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxrepo-apt/com.slimgears.rxrepo.rxrepo-apt.main.iml" filepath="$PROJECT_DIR$/.idea/modules/rxrepo-apt/com.slimgears.rxrepo.rxrepo-apt.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxrepo-apt/com.slimgears.rxrepo.rxrepo-apt.test.iml" filepath="$PROJECT_DIR$/.idea/modules/rxrepo-apt/com.slimgears.rxrepo.rxrepo-apt.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxrepo-core/com.slimgears.rxrepo.rxrepo-core.iml" filepath="$PROJECT_DIR$/.idea/modules/rxrepo-core/com.slimgears.rxrepo.rxrepo-core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxrepo-core/com.slimgears.rxrepo.rxrepo-core.main.iml" filepath="$PROJECT_DIR$/.idea/modules/rxrepo-core/com.slimgears.rxrepo.rxrepo-core.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxrepo-core/com.slimgears.rxrepo.rxrepo-core.test.iml" filepath="$PROJECT_DIR$/.idea/modules/rxrepo-core/com.slimgears.rxrepo.rxrepo-core.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxrepo-orientdb/com.slimgears.rxrepo.rxrepo-orientdb.iml" filepath="$PROJECT_DIR$/.idea/modules/rxrepo-orientdb/com.slimgears.rxrepo.rxrepo-orientdb.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxrepo-orientdb/com.slimgears.rxrepo.rxrepo-orientdb.main.iml" filepath="$PROJECT_DIR$/.idea/modules/rxrepo-orientdb/com.slimgears.rxrepo.rxrepo-orientdb.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rxrepo-orientdb/com.slimgears.rxrepo.rxrepo-orientdb.test.iml" filepath="$PROJECT_DIR$/.idea/modules/rxrepo-orientdb/com.slimgears.rxrepo.rxrepo-orientdb.test.iml" />
     </modules>
   </component>
 </project>

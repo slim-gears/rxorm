@@ -12,6 +12,13 @@
       <module name="com.slimgears.rxorm.rxorm-core.test" target="1.8" />
       <module name="com.slimgears.rxorm.rxorm-orientdb.main" target="1.8" />
       <module name="com.slimgears.rxorm.rxorm-orientdb.test" target="1.8" />
+      <module name="com.slimgears.rxrepo.rxrepo-apt.main" target="1.8" />
+      <module name="com.slimgears.rxrepo.rxrepo-apt.test" target="1.8" />
+      <module name="com.slimgears.rxrepo.rxrepo-core.apt" target="1.8" />
+      <module name="com.slimgears.rxrepo.rxrepo-core.main" target="1.8" />
+      <module name="com.slimgears.rxrepo.rxrepo-core.test" target="1.8" />
+      <module name="com.slimgears.rxrepo.rxrepo-orientdb.main" target="1.8" />
+      <module name="com.slimgears.rxrepo.rxrepo-orientdb.test" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>

@@ -1,0 +1,17 @@
+dependencies {
+    implementation libs.slimAutoValueUtils
+    implementation libs.slimAptUtils
+    implementation libs.slimStreamUtils
+    implementation libs.guava
+    implementation libs.slf4j, libs.logbackClassic, libs.logbackCore
+
+    testAnnotationProcessor libs.autoValue
+    testAnnotationProcessor libs.slimAutoValueUtils
+    testAnnotationProcessor sourceSets.main.output
+
+    testImplementation libs.slimAutoValueUtilsAnnotations
+    testImplementation libs.autoValueAnnotations
+    testImplementation libs.rxJava
+    testImplementation project(':rxrepo-core')
+    testImplementation libs.jacksonAnnotations, libs.jacksonDataBind
+}

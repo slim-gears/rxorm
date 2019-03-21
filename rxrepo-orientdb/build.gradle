@@ -1,0 +1,20 @@
+dependencies {
+    implementation project(':rxrepo-core')
+    implementation libs.rxJava
+    implementation libs.slimAutoValueUtilsAnnotations
+    implementation libs.slimRxUtils
+    implementation libs.orientDbCore, libs.orientDbClient, libs.orientDbServer, libs.orientDbTools, libs.orientDbLucene, libs.orientDbStudio
+    implementation libs.javaxAnnotationApi
+    implementation libs.javaxInject
+    implementation libs.guava;
+    implementation libs.autoValueAnnotations
+    annotationProcessor libs.autoValue
+
+    testAnnotationProcessor project(':rxrepo-apt')
+    testAnnotationProcessor libs.autoValue
+    testAnnotationProcessor libs.slimAutoValueUtils
+    testImplementation libs.autoValueAnnotations
+    testImplementation libs.jsr305
+    testImplementation libs.jacksonAnnotations, libs.jacksonDataBind
+    testImplementation libs.slimTestUtils
+}
