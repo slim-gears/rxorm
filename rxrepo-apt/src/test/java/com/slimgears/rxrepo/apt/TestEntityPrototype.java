@@ -9,6 +9,8 @@ import java.util.Collection;
 @AutoValuePrototype
 @AutoValueExpressions
 interface TestEntityPrototype<T extends Comparable<T>> {
+    int intNumber();
+    double doubleNumber();
     String text();
     String description();
     T value();

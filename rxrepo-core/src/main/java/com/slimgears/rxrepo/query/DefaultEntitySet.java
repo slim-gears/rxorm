@@ -113,13 +113,13 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     @Override
     public SelectQueryBuilder<K, S> query() {
         return new SelectQueryBuilder<K, S>() {
-            private final ImmutableList.Builder<SortingInfo<S, S, ?>> sortingInfos = ImmutableList.builder();
+            private final ImmutableList.Builder<SortingInfo<S, ?, ?>> sortingInfos = ImmutableList.builder();
             private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
             private Long limit;
             private Long skip;
 
             @Override
-            public <V> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field, boolean ascending) {
+            public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field, boolean ascending) {
                 sortingInfos.add(SortingInfo.create(ascending, field));
                 return this;
             }

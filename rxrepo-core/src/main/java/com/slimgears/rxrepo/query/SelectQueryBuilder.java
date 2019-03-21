@@ -6,10 +6,14 @@ import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 
 public interface SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
     extends QueryBuilder<SelectQueryBuilder<K, S>, K, S> {
-    <V> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field, boolean ascending);
+    <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field, boolean ascending);
 
-    default <V> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field) {
+    default <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field) {
         return orderBy(field, true);
+    }
+
+    default <V extends Comparable<V>> SelectQueryBuilder<K, S> orderByDescending(PropertyExpression<S, S, V> field) {
+        return orderBy(field, false);
     }
 
     SelectQuery<S> select();

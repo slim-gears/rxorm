@@ -10,11 +10,9 @@ import java.util.Collection;
 @AutoValuePrototype
 @AutoValueExpressions
 public interface TestEntityPrototype {
-    @Key
-    TestKey key();
+    @Key TestKey key();
     String text();
     int number();
-    @Reference
-    TestRefEntity refEntity();
+    @Reference TestRefEntity refEntity();
     Collection<TestRefEntity> refEntities();
 }

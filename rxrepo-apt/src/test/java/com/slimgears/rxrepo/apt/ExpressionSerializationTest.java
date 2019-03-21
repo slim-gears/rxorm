@@ -21,7 +21,7 @@ public class ExpressionSerializationTest {
 
     @Test
     public void testSerialization() throws IOException {
-        ObjectExpression<TestEntity, ?> intExpression =
+        ObjectExpression<TestEntity<?>, ?> intExpression =
                 TestEntity.$.text
                 .concat(TestEntity.$.description)
                 .length()
@@ -35,7 +35,7 @@ public class ExpressionSerializationTest {
         Assert.assertNotNull(deserializedExpression);
         Assert.assertEquals(objectMapper.writeValueAsString(intExpression), objectMapper.writeValueAsString(deserializedExpression));
 
-        BooleanExpression<TestEntity> expression = BooleanExpression.and(
+        BooleanExpression<TestEntity<?>> expression = BooleanExpression.and(
                 TestEntity.$.text.eq("5"),
                 TestEntity.$.referencedEntity.description.eq("22"),
                 TestEntity.$.referencedEntity.text.startsWith("3"));
