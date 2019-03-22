@@ -15,21 +15,21 @@ public class QueriesTest {
         QueryInfo<TestKey, TestEntity, TestEntity> queryInfo = QueryInfo.<TestKey, TestEntity, TestEntity>builder()
                 .metaClass(TestEntity.metaClass)
                 .predicate(TestEntity.$.text.contains("y 5")
-                        .and(TestEntity.$.number.betweenExclusive(10, 124))
+                        .and(TestEntity.$.number.betweenExclusive(10, 624))
                         .and(TestEntity.$.refEntity.id.lessOrEq(8)))
-                .skip(3L)
-                .limit(5L)
-                .sortDescending(TestEntity.$.text)
                 .sortAscending(TestEntity.$.refEntity.id)
+                .sortDescending(TestEntity.$.text)
+                .skip(3L)
+                .limit(12L)
                 .build();
 
-        List<TestEntity> stringList = createTestEntities(1000)
+        List<TestEntity> list = createTestEntities(1000)
                 .compose(Queries.applyQuery(queryInfo))
-                .doOnNext(System.out::println)
                 .toList()
                 .blockingGet();
 
-        Assert.assertEquals(5, stringList.size());
+        Assert.assertEquals(12, list.size());
+        Assert.assertEquals(530, list.get(3).number());
     }
 
     private static Observable<TestEntity> createTestEntities(int count) {
