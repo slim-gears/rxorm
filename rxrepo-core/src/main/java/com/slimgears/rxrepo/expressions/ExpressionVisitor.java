@@ -34,7 +34,7 @@ public abstract class ExpressionVisitor<_T, _R> {
     }
 
     protected <S, T> _R visitConstant(ConstantExpression<S, T> constantExpression, _T arg) {
-        return reduceUnary(constantExpression.type(), visitConstant(constantExpression.value(), arg));
+        return visitConstant(constantExpression.type(), constantExpression.value(), arg);
     }
 
     protected <S, T, V> _R visitProperty(PropertyExpression<S, T, V> expression, _T arg) {
@@ -54,6 +54,6 @@ public abstract class ExpressionVisitor<_T, _R> {
     }
 
     protected abstract <T, V> _R visitProperty(PropertyMeta<T, V> propertyMeta, _T arg);
-    protected abstract <V> _R visitConstant(V value, _T arg);
+    protected abstract <V> _R visitConstant(Expression.Type type, V value, _T arg);
     protected abstract <T> _R visitArgument(TypeToken<T> argType, _T arg);
 }

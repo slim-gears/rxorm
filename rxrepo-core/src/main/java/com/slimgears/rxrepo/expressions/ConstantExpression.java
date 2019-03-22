@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.expressions;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.slimgears.rxrepo.expressions.internal.BooleanConstantExpression;
 import com.slimgears.rxrepo.expressions.internal.CollectionConstantExpression;
+import com.slimgears.rxrepo.expressions.internal.NullConstantExpression;
 import com.slimgears.rxrepo.expressions.internal.NumericConstantExpression;
 import com.slimgears.rxrepo.expressions.internal.ObjectConstantExpression;
 import com.slimgears.rxrepo.expressions.internal.StringConstantExpression;
@@ -18,6 +19,10 @@ public interface ConstantExpression<S, T> extends ObjectExpression<S, T> {
     default TypeToken<T> objectType() {
         //noinspection unchecked
         return TypeToken.of((Class<T>)value().getClass());
+    }
+
+    static <S, V> ConstantExpression<S, V> ofNull(TypeToken<V> type) {
+        return NullConstantExpression.create(Type.NullConstant, type);
     }
 
     static <S, V> ConstantExpression<S, V> of(@Nonnull V value) {

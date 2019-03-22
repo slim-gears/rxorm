@@ -128,7 +128,7 @@ public class Expressions {
         }
 
         @Override
-        protected <V> Function visitConstant(V value, Void arg) {
+        protected <V> Function visitConstant(Expression.Type type, V value, Void arg) {
             return a -> value;
         }
 

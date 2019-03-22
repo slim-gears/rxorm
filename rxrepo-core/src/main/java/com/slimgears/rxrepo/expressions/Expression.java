@@ -20,7 +20,8 @@ public interface Expression<S> {
         Comparable,
         Numeric,
         String,
-        Collection
+        Collection,
+        Null
     }
 
     enum OperationType {
@@ -76,6 +77,7 @@ public interface Expression<S> {
         StringConstant(StringConstantExpression.class, OperationType.Constant, ValueType.String, Type::fromConstant),
         BooleanConstant(BooleanConstantExpression.class, OperationType.Constant, ValueType.Boolean, Type::fromConstant),
         CollectionConstant(CollectionConstantExpression.class, OperationType.Constant, ValueType.Collection, Type::fromConstant),
+        NullConstant(ConstantExpression.class, OperationType.Constant, ValueType.Null, Type::overridden),
 
         Composition(ObjectComposedExpression.class, OperationType.Composition, ValueType.Object, Type::fromComposition),
         ComparableComposition(ComparableComposedExpression.class, OperationType.Composition, ValueType.Comparable, Type::fromComposition),
@@ -168,10 +170,12 @@ public interface Expression<S> {
 
         private static <S, T> TypeToken<? extends T> fromConstant(ObjectExpression<S, T> exp) {
             //noinspection unchecked
-            Class<T> cls = (Class<T>)requireInstanceOf(exp, new TypeToken<ConstantExpression<S, T>>(){})
-                    .value()
-                    .getClass();
-            return TypeToken.of(cls);
+            return Optional.of(requireInstanceOf(exp, new TypeToken<ConstantExpression<S, T>>(){}))
+                    .map(ConstantExpression::value)
+                    .map(Object::getClass)
+                    .map(cls -> (Class<? extends T>)cls)
+                    .map(TypeToken::of)
+                    .orElse(null);
         }
 
         private static <S, T> TypeToken<? extends T> fromComposition(ObjectExpression<S, T> exp) {
