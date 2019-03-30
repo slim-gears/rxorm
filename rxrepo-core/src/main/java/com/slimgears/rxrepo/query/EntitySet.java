@@ -9,7 +9,6 @@ import io.reactivex.Observable;
 import io.reactivex.Single;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
@@ -17,12 +16,13 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
     EntityDeleteQuery<K, S> delete();
     EntityUpdateQuery<K, S> update();
     SelectQueryBuilder<K, S> query();
+    Single<S> update(S entity);
 
-    default Single<S> update(S entity) {
-        return update(Collections.singleton(entity)).map(l -> l.get(0));
+    default Single<List<S>> update(Iterable<S> entities) {
+        return Observable.fromIterable(entities)
+                .flatMapSingle(this::update)
+                .toList();
     }
-
-    Single<List<S>> update(Iterable<S> entities);
 
     default Observable<S> update(Observable<S> entities) {
         return entities.flatMapSingle(this::update);

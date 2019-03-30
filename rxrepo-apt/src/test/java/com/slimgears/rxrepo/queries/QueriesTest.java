@@ -1,6 +1,6 @@
 package com.slimgears.rxrepo.queries;
 
-import com.slimgears.rxrepo.query.QueryInfo;
+import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.util.Queries;
 import io.reactivex.Observable;
 import org.junit.Assert;
@@ -19,8 +19,8 @@ public class QueriesTest {
                         .and(TestEntity.$.refEntity.id.lessOrEq(8)))
                 .sortAscending(TestEntity.$.refEntity.id)
                 .sortDescending(TestEntity.$.text)
-                .skip(3L)
-                .limit(12L)
+                .skip(3)
+                .limit(12)
                 .build();
 
         List<TestEntity> list = createTestEntities(1000)

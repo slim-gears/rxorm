@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -25,7 +26,8 @@ public class PropertyResolvers {
         Streams.fromIterable(resolver.propertyNames())
                 .map(metaClass::getProperty)
                 .filter(Objects::nonNull)
-                .forEach(p -> p.setValue(builder, toValue(p.type(), resolver.getProperty(p.name(), p.type().asClass()))));
+                .flatMap(PropertyValue.toValue(resolver))
+                .forEach(pv -> pv.set(builder));
         return builder.build();
     }
 
@@ -144,5 +146,28 @@ public class PropertyResolvers {
                 .filter(args -> args.length > index)
                 .map(args -> (TypeToken<R>)args[index])
                 .orElse(null);
+    }
+
+    private static class PropertyValue<T, V> {
+        final PropertyMeta<T, V> property;
+        final V value;
+
+        void set(MetaBuilder<T> builder) {
+            property.setValue(builder, value);
+        }
+
+        private PropertyValue(PropertyMeta<T, V> property, V value) {
+            this.property = property;
+            this.value = value;
+        }
+
+        static <T, V> Function<PropertyMeta<T, V>, Stream<PropertyValue<T, V>>> toValue(PropertyResolver resolver) {
+            return prop -> {
+                V value = resolver.getProperty(prop);
+                return value != null
+                        ? Stream.of(new PropertyValue<>(prop, value))
+                        : Stream.empty();
+            };
+        }
     }
 }

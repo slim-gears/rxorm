@@ -1,0 +1,14 @@
+dependencies {
+    implementation project(':rxrepo-core')
+    implementation libs.slimAutoValueUtilsAnnotations
+    implementation libs.rxJava
+    implementation libs.guava
+
+    testImplementation libs.slimAutoValueUtilsAnnotations
+    testImplementation libs.autoValueAnnotations
+    testImplementation libs.jsr305
+    testImplementation libs.jacksonAnnotations, libs.jacksonDataBind
+    testAnnotationProcessor libs.slimAutoValueUtils
+    testAnnotationProcessor libs.autoValue
+    testAnnotationProcessor project(':rxrepo-apt')
+}

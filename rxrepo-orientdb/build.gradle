@@ -1,8 +1,9 @@
 dependencies {
     implementation project(':rxrepo-core')
+    implementation project(':rxrepo-sql-core')
     implementation libs.rxJava
     implementation libs.slimAutoValueUtilsAnnotations
-    implementation libs.slimRxUtils
+    implementation libs.slimRxUtils, libs.slimGenericUtils
     implementation libs.orientDbCore, libs.orientDbClient, libs.orientDbServer, libs.orientDbTools, libs.orientDbLucene, libs.orientDbStudio
     implementation libs.javaxAnnotationApi
     implementation libs.javaxInject

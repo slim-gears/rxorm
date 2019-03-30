@@ -12,8 +12,11 @@ public interface PropertyResolver {
     <K> K getKey(Class<K> keyClass);
 
     default <V> V getProperty(PropertyMeta<?, V> propertyMeta) {
+        Object value = getProperty(propertyMeta.name(), propertyMeta.type().asClass());
         //noinspection unchecked
-        return (V)getProperty(propertyMeta.name(), propertyMeta.type().asClass());
+        return (value instanceof PropertyResolver)
+                ? ((PropertyResolver)value).toObject(propertyMeta.type())
+                : (V)value;
     }
 
     static PropertyResolver empty() {

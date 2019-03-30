@@ -12,6 +12,10 @@ import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.EntitySet;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.sql.DefaultSqlExpressionGenerator;
+import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
+import com.slimgears.rxrepo.sql.SqlServiceFactory;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.UseLogLevel;
 import io.reactivex.observers.TestObserver;
@@ -27,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -35,6 +40,7 @@ import java.util.stream.IntStream;
 public class OrientDbQueryProviderTest {
     private static final String dbName = "testDb";
     private static OServer server;
+    private QueryProvider queryProvider;
     private Repository repository;
     private OrientDB dbClient;
 
@@ -53,8 +59,17 @@ public class OrientDbQueryProviderTest {
     public void setUp() {
         dbClient = new OrientDB("embedded:testDbServer", OrientDBConfig.defaultConfig());
         dbClient.create(dbName, ODatabaseType.MEMORY);
-        Provider<ODatabaseSession> sessionProvider = () -> dbClient.open(dbName, "admin", "admin");
-        OrientDbQueryProvider queryProvider = new OrientDbQueryProvider(sessionProvider);
+        OrientDbSessionProvider sessionProvider = new OrientDbSessionProvider(() -> dbClient.open(dbName, "admin", "admin"));
+
+        queryProvider = SqlServiceFactory.builder()
+                .schemaProvider(() -> new OrientDbSchemaProvider(sessionProvider))
+                .statementExecutor(() -> new OrientDbStatementExecutor(sessionProvider))
+                .expressionGenerator(DefaultSqlExpressionGenerator::new)
+                .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.schemaProvider()))
+                .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
+                .build()
+                .queryProvider();
+
         repository = Repository.fromProvider(queryProvider);
     }
 
@@ -88,21 +103,27 @@ public class OrientDbQueryProviderTest {
 
         productSet.update(createProducts(1000))
                 .test()
-                .await();
+                .await()
+                .assertNoErrors();
 
         productUpdatesTest
                 .awaitCount(1000);
 
         productSet.delete().where(Product.$.id.betweenExclusive(100, 130))
                 .execute()
-                .subscribe();
+                .test()
+                .await()
+                .assertNoErrors()
+                .assertValue(29);
 
         productUpdatesTest
                 .awaitCount(1029)
-                .assertValueAt(1028, Notification::isDelete);
+                .assertValueAt(1028, Notification::isDelete)
+                .assertNoErrors();
 
         productCount
-                .awaitCount(1029);
+                .awaitCount(1029)
+                .assertNoErrors();
     }
 
     @Test
@@ -116,8 +137,8 @@ public class OrientDbQueryProviderTest {
                                 .price(1001)
                                 .inventory(Inventory
                                         .builder()
-                                        .id(1)
-                                        .name("Inventory 1")
+                                        .id(2)
+                                        .name("Inventory 2")
                                         .build())
                                 .build(),
                         Product.builder()
@@ -126,13 +147,17 @@ public class OrientDbQueryProviderTest {
                                 .price(1002)
                                 .inventory(Inventory
                                         .builder()
-                                        .id(1)
-                                        .name("Inventory 1")
+                                        .id(2)
+                                        .name("Inventory 2")
                                         .build())
                                 .build()
                 ))
                 .test()
-                .await();
+                .await()
+                .assertValueCount(1)
+                .assertValueAt(0, items -> items.size() == 2)
+                .assertValueAt(0, items -> items.get(0).name().equals("Product 1"))
+                .assertValueAt(0, items -> items.get(1).name().equals("Product 2"));
     }
 
     @Test
@@ -172,6 +197,7 @@ public class OrientDbQueryProviderTest {
                 .retrieve(Product.$.id, Product.$.price, Product.$.inventory.id, Product.$.inventory.name)
                 .test()
                 .await()
+                .assertNoErrors()
                 .assertValue(p -> p.name() == null)
                 .assertValue(p -> p.id() == 231)
                 .assertValue(p -> p.price() == 110)

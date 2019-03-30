@@ -1,6 +1,8 @@
 package com.slimgears.rxrepo.query;
 
 import javax.annotation.Nullable;
+import java.util.Optional;
+import java.util.function.Function;
 
 public interface Notification<T> {
     @Nullable T oldObject();
@@ -16,6 +18,12 @@ public interface Notification<T> {
 
     default boolean isCreate() {
         return oldObject() == null && newObject() != null;
+    }
+
+    default <R> Notification<R> map(Function<T, R> mapper) {
+        return Notification.ofModified(
+                Optional.ofNullable(oldObject()).map(mapper).orElse(null),
+                Optional.ofNullable(newObject()).map(mapper).orElse(null));
     }
 
     static <T> Notification<T> ofCreated(T object) {

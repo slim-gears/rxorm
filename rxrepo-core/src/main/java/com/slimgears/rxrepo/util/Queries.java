@@ -1,12 +1,11 @@
 package com.slimgears.rxrepo.util;
 
-import com.slimgears.rxrepo.expressions.Expression;
-import com.slimgears.rxrepo.query.HasMapping;
-import com.slimgears.rxrepo.query.HasPagination;
-import com.slimgears.rxrepo.query.HasPredicate;
-import com.slimgears.rxrepo.query.HasSortingInfo;
-import com.slimgears.rxrepo.query.QueryInfo;
-import com.slimgears.rxrepo.query.SortingInfo;
+import com.slimgears.rxrepo.query.provider.HasMapping;
+import com.slimgears.rxrepo.query.provider.HasPagination;
+import com.slimgears.rxrepo.query.provider.HasPredicate;
+import com.slimgears.rxrepo.query.provider.HasSortingInfo;
+import com.slimgears.rxrepo.query.provider.QueryInfo;
+import com.slimgears.rxrepo.query.provider.SortingInfo;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.ObservableTransformer;
 

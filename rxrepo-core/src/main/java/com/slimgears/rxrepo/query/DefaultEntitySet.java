@@ -6,10 +6,17 @@ import com.slimgears.rxrepo.expressions.BooleanExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
+import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
+import com.slimgears.rxrepo.query.provider.CollectionPropertyUpdateInfo;
+import com.slimgears.rxrepo.query.provider.DeleteInfo;
+import com.slimgears.rxrepo.query.provider.PropertyUpdateInfo;
+import com.slimgears.rxrepo.query.provider.QueryInfo;
+import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.query.provider.SortingInfo;
+import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
@@ -44,7 +51,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             private final DeleteInfo.Builder<K, S> builder = DeleteInfo.builder();
 
             @Override
-            public Completable execute() {
+            public Single<Integer> execute() {
                 return queryProvider.delete(builder
                         .metaClass(metaClass)
                         .predicate(predicate.get())
@@ -58,14 +65,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public EntityDeleteQuery<K, S> limit(long limit) {
+            public EntityDeleteQuery<K, S> limit(int limit) {
                 builder.limit(limit);
-                return this;
-            }
-
-            @Override
-            public EntityDeleteQuery<K, S> skip(long skip) {
-                builder.skip(skip);
                 return this;
             }
         };
@@ -84,6 +85,16 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
+            public <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> add(CollectionPropertyExpression<S, T, V> property, ObjectExpression<S, V> item) {
+                return collectionOperation(property, item, CollectionPropertyUpdateInfo.Operation.Add);
+            }
+
+            @Override
+            public <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> remove(CollectionPropertyExpression<S, T, V> property, ObjectExpression<S, V> item) {
+                return collectionOperation(property, item, CollectionPropertyUpdateInfo.Operation.Remove);
+            }
+
+            @Override
             public Observable<S> execute() {
                 return queryProvider.update(builder
                         .predicate(predicate.get())
@@ -97,14 +108,14 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public EntityUpdateQuery<K, S> limit(long limit) {
+            public EntityUpdateQuery<K, S> limit(int limit) {
                 builder.limit(limit);
                 return this;
             }
 
-            @Override
-            public EntityUpdateQuery<K, S> skip(long skip) {
-                builder.skip(skip);
+            private <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> collectionOperation(CollectionPropertyExpression<S, T, V> property, ObjectExpression<S, V> item, CollectionPropertyUpdateInfo.Operation operation) {
+                builder.collectionPropertyUpdatesBuilder()
+                        .add(CollectionPropertyUpdateInfo.create(property, item, CollectionPropertyUpdateInfo.Operation.Add));
                 return this;
             }
         };
@@ -115,8 +126,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
         return new SelectQueryBuilder<K, S>() {
             private final ImmutableList.Builder<SortingInfo<S, ?, ?>> sortingInfos = ImmutableList.builder();
             private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
-            private Long limit;
-            private Long skip;
+            private Integer limit;
+            private Integer skip;
 
             @Override
             public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field, boolean ascending) {
@@ -142,7 +153,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
                     @Override
                     public Maybe<T> first() {
-                        QueryInfo<K, S, T> query = builder.limit(1L).build();
+                        QueryInfo<K, S, T> query = builder.limit(1).build();
                         return queryProvider
                                 .query(query)
                                 .singleElement();
@@ -180,7 +191,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
                     @Override
                     public Observable<T> first() {
-                        QueryInfo<K, S, T> query = builder.limit(1L).build();
+                        QueryInfo<K, S, T> query = builder.limit(1).build();
                         return queryProvider
                                 .liveQuery(query)
                                 .flatMapMaybe(n -> queryProvider.query(query).singleElement());
@@ -223,13 +234,13 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public SelectQueryBuilder<K, S> limit(long limit) {
+            public SelectQueryBuilder<K, S> limit(int limit) {
                 this.limit = limit;
                 return this;
             }
 
             @Override
-            public SelectQueryBuilder<K, S> skip(long skip) {
+            public SelectQueryBuilder<K, S> skip(int skip) {
                 this.skip = skip;
                 return this;
             }
@@ -237,7 +248,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     }
 
     @Override
-    public Single<List<S>> update(Iterable<S> entities) {
-        return queryProvider.update(metaClass, entities);
+    public Single<S> update(S entity) {
+        return queryProvider.insertOrUpdate(entity);
     }
 }

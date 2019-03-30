@@ -1,7 +1,7 @@
 package com.slimgears.rxrepo.queries;
 
 import com.slimgears.rxrepo.query.DefaultRepository;
-import com.slimgears.rxrepo.query.QueryProvider;
+import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.query.Repository;
 import org.junit.Before;
 import org.junit.Test;

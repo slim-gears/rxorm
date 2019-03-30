@@ -1,6 +1,6 @@
 package com.slimgears.rxrepo.orientdb;
 
-import com.orientechnologies.orient.core.db.ODatabaseSession;
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.stream.Lazy;
@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.*;
 
@@ -20,11 +21,11 @@ public class OResultPropertyResolver extends AbstractOrientPropertyResolver {
     private final Lazy<Iterable<String>> propertyNames;
     private final Map<String, PropertyResolver> resolvers = new HashMap<>();
 
-    private OResultPropertyResolver(ODatabaseSession dbSession, OResult oResult) {
+    private OResultPropertyResolver(Supplier<ODatabaseDocument> dbSession, OResult oResult) {
         this(dbSession, oResult, "");
     }
 
-    private OResultPropertyResolver(ODatabaseSession dbSession, OResult oResult, String prefix) {
+    private OResultPropertyResolver(Supplier<ODatabaseDocument> dbSession, OResult oResult, String prefix) {
         super(dbSession);
         this.oResult = oResult;
         this.prefix = prefix;
@@ -49,7 +50,7 @@ public class OResultPropertyResolver extends AbstractOrientPropertyResolver {
                 .orElseGet(() -> oResult.getProperty(prefix + name));
     }
 
-    public static PropertyResolver create(ODatabaseSession dbSession, OResult oResult) {
+    public static PropertyResolver create(Supplier<ODatabaseDocument> dbSession, OResult oResult) {
         return Optional.ofNullable(oResult)
                 .map(or -> new OResultPropertyResolver(dbSession, or))
                 .orElse(null);

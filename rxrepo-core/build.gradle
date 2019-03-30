@@ -9,7 +9,7 @@ dependencies {
     annotationProcessor libs.autoValue
     annotationProcessor libs.slimAutoValueUtils
 
-    implementation libs.slimReflectUtils
+    implementation libs.slimReflectUtils, libs.slimGenericUtils
     implementation libs.jacksonAnnotations, libs.jacksonDataBind
     annotationProcessor libs.autoService, libs.autoValue
     compileOnly libs.autoService
