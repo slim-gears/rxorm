@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.util;
 
+import com.slimgears.util.autovalue.annotations.BuilderPrototype;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaBuilder;
 import com.slimgears.util.autovalue.annotations.MetaClass;
@@ -22,7 +23,7 @@ import static com.slimgears.util.stream.Optionals.ofType;
 
 public class PropertyResolvers {
     public static <T extends HasMetaClass<T>> T toObject(PropertyResolver resolver, MetaClass<T> metaClass) {
-        MetaBuilder<T> builder = metaClass.createBuilder();
+        BuilderPrototype<T, ?> builder = metaClass.createBuilder();
         Streams.fromIterable(resolver.propertyNames())
                 .map(metaClass::getProperty)
                 .filter(Objects::nonNull)

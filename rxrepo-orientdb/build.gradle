@@ -9,6 +9,7 @@ dependencies {
     implementation libs.javaxInject
     implementation libs.guava;
     implementation libs.autoValueAnnotations
+    implementation libs.jacksonAnnotations, libs.jacksonDataBind
     annotationProcessor libs.autoValue
 
     testAnnotationProcessor project(':rxrepo-apt')
@@ -16,6 +17,5 @@ dependencies {
     testAnnotationProcessor libs.slimAutoValueUtils
     testImplementation libs.autoValueAnnotations
     testImplementation libs.jsr305
-    testImplementation libs.jacksonAnnotations, libs.jacksonDataBind
     testImplementation libs.slimTestUtils
 }

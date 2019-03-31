@@ -15,7 +15,7 @@ import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Collection;
 
-public interface ObjectExpression<S, T> extends Expression<S> {
+public interface ObjectExpression<S, T> extends Expression {
     default @JsonIgnore TypeToken<? extends T> objectType() {
         return type().resolveType(this);
     }

@@ -11,7 +11,7 @@ import java.util.function.Function;
 
 @JsonTypeIdResolver(ExpressionTypeResolver.class)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CUSTOM, property = "type", visible = true)
-public interface Expression<S> {
+public interface Expression {
     Type type();
 
     enum ValueType {

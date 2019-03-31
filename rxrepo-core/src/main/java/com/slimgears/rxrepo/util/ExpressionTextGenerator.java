@@ -214,7 +214,7 @@ public class ExpressionTextGenerator {
 
     class Visitor extends ExpressionVisitor<String, String> {
         @Override
-        public <S> String visit(Expression<S> expression, String arg) {
+        public String visit(Expression expression, String arg) {
             String visitedStr = super.visit(expression, arg);
             return Optional.of(expression)
                     .flatMap(ofType(ObjectExpression.class))

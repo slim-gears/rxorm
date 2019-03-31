@@ -40,7 +40,6 @@ import java.util.stream.IntStream;
 public class OrientDbQueryProviderTest {
     private static final String dbName = "testDb";
     private static OServer server;
-    private QueryProvider queryProvider;
     private Repository repository;
     private OrientDB dbClient;
 
@@ -61,7 +60,7 @@ public class OrientDbQueryProviderTest {
         dbClient.create(dbName, ODatabaseType.MEMORY);
         OrientDbSessionProvider sessionProvider = new OrientDbSessionProvider(() -> dbClient.open(dbName, "admin", "admin"));
 
-        queryProvider = SqlServiceFactory.builder()
+        QueryProvider queryProvider = SqlServiceFactory.builder()
                 .schemaProvider(() -> new OrientDbSchemaProvider(sessionProvider))
                 .statementExecutor(() -> new OrientDbStatementExecutor(sessionProvider))
                 .expressionGenerator(OrientDbSqlExpressionGenerator::new)

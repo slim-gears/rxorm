@@ -4,21 +4,21 @@ import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 
 public abstract class ExpressionVisitor<_T, _R> {
-    public <S> _R visit(Expression<S> expression, _T arg) {
+    public _R visit(Expression expression, _T arg) {
         if (expression instanceof PropertyExpression) {
-            return visitProperty((PropertyExpression<S, ?, ?>)expression, arg);
+            return visitProperty((PropertyExpression<?, ?, ?>)expression, arg);
         } else if (expression instanceof UnaryOperationExpression) {
-            return visitUnaryOperator((UnaryOperationExpression<S, ?, ?>)expression, arg);
+            return visitUnaryOperator((UnaryOperationExpression<?, ?, ?>)expression, arg);
         } else if (expression instanceof BinaryOperationExpression) {
-            return visitBinaryOperator((BinaryOperationExpression<S, ?, ?, ?>)expression, arg);
+            return visitBinaryOperator((BinaryOperationExpression<?, ?, ?, ?>)expression, arg);
         } else if (expression instanceof ConstantExpression) {
-            return visitConstant((ConstantExpression<S, ?>)expression, arg);
+            return visitConstant((ConstantExpression<?, ?>)expression, arg);
         } else if (expression instanceof ComposedExpression) {
-            return visitComposition((ComposedExpression<S, ?, ?>)expression, arg);
+            return visitComposition((ComposedExpression<?, ?, ?>)expression, arg);
         } else if (expression instanceof ArgumentExpression) {
-            return visitArgument((ArgumentExpression<S, ?>)expression, arg);
+            return visitArgument((ArgumentExpression<?, ?>)expression, arg);
         } else {
-            return visitOther((ObjectExpression<S, ?>)expression, arg);
+            return visitOther((ObjectExpression<?, ?>)expression, arg);
         }
     }
 
