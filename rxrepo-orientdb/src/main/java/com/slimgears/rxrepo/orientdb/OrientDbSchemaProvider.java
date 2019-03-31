@@ -1,6 +1,5 @@
 package com.slimgears.rxrepo.orientdb;
 
-import com.orientechnologies.orient.core.db.ODatabaseSession;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OProperty;
@@ -16,15 +15,15 @@ import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 public class OrientDbSchemaProvider implements SchemaProvider {
     private final Supplier<ODatabaseDocument> dbSession;
-    private final Map<String, OClass> classMap = new HashMap<>();
+    private final Map<String, OClass> classMap = new ConcurrentHashMap<>();
 
     public OrientDbSchemaProvider(Supplier<ODatabaseDocument> dbSession) {
         this.dbSession = dbSession;

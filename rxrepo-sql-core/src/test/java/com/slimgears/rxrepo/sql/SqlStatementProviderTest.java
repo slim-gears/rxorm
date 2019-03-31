@@ -110,7 +110,7 @@ public class SqlStatementProviderTest {
                 .build());
         Assert.assertEquals(
                 "update Product " +
-                        "set name = CONCAT(name, ?) " +
+                        "set name = (name + ?) " +
                         "return after " +
                         "where (name like '%' + ? + '%') " +
                         "limit 100", statement.statement());

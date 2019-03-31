@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @RunWith(AnnotationRulesJUnit.class)
-@UseLogLevel(UseLogLevel.Level.FINE)
+//@UseLogLevel(UseLogLevel.Level.FINE)
 public class OrientDbQueryProviderTest {
     private static final String dbName = "testDb";
     private static OServer server;
@@ -64,7 +64,7 @@ public class OrientDbQueryProviderTest {
         queryProvider = SqlServiceFactory.builder()
                 .schemaProvider(() -> new OrientDbSchemaProvider(sessionProvider))
                 .statementExecutor(() -> new OrientDbStatementExecutor(sessionProvider))
-                .expressionGenerator(DefaultSqlExpressionGenerator::new)
+                .expressionGenerator(OrientDbSqlExpressionGenerator::new)
                 .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.schemaProvider()))
                 .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
                 .build()
@@ -154,10 +154,11 @@ public class OrientDbQueryProviderTest {
                 ))
                 .test()
                 .await()
+                .assertNoErrors()
                 .assertValueCount(1)
                 .assertValueAt(0, items -> items.size() == 2)
-                .assertValueAt(0, items -> items.get(0).name().equals("Product 1"))
-                .assertValueAt(0, items -> items.get(1).name().equals("Product 2"));
+                .assertValueAt(0, items -> items.stream().anyMatch(p -> p.name().equals("Product 1")))
+                .assertValueAt(0, items -> items.stream().anyMatch(p -> p.name().equals("Product 2")));
     }
 
     @Test
@@ -190,6 +191,7 @@ public class OrientDbQueryProviderTest {
                 .await()
                 .assertValue(2364);
 
+        //noinspection unchecked
         productSet
                 .query()
                 .where(Product.$.name.contains("231"))
@@ -203,6 +205,33 @@ public class OrientDbQueryProviderTest {
                 .assertValue(p -> p.price() == 110)
                 .assertValue(p -> "Inventory 31".equals(p.inventory().name()))
                 .assertValueCount(1);
+    }
+
+    @Test
+    public void testInsertThenUpdate() throws InterruptedException {
+        EntitySet<Integer, Product> productSet = repository.entities(Product.metaClass);
+        Iterable<Product> products = createProducts(1000);
+        productSet
+                .update(products)
+                .test()
+                .await()
+                .assertNoErrors();
+
+        productSet
+                .update()
+//                .set(Product.$.name, Product.$.name
+//                        .concat(" - ")
+//                        .concat(Product.$.inventory.name)
+//                        .concat(" abc"))
+                .set(Product.$.name, Product.$.name.concat(" - ").concat(Product.$.inventory.name.asString()))
+                .where(Product.$.id.betweenExclusive(100, 200))
+                .limit(20)
+                .execute()
+                .test()
+                .await()
+                .assertNoErrors()
+                .assertValueCount(20)
+                .assertValueAt(15, pr -> "Product 116 - Inventory 16".equals(pr.name()));
     }
 
     private Iterable<Product> createProducts(int count) {

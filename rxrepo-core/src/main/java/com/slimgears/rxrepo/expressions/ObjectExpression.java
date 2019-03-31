@@ -10,6 +10,7 @@ import com.slimgears.rxrepo.expressions.internal.NumericPropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.ObjectArgumentExpression;
 import com.slimgears.rxrepo.expressions.internal.ObjectPropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.StringPropertyExpression;
+import com.slimgears.rxrepo.expressions.internal.StringUnaryOperationExpression;
 import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Collection;

@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.util;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ExpressionVisitor;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
@@ -134,9 +135,9 @@ public class ExpressionTextGenerator {
     }
 
     public static class Builder {
-        private final ImmutableMap.Builder<Expression.Type, Reducer> typeToReducerBuilder = ImmutableMap.builder();
-        private final ImmutableMap.Builder<Expression.OperationType, Reducer> opTypeToReducerBuilder = ImmutableMap.builder();
-        private final ImmutableMap.Builder<Expression.ValueType, Reducer> valTypeToReducerBuilder = ImmutableMap.builder();
+        private final Map<Expression.Type, Reducer> typeToReducerBuilder = Maps.newHashMap();
+        private final Map<Expression.OperationType, Reducer> opTypeToReducerBuilder = Maps.newHashMap();
+        private final Map<Expression.ValueType, Reducer> valTypeToReducerBuilder = Maps.newHashMap();
 
         public Builder add(Expression.Type type, String format) {
             return add(type, Reducer.fromFormat(format));
@@ -167,9 +168,9 @@ public class ExpressionTextGenerator {
 
         public ExpressionTextGenerator build() {
             return new ExpressionTextGenerator(
-                    typeToReducerBuilder.build(),
-                    opTypeToReducerBuilder.build(),
-                    valTypeToReducerBuilder.build());
+                    ImmutableMap.copyOf(typeToReducerBuilder),
+                    ImmutableMap.copyOf(opTypeToReducerBuilder),
+                    ImmutableMap.copyOf(valTypeToReducerBuilder));
         }
     }
 

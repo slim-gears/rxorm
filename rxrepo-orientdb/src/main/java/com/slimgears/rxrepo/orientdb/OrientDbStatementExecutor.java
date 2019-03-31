@@ -9,6 +9,7 @@ import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.reactivex.schedulers.Schedulers;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -41,7 +42,9 @@ public class OrientDbStatementExecutor implements SqlStatementExecutor {
                     logStatement("Executing command", statement);
                     return sessionProvider.get().command(statement.statement(), statement.args());
                 })
-                .doOnError(e -> log.severe(e::toString));
+                .retry(5)
+                .doOnError(e -> log.severe(e::toString))
+                .subscribeOn(Schedulers.io());
     }
 
     @Override
@@ -78,7 +81,8 @@ public class OrientDbStatementExecutor implements SqlStatementExecutor {
                             .forEach(emitter::onNext);
                     emitter.onComplete();
                 })
-                .map(res -> OResultPropertyResolver.create(sessionProvider, res));
+                .map(res -> OResultPropertyResolver.create(sessionProvider, res))
+                .subscribeOn(Schedulers.io());
     }
 
     private void logStatement(String title, SqlStatement statement) {

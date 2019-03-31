@@ -38,6 +38,7 @@ public interface Expression<S> {
         And(BooleanBinaryOperationExpression.class, OperationType.Binary, ValueType.Boolean, just(Boolean.class)),
         Or(BooleanBinaryOperationExpression.class, OperationType.Binary, ValueType.Boolean, just(Boolean.class)),
         Not(BooleanUnaryOperationExpression.class, OperationType.Unary, ValueType.Boolean, just(Boolean.class)),
+        AsString(StringUnaryOperationExpression.class, OperationType.Unary, ValueType.String, just(String.class)),
 
         Equals(BooleanBinaryOperationExpression.class, OperationType.Binary, ValueType.Boolean, just(Boolean.class)),
         IsNull(BooleanUnaryOperationExpression.class, OperationType.Unary, ValueType.Boolean, just(Boolean.class)),

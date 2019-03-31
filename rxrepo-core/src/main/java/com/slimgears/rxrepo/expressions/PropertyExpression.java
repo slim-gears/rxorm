@@ -7,6 +7,7 @@ import com.slimgears.rxrepo.expressions.internal.ComparablePropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.NumericPropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.ObjectPropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.StringPropertyExpression;
+import com.slimgears.rxrepo.expressions.internal.StringUnaryOperationExpression;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 
@@ -20,6 +21,10 @@ public interface PropertyExpression<S, T, V> extends ObjectExpression<S, V> {
 
     @JsonProperty ObjectExpression<S, T> target();
     @JsonProperty PropertyMeta<T, ? extends V> property();
+
+    default StringExpression<S> asString() {
+        return StringUnaryOperationExpression.create(Type.AsString, this);
+    }
 
     static <S, T, V> ObjectPropertyExpression<S, T, V> ofObject(ObjectExpression<S, T> target, PropertyMeta<T, ? extends V> property) {
         return ObjectPropertyExpression.create(Type.Property, target, property);

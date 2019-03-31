@@ -22,4 +22,9 @@ public interface LiveSelectQuery<T> {
     Observable<List<? extends T>> toList();
     <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Observable<R> aggregate(Aggregator<T, T, R, E> aggregator);
     Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties);
+
+    default Observable<Notification<T>> observe() {
+        //noinspection unchecked
+        return observe(new PropertyExpression[0]);
+    }
 }

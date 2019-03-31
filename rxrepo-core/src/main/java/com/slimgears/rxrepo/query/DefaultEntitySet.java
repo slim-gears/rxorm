@@ -76,7 +76,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     public EntityUpdateQuery<K, S> update() {
         return new EntityUpdateQuery<K, S>() {
             private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
-            private final UpdateInfo.Builder<K, S> builder = UpdateInfo.builder();
+            private final UpdateInfo.Builder<K, S> builder = UpdateInfo.<K, S>builder().metaClass(metaClass);
 
             @Override
             public <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> set(PropertyExpression<S, T, V> property, ObjectExpression<S, V> value) {
