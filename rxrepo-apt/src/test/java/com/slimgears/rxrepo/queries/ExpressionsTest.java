@@ -65,4 +65,16 @@ public class ExpressionsTest {
         Assert.assertEquals(Integer.valueOf(420), exp.apply(testEntity1));
         Assert.assertEquals(Integer.valueOf(520), exp.apply(testEntity2));
     }
+
+    @Test
+    public void testAsStringExpression() {
+        Function<TestEntity, String> exp = Expressions
+                .compile(TestEntity.$.number.asString()
+                        .concat(" - ")
+                        .concat(TestEntity.$.refEntity.text)
+                        .concat(" - ")
+                        .concat(TestEntity.$.text));
+        Assert.assertEquals("3 - Description 1 - Entity 1", exp.apply(testEntity1));
+        Assert.assertEquals("8 - Description 2 - Entity 2", exp.apply(testEntity2));
+    }
 }

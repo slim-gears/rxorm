@@ -64,6 +64,7 @@ public class Expressions {
 
     private static class InternalVisitor extends ExpressionVisitor<Void, Function> {
         private final static ImmutableMap<Expression.Type, Function<Function[], Function>> expressionTypeReducersMap = ImmutableMap.<Expression.Type, Function<Function[], Function>>builder()
+                .put(Expression.Type.AsString, fromUnary(Object::toString))
                 .put(Expression.Type.Add, fromNumericBinary(GenericMath::add))
                 .put(Expression.Type.Sub, fromNumericBinary(GenericMath::subtract))
                 .put(Expression.Type.Mul, fromNumericBinary(GenericMath::multiply))
