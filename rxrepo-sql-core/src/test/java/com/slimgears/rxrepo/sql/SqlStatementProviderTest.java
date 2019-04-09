@@ -82,7 +82,7 @@ public class SqlStatementProviderTest {
         SqlStatement statement = statementProvider.forInsertOrUpdate(product, referenceResolverMock);
         Assert.assertEquals(
                 "update Product " +
-                        "set id = ?, inventory = (#31:23), name = ?, price = ? " +
+                        "set id = ?, name = ?, inventory = (#31:23), price = ? " +
                         "upsert " +
                         "return after " +
                         "where (id = ?)", statement.statement());
@@ -94,7 +94,7 @@ public class SqlStatementProviderTest {
         SqlStatement statement = statementProvider.forDelete(DeleteInfo.<Integer, Product>builder()
                 .metaClass(Product.metaClass)
                 .limit(100)
-                .predicate(Product.$.name.greaterOrEq("product1"))
+                .predicate(Product.$.name.greaterOrEqual("product1"))
                 .build());
         Assert.assertEquals("delete from Product where (not (name < ?)) limit 100", statement.statement());
         Assert.assertArrayEquals(new Object[]{"product1"}, statement.args());

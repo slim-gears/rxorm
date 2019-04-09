@@ -1,6 +1,8 @@
 package com.slimgears.rxrepo.queries;
 
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.filters.ComparableFilter;
+import com.slimgears.rxrepo.filters.StringFilter;
 import com.slimgears.rxrepo.util.Expressions;
 import org.junit.Assert;
 import org.junit.Test;
@@ -76,5 +78,22 @@ public class ExpressionsTest {
                         .concat(TestEntity.$.text));
         Assert.assertEquals("3 - Description 1 - Entity 1", exp.apply(testEntity1));
         Assert.assertEquals("8 - Description 2 - Entity 2", exp.apply(testEntity2));
+    }
+
+    @Test
+    public void testFilterToExpression() {
+        TestEntity.Filter filter = TestEntity.Filter.builder()
+                .refEntity(TestRefEntity.Filter.builder().id(ComparableFilter.greaterOrEqual(8)).build())
+                .number(ComparableFilter.lessThan(5))
+                .text(StringFilter.contains("ity 1"))
+                .matchesText("ity")
+                .build();
+
+        Function<TestEntity, Boolean> func = filter.toExpression(ObjectExpression.arg(TestEntity.class))
+                .map(Expressions::compile)
+                .orElse(e -> false);
+
+        Assert.assertTrue(func.apply(testEntity1));
+        Assert.assertFalse(func.apply(testEntity2));
     }
 }

@@ -19,19 +19,19 @@ public interface ComparableExpression<S, T extends Comparable<T>> extends Object
         return BooleanBinaryOperationExpression.create(Type.GreaterThan, this, value);
     }
 
-    default BooleanExpression<S> lessOrEq(ObjectExpression<S, T> value) {
+    default BooleanExpression<S> lessOrEqual(ObjectExpression<S, T> value) {
         return greaterThan(value).not();
     }
 
-    default BooleanExpression<S> lessOrEq(T value) {
+    default BooleanExpression<S> lessOrEqual(T value) {
         return greaterThan(value).not();
     }
 
-    default BooleanExpression<S> greaterOrEq(ObjectExpression<S, T> value) {
+    default BooleanExpression<S> greaterOrEqual(ObjectExpression<S, T> value) {
         return lessThan(value).not();
     }
 
-    default BooleanExpression<S> greaterOrEq(T value) {
+    default BooleanExpression<S> greaterOrEqual(T value) {
         return lessThan(value).not();
     }
 

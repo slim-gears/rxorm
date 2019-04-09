@@ -7,6 +7,7 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
+import com.slimgears.rxrepo.filters.Filter;
 import com.slimgears.rxrepo.query.provider.CollectionPropertyUpdateInfo;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.PropertyUpdateInfo;
@@ -69,6 +70,14 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                 builder.limit(limit);
                 return this;
             }
+
+            @Override
+            public EntityDeleteQuery<K, S> where(Filter<S> filter) {
+                return filter.toExpression(ObjectExpression.arg(metaClass.objectClass()))
+                        .map(ObjectExpression::asBoolean)
+                        .map(this::where)
+                        .orElse(this);
+            }
         };
     }
 
@@ -113,6 +122,14 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                 return this;
             }
 
+            @Override
+            public EntityUpdateQuery<K, S> where(Filter<S> filter) {
+                return filter.toExpression(ObjectExpression.arg(metaClass.objectClass()))
+                        .map(ObjectExpression::asBoolean)
+                        .map(this::where)
+                        .orElse(this);
+            }
+
             private <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> collectionOperation(CollectionPropertyExpression<S, T, V> property, ObjectExpression<S, V> item, CollectionPropertyUpdateInfo.Operation operation) {
                 builder.collectionPropertyUpdatesBuilder()
                         .add(CollectionPropertyUpdateInfo.create(property, item, CollectionPropertyUpdateInfo.Operation.Add));
@@ -131,7 +148,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
             @Override
             public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field, boolean ascending) {
-                sortingInfos.add(SortingInfo.create(ascending, field));
+                sortingInfos.add(SortingInfo.create(field, ascending));
                 return this;
             }
 
@@ -237,6 +254,14 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             public SelectQueryBuilder<K, S> limit(int limit) {
                 this.limit = limit;
                 return this;
+            }
+
+            @Override
+            public SelectQueryBuilder<K, S> where(Filter<S> filter) {
+                return filter.toExpression(ObjectExpression.arg(metaClass.objectClass()))
+                        .map(ObjectExpression::asBoolean)
+                        .map(this::where)
+                        .orElse(this);
             }
 
             @Override

@@ -1,13 +1,13 @@
 package com.slimgears.rxrepo.apt;
 
+import com.slimgears.rxrepo.annotations.UseFilters;
 import com.slimgears.util.autovalue.annotations.AutoValuePrototype;
 import com.slimgears.util.autovalue.annotations.Reference;
-import com.slimgears.rxrepo.annotations.AutoValueExpressions;
 
 import java.util.Collection;
 
 @AutoValuePrototype
-@AutoValueExpressions
+@UseFilters
 interface TestEntityPrototype<T extends Comparable<T>> {
     int intNumber();
     double doubleNumber();

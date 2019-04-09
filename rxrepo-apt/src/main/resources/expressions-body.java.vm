@@ -1,4 +1,4 @@
-#parse("type-params.java.vm")
+#parse("macros.vm")
 
     public static final Expressions<$targetClass.simpleName()##
         #if (!$sourceClass.typeParams().isEmpty())##
@@ -18,7 +18,7 @@
         private final Meta#typeParams($sourceClass) meta = #if ($sourceClass.typeParams().isEmpty())new Meta()#{else}new Meta<>()#end;
 
         Expressions() {
-            this($[com.slimgears.rxrepo.expressions.ObjectExpression].indirectArg(new TypeToken<$targetClass.simpleName()#typeParams($sourceClass)>(){}));
+            this($[com.slimgears.rxrepo.expressions.ObjectExpression].objectArg(new TypeToken<$targetClass.simpleName()#typeParams($sourceClass)>(){}));
         }
 
         Expressions($[com.slimgears.rxrepo.expressions.ObjectExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass)> self) {

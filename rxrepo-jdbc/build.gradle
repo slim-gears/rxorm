@@ -1,4 +1,5 @@
 dependencies {
     implementation project(':rxrepo-core')
     implementation project(':rxrepo-sql-core')
+    implementation libs.rxJava
 }

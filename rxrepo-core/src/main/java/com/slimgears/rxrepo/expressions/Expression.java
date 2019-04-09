@@ -38,7 +38,6 @@ public interface Expression {
         And(BooleanBinaryOperationExpression.class, OperationType.Binary, ValueType.Boolean, just(Boolean.class)),
         Or(BooleanBinaryOperationExpression.class, OperationType.Binary, ValueType.Boolean, just(Boolean.class)),
         Not(BooleanUnaryOperationExpression.class, OperationType.Unary, ValueType.Boolean, just(Boolean.class)),
-        AsString(StringUnaryOperationExpression.class, OperationType.Unary, ValueType.String, just(String.class)),
 
         Equals(BooleanBinaryOperationExpression.class, OperationType.Binary, ValueType.Boolean, just(Boolean.class)),
         IsNull(BooleanUnaryOperationExpression.class, OperationType.Unary, ValueType.Boolean, just(Boolean.class)),
@@ -98,7 +97,17 @@ public interface Expression {
         Sum(NumericUnaryOperationExpression.class, OperationType.Unary, ValueType.Numeric, Type::fromArgument),
 
         Argument(ObjectArgumentExpression.class, OperationType.Argument, ValueType.Object, Type::overridden),
-        CollectionArgument(CollectionArgumentExpression.class, OperationType.Argument, ValueType.Collection, Type::overridden);
+        ComparableArgument(ComparableArgumentExpression.class, OperationType.Argument, ValueType.Comparable, Type::overridden),
+        NumericArgument(NumericArgumentExpression.class, OperationType.Argument, ValueType.Numeric, Type::overridden),
+        StringArgument(StringArgumentExpression.class, OperationType.Argument, ValueType.String, just(String.class)),
+        BooleanArgument(BooleanArgumentExpression.class, OperationType.Argument, ValueType.Boolean, just(Boolean.class)),
+        CollectionArgument(CollectionArgumentExpression.class, OperationType.Argument, ValueType.Collection, Type::overridden),
+
+        AsComparable(ComparableUnaryOperationExpression.class, OperationType.Unary, ValueType.Comparable, Type::fromArgument),
+        AsNumeric(NumericUnaryOperationExpression.class, OperationType.Unary, ValueType.Numeric, Type::fromArgument),
+        AsString(StringUnaryOperationExpression.class, OperationType.Unary, ValueType.String, just(String.class)),
+        AsBoolean(BooleanUnaryOperationExpression.class, OperationType.Unary, ValueType.Boolean, just(Boolean.class)),
+        ;
 
         Type(Class<? extends Expression> type, OperationType opType, ValueType valType, Function<ObjectExpression<?, ?>, TypeToken<?>> typeResolver) {
             this.typeResolver = typeResolver;

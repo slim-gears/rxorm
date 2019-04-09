@@ -1,14 +1,20 @@
 package com.slimgears.rxrepo.expressions;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.slimgears.rxrepo.expressions.internal.BooleanArgumentExpression;
 import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.BooleanPropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.BooleanUnaryOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
+import com.slimgears.rxrepo.expressions.internal.ComparableArgumentExpression;
 import com.slimgears.rxrepo.expressions.internal.ComparablePropertyExpression;
+import com.slimgears.rxrepo.expressions.internal.ComparableUnaryOperationExpression;
+import com.slimgears.rxrepo.expressions.internal.NumericArgumentExpression;
 import com.slimgears.rxrepo.expressions.internal.NumericPropertyExpression;
+import com.slimgears.rxrepo.expressions.internal.NumericUnaryOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.ObjectArgumentExpression;
 import com.slimgears.rxrepo.expressions.internal.ObjectPropertyExpression;
+import com.slimgears.rxrepo.expressions.internal.StringArgumentExpression;
 import com.slimgears.rxrepo.expressions.internal.StringPropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.StringUnaryOperationExpression;
 import com.slimgears.util.reflect.TypeToken;
@@ -116,7 +122,31 @@ public interface ObjectExpression<S, T> extends Expression {
         return ObjectArgumentExpression.create(Type.Argument, type);
     }
 
-    static <S, T> ObjectExpression<S, T> indirectArg(TypeToken<T> type) {
+    static <S, T extends Comparable<T>> ComparableExpression<S, T> comparableArg(TypeToken<T> type) {
+        return ComparableArgumentExpression.create(Type.ComparableArgument, type);
+    }
+
+    static <S, T extends Comparable<T>> ComparableExpression<S, T> comparableArg(Class<T> type) {
+        return comparableArg(TypeToken.of(type));
+    }
+
+    static <S, T extends Number & Comparable<T>> NumericExpression<S, T> numericArg(TypeToken<T> type) {
+        return NumericArgumentExpression.create(Type.NumericArgument, type);
+    }
+
+    static <S, T extends Number & Comparable<T>> NumericExpression<S, T> numericArg(Class<T> type) {
+        return numericArg(TypeToken.of(type));
+    }
+
+    static <S> StringExpression<S> stringArg() {
+        return StringArgumentExpression.create(Type.NumericArgument, TypeToken.of(String.class));
+    }
+
+    static <S> BooleanExpression<S> booleanArg() {
+        return BooleanArgumentExpression.create(Type.BooleanArgument, TypeToken.of(Boolean.class));
+    }
+
+    static <S, T> ObjectExpression<S, T> objectArg(TypeToken<T> type) {
         return ObjectArgumentExpression.create(Type.Argument, type);
     }
 
@@ -124,7 +154,31 @@ public interface ObjectExpression<S, T> extends Expression {
         return arg(TypeToken.of(type));
     }
 
-    static <S, T> ObjectExpression<S, T> indirectArg(Class<T> type) {
-        return indirectArg(TypeToken.of(type));
+    static <S, T> ObjectExpression<S, T> objectArg(Class<T> type) {
+        return objectArg(TypeToken.of(type));
+    }
+
+    static <S, T extends Comparable<T>> ComparableExpression<S, T> asComparable(ObjectExpression<S, T> expression) {
+        return expression instanceof ComparableExpression
+                ? (ComparableExpression<S, T>)expression
+                : ComparableUnaryOperationExpression.create(Type.AsComparable, expression);
+    }
+
+    static <S> StringExpression<S> asString(ObjectExpression<S, String> expression) {
+        return expression instanceof StringExpression
+                ? (StringExpression<S>)expression
+                : StringUnaryOperationExpression.create(Type.AsString, expression);
+    }
+
+    static <S> BooleanExpression<S> asBoolean(ObjectExpression<S, Boolean> expression) {
+        return expression instanceof BooleanExpression
+                ? (BooleanExpression<S>)expression
+                : BooleanUnaryOperationExpression.create(Type.AsBoolean, expression);
+    }
+
+    static <S, N extends Number & Comparable<N>> NumericExpression<S, N> asNumeric(ObjectExpression<S, N> expression) {
+        return expression instanceof NumericExpression
+                ? (NumericExpression<S, N>)expression
+                : NumericUnaryOperationExpression.create(Type.AsNumeric, expression);
     }
 }

@@ -13,12 +13,12 @@ public interface HasSortingInfo<T> {
         ImmutableList.Builder<SortingInfo<T, ?, ? extends Comparable<?>>> sortingBuilder();
 
         default <V extends Comparable<V>> _B sortAscending(PropertyExpression<T, ?, V> property) {
-            sortingBuilder().add(SortingInfo.create(true, property));
+            sortingBuilder().add(SortingInfo.create(property, true));
             return self();
         }
 
         default <V extends Comparable<V>> _B sortDescending(PropertyExpression<T, ?, V> property) {
-            sortingBuilder().add(SortingInfo.create(false, property));
+            sortingBuilder().add(SortingInfo.create(property, false));
             return self();
         }
     }

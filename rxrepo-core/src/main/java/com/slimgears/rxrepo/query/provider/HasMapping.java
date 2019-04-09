@@ -8,8 +8,7 @@ import javax.annotation.Nullable;
 import java.util.Optional;
 
 public interface HasMapping<S, T> {
-    @Nullable
-    ObjectExpression<S, T> mapping();
+    @Nullable ObjectExpression<S, T> mapping();
 
     static <K, S extends HasMetaClassWithKey<K, S>, T, Q extends HasMapping<S, T> & HasEntityMeta<K, S>> TypeToken<? extends T> objectType(Q query) {
         //noinspection unchecked

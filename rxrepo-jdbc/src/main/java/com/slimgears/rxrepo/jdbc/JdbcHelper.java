@@ -1,5 +1,8 @@
 package com.slimgears.rxrepo.jdbc;
 
+import com.slimgears.rxrepo.sql.SqlStatement;
+
+import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,6 +14,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Spliterators;
+import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -18,6 +22,7 @@ import java.util.stream.StreamSupport;
 public class JdbcHelper {
     private final static Map<Class, ParamSetter<?>> paramSettersByClass = new HashMap<>();
     private final static Map<Integer, ColumnGetter<?>> columnGettersByType = new HashMap<>();
+    private final static ParamSetter<?> defaultSetter = JdbcHelper::setSerializedParam;
 
     interface ParamSetter<T> {
         void setParam(PreparedStatement preparedStatement, int index, T val) throws SQLException;
@@ -42,12 +47,41 @@ public class JdbcHelper {
         registerType(Types.DATE, PreparedStatement::setDate, ResultSet::getDate, Date.class);
     }
 
+    @SafeVarargs
     private static <T> void registerType(int type, ParamSetter<T> setter, ColumnGetter<T> getter, Class<T>... classes) {
         columnGettersByType.put(type, getter);
+        Arrays.asList(classes).forEach(cls -> paramSettersByClass.put(cls, setter));
+    }
 
-        Arrays.asList(classes).forEach(cls -> {
-            paramSettersByClass.put(cls, setter);
-        });
+    private static void setSerializedParam(PreparedStatement preparedStatement, int index, Object val) {
+        throw new RuntimeException("Type is not supported: " + val.getClass());
+    }
+
+    public static PreparedStatement prepareStatement(Connection connection, SqlStatement statement) {
+        return prepareStatement(() -> connection.prepareStatement(statement.statement()), statement.args());
+    }
+
+    public static PreparedStatement prepareStatement(Callable<PreparedStatement> supplier, Object[] params) {
+        try {
+            PreparedStatement preparedStatement = supplier.call();
+            setParams(preparedStatement, params);
+            return preparedStatement;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void setParams(PreparedStatement preparedStatement, Object[] params) throws SQLException {
+        for (int i = 0; i < params.length; ++i) {
+            Object param = Optional.ofNullable(params[i]).orElse("NULL");
+            Class paramClass = param.getClass();
+            ParamSetter<Object> setter = Optional
+                    .ofNullable(paramSettersByClass.get(paramClass))
+                    .map(ParamSetter.class::cast)
+                    .orElse(defaultSetter);
+            setter.setParam(preparedStatement, i + 1, param);
+        }
     }
 
     public static Stream<ResultSet> toStream(ResultSet resultSet) {
@@ -81,8 +115,8 @@ public class JdbcHelper {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> T getColumnValue(ResultSet resultSet, int columnType, int columnIndex) throws SQLException {
-        //noinspection unchecked
         return (T)Optional.ofNullable(columnGettersByType.get(columnType))
                 .orElseThrow(() -> new RuntimeException("Not supported type: " + columnType))
                 .getValue(resultSet, columnIndex);

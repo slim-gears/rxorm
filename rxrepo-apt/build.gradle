@@ -4,6 +4,8 @@ dependencies {
     implementation libs.slimStreamUtils
     implementation libs.guava
     implementation libs.slf4j, libs.logbackClassic, libs.logbackCore
+    compileOnly libs.autoService
+    annotationProcessor libs.autoService
 
     testAnnotationProcessor libs.autoValue
     testAnnotationProcessor libs.slimAutoValueUtils

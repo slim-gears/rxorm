@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.query.provider;
 
+import com.slimgears.rxrepo.annotations.PrototypeWithBuilder;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.util.autovalue.annotations.AutoValuePrototype;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
@@ -7,7 +8,7 @@ import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Optional;
 
-@AutoValuePrototype
+@PrototypeWithBuilder
 public interface QueryInfoPrototype<K, S extends HasMetaClassWithKey<K, S>, T> extends
         HasEntityMeta<K, S>,
         HasPredicate<S>,

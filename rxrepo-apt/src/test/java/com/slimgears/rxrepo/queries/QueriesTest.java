@@ -16,7 +16,7 @@ public class QueriesTest {
                 .metaClass(TestEntity.metaClass)
                 .predicate(TestEntity.$.text.contains("y 5")
                         .and(TestEntity.$.number.betweenExclusive(10, 624))
-                        .and(TestEntity.$.refEntity.id.lessOrEq(8)))
+                        .and(TestEntity.$.refEntity.id.lessOrEqual(8)))
                 .sortAscending(TestEntity.$.refEntity.id)
                 .sortDescending(TestEntity.$.text)
                 .skip(3)
