@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.slimgears.util.stream.Optionals.ofType;
@@ -31,23 +32,27 @@ public class ExpressionTextGenerator {
         return args;
     }
 
+    public interface GenericInterceptor<E extends ObjectExpression> {
+        String onVisit(Function<? super ObjectExpression<?, ?>, String> visitor, E expression, Supplier<String> visitSupplier);
+    }
+
     public interface Interceptor {
-        String onVisit(ObjectExpression<?, ?> exp, String visitedResult);
+        String onVisit(Function<? super ObjectExpression<?, ?>, String> visitor, ObjectExpression<?, ?> exp, Supplier<String> visitedResult);
 
         default Interceptor combineWith(Interceptor other) {
-            return (exp, visitedResult) -> other.onVisit(exp, this.onVisit(exp, visitedResult));
+            return (visitor, exp, visitedResult) -> other.onVisit(visitor, exp, () -> this.onVisit(visitor, exp, visitedResult));
         }
 
         static Interceptor empty() {
-            return (exp, visitedResult) -> visitedResult;
+            return (visitor, exp, visitedResult) -> visitedResult.get();
         }
 
-        static <E extends ObjectExpression<?, ?>> Interceptor ofType(Class<E> expressionType, BiFunction<E, String, String> interceptor) {
-            return (exp, visitedResult) -> Optional
+        static <E extends ObjectExpression> Interceptor ofType(Class<E> expressionType, GenericInterceptor<E> interceptor) {
+            return (visitor, exp, visitedResult) -> Optional
                     .of(exp)
                     .flatMap(Optionals.ofType(expressionType))
-                    .map(e -> interceptor.apply(e, visitedResult))
-                    .orElse(visitedResult);
+                    .map(e -> interceptor.onVisit(visitor, e, visitedResult))
+                    .orElseGet(visitedResult);
         }
 
         static InterceptorBuilder builder() {
@@ -80,43 +85,43 @@ public class ExpressionTextGenerator {
             Map<Expression.OperationType, Interceptor> byOpType = interceptorsByOpType.build();
             Map<Expression.ValueType, Interceptor> byOpValueType = interceptorsByValueType.build();
 
-            return (exp, visitedResult) -> Optionals.or(
+            return (visitor, exp, visitedResult) -> Optionals.or(
                     () -> Optional.ofNullable(byType.get(exp.type())),
                     () -> Optional.ofNullable(byOpType.get(exp.type().operationType())),
                     () -> Optional.ofNullable(byOpValueType.get(exp.type().valueType())))
                     .orElseGet(Interceptor::empty)
-                    .onVisit(exp, visitedResult);
+                    .onVisit(visitor, exp, visitedResult);
         }
     }
 
     public interface Reducer {
-        String reduce(String... parts);
+        String reduce(ObjectExpression<?, ?> expression, String... parts);
 
         static Reducer fromFormat(String format) {
-            return args -> String.format(format, (Object[])args);
+            return (exp, args) -> String.format(format, (Object[])args);
         }
 
         static Reducer fromBinary(BiFunction<String, String, String> reducer) {
-            return args -> reducer.apply(requireArgs(args, 2)[0], args[1]);
+            return (exp, args) -> reducer.apply(requireArgs(args, 2)[0], args[1]);
         }
 
         static Reducer fromUnary(Function<String, String> reducer) {
-            return args -> reducer.apply(requireArgs(args, 1)[0]);
+            return (exp, args) -> reducer.apply(requireArgs(args, 1)[0]);
         }
 
         static Reducer just(String str) {
-            return args -> str;
+            return (exp, args) -> str;
         }
 
         static Reducer join(String delimiter) {
-            return args -> Arrays
+            return (exp, args) -> Arrays
                     .stream(args)
                     .filter(a -> !a.isEmpty())
                     .collect(Collectors.joining(delimiter));
         }
 
         default Reducer andThen(Function<String, String> postProcess) {
-            return args -> postProcess.apply(this.reduce(args));
+            return (exp, args) -> postProcess.apply(this.reduce(exp, args));
         }
     }
 
@@ -188,8 +193,12 @@ public class ExpressionTextGenerator {
     }
     
     private String generate(ObjectExpression<?, ?> expression, String arg) {
-        Visitor visitor = new Visitor();
+        Visitor visitor = createVisitor();
         return visitor.visit(expression, arg);
+    }
+
+    protected Visitor createVisitor() {
+        return new Visitor();
     }
 
     private Reducer toReducer(Expression.Type type) {
@@ -212,29 +221,29 @@ public class ExpressionTextGenerator {
         return Optional.ofNullable(opTypeToReducer.get(type));
     }
 
-    class Visitor extends ExpressionVisitor<String, String> {
+    protected class Visitor extends ExpressionVisitor<String, String> {
         @Override
         public String visit(Expression expression, String arg) {
-            String visitedStr = super.visit(expression, arg);
+            Supplier<String> visited = () -> super.visit(expression, arg);
             return Optional.of(expression)
                     .flatMap(ofType(ObjectExpression.class))
-                    .map(objExp -> scopedInterceptor.current().onVisit(objExp, visitedStr))
-                    .orElse(visitedStr);
+                    .map(objExp -> scopedInterceptor.current().onVisit(exp -> visit(exp, arg), objExp, visited))
+                    .orElseGet(visited);
         }
 
         @Override
-        protected String reduceBinary(Expression.Type type, String first, String second) {
-            return toReducer(type).reduce(first, second);
+        protected String reduceBinary(ObjectExpression<?, ?> expression, Expression.Type type, String first, String second) {
+            return toReducer(type).reduce(expression, first, second);
         }
 
         @Override
-        protected String reduceUnary(Expression.Type type, String first) {
-            return toReducer(type).reduce(first);
+        protected String reduceUnary(ObjectExpression<?, ?> expression, Expression.Type type, String first) {
+            return toReducer(type).reduce(expression, first);
         }
 
         @Override
         protected <S, T> String visitOther(ObjectExpression<S, T> expression, String context) {
-            return toReducer(expression.type()).reduce();
+            return toReducer(expression.type()).reduce(expression);
         }
 
         @Override
@@ -254,14 +263,14 @@ public class ExpressionTextGenerator {
 
         @Override
         protected <V> String visitConstant(Expression.Type type, V value, String context) {
-            if (value instanceof String) {
-                return reduceUnary(Expression.Type.StringConstant, (String)value);
-            } else if (value == null) {
-                return reduceUnary(Expression.Type.NullConstant, null);
+            if (value == null) {
+                return reduceUnary(null, Expression.Type.NullConstant, null);
+            } else if (value instanceof String) {
+                return reduceUnary(null, Expression.Type.StringConstant, (String)value);
             } else if (value instanceof Number) {
-                return reduceUnary(Expression.Type.NumericConstant, String.valueOf(value));
+                return reduceUnary(null, Expression.Type.NumericConstant, String.valueOf(value));
             } else {
-                return reduceUnary(type, String.valueOf(value));
+                return reduceUnary(null, type, String.valueOf(value));
             }
         }
     }

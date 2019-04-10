@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.Optional;
 
 public class Filters {
-    public static <S, T> Optional<BooleanExpression<S>> fromTextFilter(TextFilter filter, ObjectExpression<S, T> arg) {
+    public static <S, T> Optional<BooleanExpression<S>> fromTextFilter(SearchableFilter filter, ObjectExpression<S, T> arg) {
         return Optional.ofNullable(filter.searchText()).map(arg::searchText);
     }
 

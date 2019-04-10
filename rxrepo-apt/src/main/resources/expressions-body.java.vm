@@ -13,7 +13,7 @@
 #end
     }
 
-    public static class Expressions<__S#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> {
+    public static class Expressions<__S#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> implements $[com.slimgears.rxrepo.expressions.ObjectExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass)> {
         private final $[com.slimgears.rxrepo.expressions.ObjectExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass)> self;
         private final Meta#typeParams($sourceClass) meta = #if ($sourceClass.typeParams().isEmpty())new Meta()#{else}new Meta<>()#end;
 
@@ -43,6 +43,16 @@
             self, meta.${p.name()});##
 
 #end
+        }
+
+        @Override
+        public Type type() {
+            return this.self.type();
+        }
+
+        @Override
+        public $[com.slimgears.util.reflect.TypeToken]<? extends $targetClass.simpleName()#typeParams($sourceClass)> objectType() {
+            return this.self.objectType();
         }
 
         static #typeParamsDeclaration($sourceClass) Expressions<$targetClass.simpleName()#typeParams($sourceClass)#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> create() {

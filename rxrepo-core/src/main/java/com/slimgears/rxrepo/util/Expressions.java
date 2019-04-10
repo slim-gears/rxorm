@@ -33,18 +33,22 @@ public class Expressions {
         return compile(exp)::apply;
     }
 
+    @SuppressWarnings("unchecked")
     private static <T, R> Function<Function[], Function> fromUnary(Function<T, R> func) {
         return funcs -> val -> func.apply((T)funcs[0].apply(val));
     }
 
+    @SuppressWarnings("unchecked")
     private static <T extends Number> Function<Function[], Function> fromNumericUnary(Function<T, T> func) {
         return funcs -> val -> func.apply((T)funcs[0].apply(val));
     }
 
+    @SuppressWarnings("unchecked")
     private static <T1, T2, R> Function<Function[], Function> fromBinary(BiFunction<T1, T2, R> func) {
         return funcs -> val -> func.apply((T1)funcs[0].apply(val), (T2)funcs[1].apply(val));
     }
 
+    @SuppressWarnings("unchecked")
     private static <T extends Number> Function<Function[], Function> fromNumericBinary(BiFunction<T, T, T> func) {
         return funcs -> val -> func.apply((T)funcs[0].apply(val), (T)funcs[1].apply(val));
     }
@@ -63,6 +67,7 @@ public class Expressions {
     }
 
     private static class InternalVisitor extends ExpressionVisitor<Void, Function> {
+        @SuppressWarnings("unchecked")
         private final static ImmutableMap<Expression.Type, Function<Function[], Function>> expressionTypeReducersMap = ImmutableMap.<Expression.Type, Function<Function[], Function>>builder()
                 .put(Expression.Type.AsString, fromUnary(Object::toString))
                 .put(Expression.Type.Add, fromNumericBinary(GenericMath::add))
@@ -109,12 +114,12 @@ public class Expressions {
         }
 
         @Override
-        protected Function reduceBinary(Expression.Type type, Function first, Function second) {
+        protected Function reduceBinary(ObjectExpression<?, ?> expression, Expression.Type type, Function first, Function second) {
             return reduce(type, first, second);
         }
 
         @Override
-        protected Function reduceUnary(Expression.Type type, Function first) {
+        protected Function reduceUnary(ObjectExpression<?, ?> expression, Expression.Type type, Function first) {
             return reduce(type, first);
         }
 

@@ -22,15 +22,15 @@ public abstract class ExpressionVisitor<_T, _R> {
         }
     }
 
-    protected abstract _R reduceBinary(Expression.Type type, _R first, _R second);
-    protected abstract _R reduceUnary(Expression.Type type, _R first);
+    protected abstract _R reduceBinary(ObjectExpression<?, ?> expression, Expression.Type type, _R first, _R second);
+    protected abstract _R reduceUnary(ObjectExpression<?, ?> expression, Expression.Type type, _R first);
 
     protected abstract <S, T> _R visitOther(ObjectExpression<S, T> expression, _T arg);
 
     protected <S, T, R> _R visitComposition(ComposedExpression<S, T, R> expression, _T arg) {
         _R resSrc = this.visit(expression.source(), arg);
         _R resExp = this.visit(expression.expression(), arg);
-        return reduceBinary(expression.type(), resSrc, resExp);
+        return reduceBinary(expression, expression.type(), resSrc, resExp);
     }
 
     protected <S, T> _R visitConstant(ConstantExpression<S, T> constantExpression, _T arg) {
@@ -38,15 +38,15 @@ public abstract class ExpressionVisitor<_T, _R> {
     }
 
     protected <S, T, V> _R visitProperty(PropertyExpression<S, T, V> expression, _T arg) {
-        return reduceBinary(expression.type(), visit(expression.target(), arg), visitProperty(expression.property(), arg));
+        return reduceBinary(expression, expression.type(), visit(expression.target(), arg), visitProperty(expression.property(), arg));
     }
 
     protected <S, T1, T2, R> _R visitBinaryOperator(BinaryOperationExpression<S, T1, T2, R> expression, _T arg) {
-        return reduceBinary(expression.type(), visit(expression.left(), arg), visit(expression.right(), arg));
+        return reduceBinary(expression, expression.type(), visit(expression.left(), arg), visit(expression.right(), arg));
     }
 
     protected <S, T, R> _R visitUnaryOperator(UnaryOperationExpression<S, T, R> expression, _T arg) {
-        return reduceUnary(expression.type(), visit(expression.operand(), arg));
+        return reduceUnary(expression, expression.type(), visit(expression.operand(), arg));
     }
 
     protected <S, T> _R visitArgument(ArgumentExpression<S, T> expression, _T arg) {

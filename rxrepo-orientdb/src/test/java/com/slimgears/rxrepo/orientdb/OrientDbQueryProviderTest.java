@@ -207,6 +207,32 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
+    @UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testInsertThenSearch() throws InterruptedException {
+        EntitySet<Integer, Product> productSet = repository.entities(Product.metaClass);
+        Iterable<Product> products = createProducts(100);
+        Stopwatch stopwatch = Stopwatch.createUnstarted();
+        productSet
+                .update(products)
+                .doOnSubscribe(d -> stopwatch.start())
+                .doFinally(stopwatch::stop)
+                .test()
+                .await()
+                .assertNoErrors();
+
+        //noinspection unchecked
+        productSet
+                .query()
+                .where(Product.$.searchText("Product 31"))
+                .select()
+                .retrieve(Product.$.id, Product.$.name, Product.$.price, Product.$.inventory.id, Product.$.inventory.name)
+                .test()
+                .await()
+                .assertNoErrors()
+                .assertValueCount(1);
+    }
+
+    @Test
     public void testInsertThenUpdate() throws InterruptedException {
         EntitySet<Integer, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(1000);

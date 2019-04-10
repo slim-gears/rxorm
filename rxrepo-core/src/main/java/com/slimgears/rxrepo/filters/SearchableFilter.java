@@ -2,6 +2,6 @@ package com.slimgears.rxrepo.filters;
 
 import javax.annotation.Nullable;
 
-public interface TextFilter {
+public interface SearchableFilter {
     @Nullable String searchText();
 }

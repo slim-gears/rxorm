@@ -115,12 +115,8 @@ public interface ObjectExpression<S, T> extends Expression {
         return PropertyExpression.ofCollection(this, expression.property());
     }
 
-    default BooleanExpression<S> searchText(ObjectExpression<S, String> pattern) {
-        return BooleanBinaryOperationExpression.create(Type.SearchText, this, pattern);
-    }
-
     default BooleanExpression<S> searchText(String pattern) {
-        return searchText(ConstantExpression.of(pattern));
+        return BooleanBinaryOperationExpression.create(Type.SearchText, this, ConstantExpression.of(pattern));
     }
 
     static <S> ObjectExpression<S, S> arg(TypeToken<S> type) {

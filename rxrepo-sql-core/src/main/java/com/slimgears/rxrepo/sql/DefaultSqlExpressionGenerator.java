@@ -8,6 +8,8 @@ import com.slimgears.util.stream.Lazy;
 
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
     private final Lazy<ExpressionTextGenerator> sqlGenerator;
@@ -60,7 +62,7 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
     }
 
     public <T> T withParams(List<Object> params, Callable<T> callable) {
-        return sqlGenerator.get().withInterceptor(paramsInterceptor(params), callable);
+        return sqlGenerator.get().withInterceptor(createInterceptor().combineWith(paramsInterceptor(params)), callable);
     }
 
     public <S, T> String toSqlExpression(ObjectExpression<S, T> expression) {
@@ -80,9 +82,13 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
     }
 
     protected static ExpressionTextGenerator.Reducer notSupported() {
-        return str -> {
+        return (exp, str) -> {
             throw new IllegalArgumentException("Not supported expression");
         };
+    }
+
+    protected ExpressionTextGenerator.Interceptor createInterceptor() {
+        return ExpressionTextGenerator.Interceptor.empty();
     }
 
     private static ExpressionTextGenerator.Reducer formatAndFixQuotes(String format) {
@@ -90,8 +96,8 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
     }
 
     private static ExpressionTextGenerator.Interceptor paramsInterceptor(List<Object> params) {
-        return ExpressionTextGenerator.Interceptor.ofType(ConstantExpression.class, (exp, visited) -> {
-            params.add(exp.value());
+        return ExpressionTextGenerator.Interceptor.ofType(ConstantExpression.class, (visitor, expression, visitSupplier) -> {
+            params.add(expression.value());
             return "?";
         });
     }

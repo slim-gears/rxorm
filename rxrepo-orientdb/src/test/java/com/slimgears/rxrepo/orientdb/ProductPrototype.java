@@ -1,5 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.slimgears.rxrepo.annotations.Filterable;
+import com.slimgears.rxrepo.annotations.Searchable;
 import com.slimgears.util.autovalue.annotations.AutoValuePrototype;
 import com.slimgears.util.autovalue.annotations.Key;
 import com.slimgears.util.autovalue.annotations.Reference;
@@ -12,8 +14,8 @@ import javax.annotation.Nullable;
 @UseExpressions
 @UseCopyAnnotator
 public interface ProductPrototype {
-    @Key int id();
-    @Nullable String name();
-    @Reference @Nullable Inventory inventory();
-    int price();
+    @Key @Searchable int id();
+    @Nullable @Filterable @Searchable String name();
+    @Reference @Filterable @Nullable Inventory inventory();
+    @Searchable int price();
 }

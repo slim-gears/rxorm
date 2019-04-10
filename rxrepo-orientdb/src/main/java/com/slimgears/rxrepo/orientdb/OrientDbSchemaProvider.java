@@ -4,9 +4,12 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OProperty;
 import com.orientechnologies.orient.core.metadata.schema.OType;
+import com.slimgears.rxrepo.annotations.Indexable;
+import com.slimgears.rxrepo.annotations.Searchable;
 import com.slimgears.rxrepo.sql.SchemaProvider;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.Key;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
@@ -43,6 +46,7 @@ public class OrientDbSchemaProvider implements SchemaProvider {
         return classMap.computeIfAbsent(toClassName(metaClass.objectClass()), name -> createClass(metaClass));
     }
 
+    @SuppressWarnings("unchecked")
     private <T> OClass createClass(MetaClass<T> metaClass) {
         String className = toClassName(metaClass.objectClass());
         OClass oClass = dbSession.get().createClassIfNotExist(className);
@@ -51,17 +55,12 @@ public class OrientDbSchemaProvider implements SchemaProvider {
 
         if (metaClass instanceof MetaClassWithKey) {
             MetaClassWithKey metaClassWithKey = (MetaClassWithKey) metaClass;
-            PropertyMeta keyProperty = metaClassWithKey.keyProperty();
-            if (!oClass.areIndexed(keyProperty.name())) {
-                oClass.createIndex(className + "." + keyProperty.name() + "Index", OClass.INDEX_TYPE.UNIQUE, keyProperty.name());
-            }
+            addIndex(oClass, metaClassWithKey.keyProperty(), true);
         }
 
-//        String[] textFields = Streams
-//                .fromIterable(metaClass.properties())
-//                .filter(p -> p.type().asClass() == String.class)
-//                .map(PropertyMeta::name)
-//                .toArray(String[]::new);
+        Streams.fromIterable(metaClass.properties())
+                .filter(p -> p.hasAnnotation(Indexable.class) && !p.hasAnnotation(Key.class))
+                .forEach(p -> addIndex(oClass, p, p.getAnnotation(Indexable.class).unique()));
 
         Streams.fromIterable(metaClass.properties())
                 .filter(p -> p.type().is(HasMetaClassWithKey.class::isAssignableFrom))
@@ -69,11 +68,25 @@ public class OrientDbSchemaProvider implements SchemaProvider {
                 .map(OrientDbSchemaProvider::toMetaClass)
                 .forEach(this::ensureClass);
 
-//        if (textFields.length > 0) {
-//            oClass.createIndex(className + ".textIndex", "FULLTEXT", null, null, "LUCENE", textFields);
-//        }
+        String[] textFields = Streams
+                .fromIterable(metaClass.properties())
+                .filter(p -> p.hasAnnotation(Searchable.class))
+                .map(PropertyMeta::name)
+                .toArray(String[]::new);
+
+        if (textFields.length > 0) {
+            oClass.createIndex(className + ".textIndex", "FULLTEXT", null, null, "LUCENE", textFields);
+        }
 
         return oClass;
+    }
+
+    private static <T> void addIndex(OClass oClass, PropertyMeta<T, ?> propertyMeta, boolean unique) {
+        String className = toClassName(propertyMeta.declaringType().objectClass());
+        OClass.INDEX_TYPE indexType = unique ? OClass.INDEX_TYPE.UNIQUE : OClass.INDEX_TYPE.NOTUNIQUE;
+        if (!oClass.areIndexed(propertyMeta.name())) {
+            oClass.createIndex(className + "." + propertyMeta.name() + "Index", indexType, propertyMeta.name());
+        }
     }
 
     private static <T extends HasMetaClass<T>> MetaClass<T> toMetaClass(TypeToken typeToken) {
@@ -117,11 +130,11 @@ public class OrientDbSchemaProvider implements SchemaProvider {
                         : OType.ANY);
     }
 
-    private static String toClassName(TypeToken<?> cls) {
+    static String toClassName(TypeToken<?> cls) {
         return toClassName(cls.asClass());
     }
 
-    private static String toClassName(Class<?> cls) {
+    static String toClassName(Class<?> cls) {
         return cls.getSimpleName();
     }
 

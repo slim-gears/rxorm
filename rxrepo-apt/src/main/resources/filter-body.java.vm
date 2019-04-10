@@ -15,21 +15,33 @@
 #end##
 
     @$[com.google.auto.value.AutoValue]
-    public static abstract class Filter#typeParamsDeclaration($sourceClass) implements com.slimgears.rxrepo.filters.Filter<${targetClass.simpleName()}#typeParams($sourceClass)>, $[com.slimgears.rxrepo.filters.TextFilter] {
+    public static abstract class Filter#typeParamsDeclaration($sourceClass) implements com.slimgears.rxrepo.filters.Filter<${targetClass.simpleName()}#typeParams($sourceClass)>##
+#if ($isSearchable)##
+, $[com.slimgears.rxrepo.filters.SearchableFilter]##
+#end {
 #foreach ($p in $filterableProperties)
         @$[javax.annotation.Nullable] public abstract #filterType($p) ${p.name()}();
 #end
+#if ($isSearchable)
         @Override @$[javax.annotation.Nullable] public abstract String searchText();
-
+#end
         @Override
         public <__S> $[java.util.Optional]<$[com.slimgears.rxrepo.expressions.BooleanExpression]<__S>> toExpression($[com.slimgears.rxrepo.expressions.ObjectExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass)> arg) {
             Expressions<__S#foreach ($tp in $sourceClass.typeParams()), $tp.name()#end> self = new Expressions<>(arg);
-            return $[com.slimgears.rxrepo.filters.Filters].combineExpressions(
+            return $[com.slimgears.rxrepo.filters.Filters].combineExpressions(##
+#if ($isSearchable)
+
                     $[com.slimgears.rxrepo.filters.Filters].fromTextFilter(this, arg)##
 #foreach ($p in $filterableProperties)##
 ,
                     $[java.util.Optional].ofNullable(${p.name()}()).flatMap(f -> f.toExpression(self.${p.name()}))
 #end##
+#else
+    #foreach ($p in $filterableProperties)##
+
+            $[java.util.Optional].ofNullable(${p.name()}()).flatMap(f -> f.toExpression(self.${p.name()}))#if ($foreach.hasNext),#end
+    #end##
+#end
             );
         }
 
@@ -59,7 +71,9 @@
 #foreach ($p in $filterableProperties)
             Builder#typeParams($sourceClass) ${p.name()}(#filterType($p) ${p.name()});
 #end
+#if ($isSearchable)
             Builder#typeParams($sourceClass) searchText(String searchText);
+#end
             Filter#typeParams($sourceClass) build();
         }
     }
