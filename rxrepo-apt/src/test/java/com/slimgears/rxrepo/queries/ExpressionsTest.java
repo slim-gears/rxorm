@@ -1,5 +1,7 @@
 package com.slimgears.rxrepo.queries;
 
+import com.slimgears.rxrepo.annotations.Filterable;
+import com.slimgears.rxrepo.annotations.Indexable;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.filters.ComparableFilter;
 import com.slimgears.rxrepo.filters.StringFilter;
@@ -86,7 +88,7 @@ public class ExpressionsTest {
                 .refEntity(TestRefEntity.Filter.builder().id(ComparableFilter.greaterOrEqual(8)).build())
                 .number(ComparableFilter.lessThan(5))
                 .text(StringFilter.contains("ity 1"))
-                .matchesText("ity")
+                .searchText("ity")
                 .build();
 
         Function<TestEntity, Boolean> func = filter.toExpression(ObjectExpression.arg(TestEntity.class))
@@ -95,5 +97,12 @@ public class ExpressionsTest {
 
         Assert.assertTrue(func.apply(testEntity1));
         Assert.assertFalse(func.apply(testEntity2));
+    }
+
+    @Test
+    public void testAnnotationRetrieval() {
+        Assert.assertTrue(TestEntity.metaClass.text.hasAnnotation(Filterable.class));
+        Assert.assertTrue(TestEntity.metaClass.number.hasAnnotation(Indexable.class));
+        Assert.assertFalse(TestEntity.metaClass.refEntity.hasAnnotation(Indexable.class));
     }
 }

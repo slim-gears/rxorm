@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.expressions;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.BooleanPropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.ComparablePropertyExpression;

@@ -31,7 +31,9 @@ public interface ObjectExpression<S, T> extends Expression {
     }
 
     default BooleanExpression<S> eq(T value) {
-        return eq(ConstantExpression.of(value));
+        return value != null
+                ? eq(ConstantExpression.of(value))
+                : isNull();
     }
 
     default BooleanExpression<S> notEq(ObjectExpression<S, T> value) {
@@ -39,7 +41,10 @@ public interface ObjectExpression<S, T> extends Expression {
     }
 
     default BooleanExpression<S> notEq(T value) {
-        return eq(value).not();
+        return value != null
+                ? eq(value).not()
+                : isNotNull();
+
     }
 
     default BooleanExpression<S> isNull() {
@@ -110,12 +115,12 @@ public interface ObjectExpression<S, T> extends Expression {
         return PropertyExpression.ofCollection(this, expression.property());
     }
 
-    default BooleanExpression<S> matches(ObjectExpression<S, String> pattern) {
-        return BooleanBinaryOperationExpression.create(Type.Matches, this, pattern);
+    default BooleanExpression<S> searchText(ObjectExpression<S, String> pattern) {
+        return BooleanBinaryOperationExpression.create(Type.SearchText, this, pattern);
     }
 
-    default BooleanExpression<S> matches(String pattern) {
-        return matches(ConstantExpression.of(pattern));
+    default BooleanExpression<S> searchText(String pattern) {
+        return searchText(ConstantExpression.of(pattern));
     }
 
     static <S> ObjectExpression<S, S> arg(TypeToken<S> type) {

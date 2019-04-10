@@ -18,7 +18,7 @@ public interface ComparableFilterPrototype<T extends Comparable<T>> extends Valu
     @Override
     default <S> Optional<BooleanExpression<S>> toExpression(ObjectExpression<S, T> arg) {
         ComparableExpression<S, T> comparableArg = ObjectExpression.asComparable(arg);
-        return Filters.combine(
+        return Filters.combineExpressions(
                 ValueFilterPrototype.super.toExpression(comparableArg),
                 Optional.ofNullable(lessThan()).map(comparableArg::lessThan),
                 Optional.ofNullable(lessOrEqual()).map(comparableArg::lessOrEqual),

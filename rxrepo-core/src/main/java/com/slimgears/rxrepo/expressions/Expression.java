@@ -58,6 +58,8 @@ public interface Expression {
         ToUpper(StringUnaryOperationExpression.class, OperationType.Unary, ValueType.String, just(String.class)),
         Trim(StringUnaryOperationExpression.class, OperationType.Unary, ValueType.String, just(String.class)),
 
+        SearchText(BooleanBinaryOperationExpression.class, OperationType.Binary, ValueType.Boolean, just(Boolean.class)),
+
         Negate(NumericUnaryOperationExpression.class, OperationType.Unary, ValueType.Numeric, Type::fromArgument),
         Add(NumericBinaryOperationExpression.class, OperationType.Binary, ValueType.Numeric, Type::fromFirstArgument),
         Sub(NumericBinaryOperationExpression.class, OperationType.Binary, ValueType.Numeric, Type::fromFirstArgument),
@@ -107,6 +109,7 @@ public interface Expression {
         AsNumeric(NumericUnaryOperationExpression.class, OperationType.Unary, ValueType.Numeric, Type::fromArgument),
         AsString(StringUnaryOperationExpression.class, OperationType.Unary, ValueType.String, just(String.class)),
         AsBoolean(BooleanUnaryOperationExpression.class, OperationType.Unary, ValueType.Boolean, just(Boolean.class)),
+
         ;
 
         Type(Class<? extends Expression> type, OperationType opType, ValueType valType, Function<ObjectExpression<?, ?>, TypeToken<?>> typeResolver) {

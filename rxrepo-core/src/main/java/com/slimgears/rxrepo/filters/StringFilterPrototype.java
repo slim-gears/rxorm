@@ -17,7 +17,7 @@ public interface StringFilterPrototype extends ComparableFilterPrototype<String>
     @Override
     default <S> Optional<BooleanExpression<S>> toExpression(ObjectExpression<S, String> arg) {
         StringExpression<S> stringArg = ObjectExpression.asString(arg);
-        return Filters.combine(
+        return Filters.combineExpressions(
                 ComparableFilterPrototype.super.toExpression(stringArg),
                 Optional.ofNullable(contains()).map(stringArg::contains),
                 Optional.ofNullable(startsWith()).map(stringArg::startsWith),

@@ -19,6 +19,7 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
 
     protected ExpressionTextGenerator.Builder createBuilder() {
         return ExpressionTextGenerator.builder()
+                .add(Expression.Type.IsNull, "(%s is null)")
                 .add(Expression.Type.Add, "(%s + %s)")
                 .add(Expression.Type.Sub, "(%s - %s)")
                 .add(Expression.Type.Mul, "(%s * %s)")
@@ -47,6 +48,10 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
                 .add(Expression.Type.Sum, "SUM(%s)")
                 .add(Expression.Type.StringConstant, "'%s'")
                 .add(Expression.Type.AsString, "CONVERT(varchar, %s)")
+                .add(Expression.Type.AsBoolean, "%s")
+                .add(Expression.Type.AsNumeric, "%s")
+                .add(Expression.Type.AsComparable, "%s")
+                .add(Expression.Type.SearchText, notSupported())
                 .add(Expression.OperationType.Argument, "__argument__")
                 .add(Expression.OperationType.Constant, "%s")
                 .add(Expression.OperationType.Property, ExpressionTextGenerator.Reducer.join("."))
@@ -72,6 +77,12 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
 
     public <S, T> String toSqlExpression(ObjectExpression<S, T> expression, ObjectExpression<?, S> arg, List<Object> params) {
         return withParams(params, () -> toSqlExpression(expression, arg));
+    }
+
+    protected static ExpressionTextGenerator.Reducer notSupported() {
+        return str -> {
+            throw new IllegalArgumentException("Not supported expression");
+        };
     }
 
     private static ExpressionTextGenerator.Reducer formatAndFixQuotes(String format) {

@@ -16,21 +16,19 @@
 
     @$[com.google.auto.value.AutoValue]
     public static abstract class Filter#typeParamsDeclaration($sourceClass) implements com.slimgears.rxrepo.filters.Filter<${targetClass.simpleName()}#typeParams($sourceClass)>, $[com.slimgears.rxrepo.filters.TextFilter] {
-#foreach ($p in $properties)
+#foreach ($p in $filterableProperties)
         @$[javax.annotation.Nullable] public abstract #filterType($p) ${p.name()}();
 #end
-        @Override @$[javax.annotation.Nullable] public abstract String matchesText();
+        @Override @$[javax.annotation.Nullable] public abstract String searchText();
 
         @Override
         public <__S> $[java.util.Optional]<$[com.slimgears.rxrepo.expressions.BooleanExpression]<__S>> toExpression($[com.slimgears.rxrepo.expressions.ObjectExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass)> arg) {
             Expressions<__S#foreach ($tp in $sourceClass.typeParams()), $tp.name()#end> self = new Expressions<>(arg);
-            return $[com.slimgears.rxrepo.filters.Filters].combine(
-#foreach ($p in $properties)
-                    $[java.util.Optional].ofNullable(${p.name()}()).flatMap(f -> f.toExpression(self.${p.name()}))#if ($foreach.hasNext),#end##
-    #if ($foreach.hasNext)##
-
-##
-    #end
+            return $[com.slimgears.rxrepo.filters.Filters].combineExpressions(
+                    $[com.slimgears.rxrepo.filters.Filters].fromTextFilter(this, arg)##
+#foreach ($p in $filterableProperties)##
+,
+                    $[java.util.Optional].ofNullable(${p.name()}()).flatMap(f -> f.toExpression(self.${p.name()}))
 #end##
             );
         }
@@ -41,7 +39,7 @@
         }
 
         public static #typeParamsDeclaration($sourceClass) Filter#typeParams($sourceClass) create(
-#foreach ($p in $properties)
+#foreach ($p in $filterableProperties)
             @$[javax.annotation.Nullable] #filterType($p) ${p.name()}##
     #if ($foreach.hasNext),##
 
@@ -50,7 +48,7 @@
 #end##
         ) {
             return Filter.#typeParams($sourceClass)builder()
-#foreach ($p in $properties)
+#foreach ($p in $filterableProperties)
                     .${p.name()}($p.name())
 #end
                     .build();
@@ -58,10 +56,10 @@
 
         @AutoValue.Builder
         public interface Builder#typeParamsDeclaration($sourceClass) {
-#foreach ($p in $properties)
+#foreach ($p in $filterableProperties)
             Builder#typeParams($sourceClass) ${p.name()}(#filterType($p) ${p.name()});
 #end
-            Builder#typeParams($sourceClass) matchesText(String matchesText);
+            Builder#typeParams($sourceClass) searchText(String searchText);
             Filter#typeParams($sourceClass) build();
         }
     }

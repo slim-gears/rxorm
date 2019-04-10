@@ -1,13 +1,18 @@
 package com.slimgears.rxrepo.filters;
 
 import com.slimgears.rxrepo.expressions.BooleanExpression;
+import com.slimgears.rxrepo.expressions.ObjectExpression;
 
 import java.util.Arrays;
 import java.util.Optional;
 
 public class Filters {
+    public static <S, T> Optional<BooleanExpression<S>> fromTextFilter(TextFilter filter, ObjectExpression<S, T> arg) {
+        return Optional.ofNullable(filter.searchText()).map(arg::searchText);
+    }
+
     @SafeVarargs
-    public static <T> Optional<BooleanExpression<T>> combine(Optional<BooleanExpression<T>>... filters) {
+    public static <T> Optional<BooleanExpression<T>> combineExpressions(Optional<BooleanExpression<T>>... filters) {
         return Arrays.stream(filters)
                 .filter(Optional::isPresent)
                 .map(Optional::get)

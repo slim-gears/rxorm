@@ -15,7 +15,7 @@ public interface ValueFilterPrototype<T> extends Filter<T> {
 
     @Override
     default <S> Optional<BooleanExpression<S>> toExpression(ObjectExpression<S, T> arg) {
-        return Filters.combine(
+        return Filters.combineExpressions(
                 Optional.ofNullable(equalsTo()).map(arg::eq),
                 Optional.ofNullable(equalsToAny()).map(arg::in));
     }

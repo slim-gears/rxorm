@@ -91,6 +91,7 @@ public class Expressions {
                 .put(Expression.Type.Min, notSupported())
                 .put(Expression.Type.Max, notSupported())
                 .put(Expression.Type.Sum, notSupported())
+                .put(Expression.Type.SearchText, Expressions.fromBinary((Object obj, String str) -> obj.toString().contains(str)))
                 .build();
 
         private final static ImmutableMap<Expression.OperationType, Function<Function[], Function>> operationTypeReducersMap = ImmutableMap.<Expression.OperationType, Function<Function[], Function>>builder()

@@ -34,6 +34,10 @@ public interface StringExpression<S> extends ComparableExpression<S, String> {
         return matches(ConstantExpression.of(substr));
     }
 
+    default BooleanExpression<S> matches(ObjectExpression<S, String> substr) {
+        return BooleanBinaryOperationExpression.create(Type.Matches, this, substr);
+    }
+
     default NumericExpression<S, Integer> length() {
         return NumericUnaryOperationExpression.create(Type.Length, this);
     }

@@ -13,7 +13,7 @@ public interface Filter<T> {
         return new Filter<T>() {
             @Override
             public <S> Optional<BooleanExpression<S>> toExpression(ObjectExpression<S, T> arg) {
-                return Filters.combine(self.toExpression(arg), filter.toExpression(arg));
+                return Filters.combineExpressions(self.toExpression(arg), filter.toExpression(arg));
             }
         };
     }
