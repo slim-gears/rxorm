@@ -12,6 +12,10 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.function.Function;
 
+import static com.slimgears.rxrepo.filters.ComparableFilter.greaterOrEqual;
+import static com.slimgears.rxrepo.filters.ComparableFilter.lessThan;
+import static com.slimgears.rxrepo.filters.StringFilter.contains;
+
 public class ExpressionsTest {
     private final TestEntity testEntity1 = TestEntity.builder()
             .number(3)
@@ -85,9 +89,9 @@ public class ExpressionsTest {
     @Test
     public void testFilterToExpression() {
         TestEntity.Filter filter = TestEntity.Filter.builder()
-                .refEntity(TestRefEntity.Filter.builder().id(ComparableFilter.greaterOrEqual(8)).build())
-                .number(ComparableFilter.lessThan(5))
-                .text(StringFilter.contains("ity 1"))
+                .refEntity(TestRefEntity.Filter.builder().id(greaterOrEqual(8)).build())
+                .number(lessThan(5))
+                .text(contains("ity 1"))
                 .searchText("ity")
                 .build();
 
