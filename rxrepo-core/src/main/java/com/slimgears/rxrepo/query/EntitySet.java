@@ -47,4 +47,8 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
         return update(Arrays.asList(entities))
                 .map(l -> l.toArray(entities.clone()));
     }
+
+    default Observable<Notification<S>> observe() {
+        return query().liveSelect().observe();
+    }
 }

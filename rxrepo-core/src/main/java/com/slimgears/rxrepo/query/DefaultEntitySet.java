@@ -73,8 +73,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
             @Override
             public EntityDeleteQuery<K, S> where(Filter<S> filter) {
-                return filter.toExpression(ObjectExpression.arg(metaClass.objectClass()))
-                        .map(ObjectExpression::asBoolean)
+                return Optional.ofNullable(filter)
+                        .flatMap(f -> f.<S>toExpression(metaClass.objectClass()))
                         .map(this::where)
                         .orElse(this);
             }
@@ -124,8 +124,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
             @Override
             public EntityUpdateQuery<K, S> where(Filter<S> filter) {
-                return filter.toExpression(ObjectExpression.arg(metaClass.objectClass()))
-                        .map(ObjectExpression::asBoolean)
+                return Optional.ofNullable(filter)
+                        .flatMap(f -> f.<S>toExpression(metaClass.objectClass()))
                         .map(this::where)
                         .orElse(this);
             }
@@ -258,8 +258,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
             @Override
             public SelectQueryBuilder<K, S> where(Filter<S> filter) {
-                return filter.toExpression(ObjectExpression.arg(metaClass.objectClass()))
-                        .map(ObjectExpression::asBoolean)
+                return Optional.ofNullable(filter)
+                        .flatMap(f -> f.<S>toExpression(metaClass.objectClass()))
                         .map(this::where)
                         .orElse(this);
             }

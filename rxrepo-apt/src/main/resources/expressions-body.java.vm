@@ -5,7 +5,7 @@
             <#foreach ($tp in $sourceClass.typeParams())?#if ($foreach.hasNext), #end#end>##
         #end##
         #foreach ($tp in $sourceClass.typeParams()), ?#end> ${dollar} = new Expressions<>();
-    public static #typeParamsDeclaration($sourceClass) Expressions<$targetClass.simpleName()#typeParams($sourceClass)#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> ${dollar}() {
+    public static #annotateNonPropertyMethod($context) #typeParamsDeclaration($sourceClass) Expressions<$targetClass.simpleName()#typeParams($sourceClass)#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> ${dollar}() {
 #if ($sourceClass.typeParams().isEmpty())
         return ${dollar};
 #else

@@ -8,6 +8,7 @@ import io.reactivex.functions.IntFunction;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
 
 public interface LiveSelectQuery<T> {
     default Observable<Long> count() {
@@ -22,6 +23,10 @@ public interface LiveSelectQuery<T> {
     Observable<List<? extends T>> toList();
     <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Observable<R> aggregate(Aggregator<T, T, R, E> aggregator);
     Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties);
+
+    default <R> R apply(Function<LiveSelectQuery<T>, R> mapper) {
+        return mapper.apply(this);
+    }
 
     default Observable<Notification<T>> observe() {
         //noinspection unchecked
