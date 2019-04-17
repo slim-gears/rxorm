@@ -11,6 +11,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.util.Objects;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -33,8 +35,8 @@ public class SqlStatementProviderTest {
                 .properties(ImmutableList.of(Product.$.name, Product.$.price, Product.$.id))
                 .sortAscending(Product.$.name)
                 .sortDescending(Product.$.id)
-                .limit(100)
-                .skip(200)
+                .limit(100L)
+                .skip(200L)
                 .build());
 
         Assert.assertEquals(
@@ -52,8 +54,8 @@ public class SqlStatementProviderTest {
                 .metaClass(Product.metaClass)
                 .mapping(Product.$.inventory.name.length().add(5))
                 .predicate(Product.$.name.contains("substr").and(Product.$.price.lessThan(100)))
-                .limit(100)
-                .skip(200)
+                .limit(100L)
+                .skip(200L)
                 .build());
 
         Assert.assertEquals(
@@ -78,7 +80,7 @@ public class SqlStatementProviderTest {
                 .build();
 
         ReferenceResolver referenceResolverMock = Mockito.mock(ReferenceResolver.class);
-        when(referenceResolverMock.toReferenceValue(product.inventory())).thenReturn(SqlStatement.of("#31:23"));
+        when(referenceResolverMock.toReferenceValue(Objects.requireNonNull(product.inventory()))).thenReturn(SqlStatement.of("#31:23"));
         SqlStatement statement = statementProvider.forInsertOrUpdate(product, referenceResolverMock);
         Assert.assertEquals(
                 "update Product " +
@@ -93,7 +95,7 @@ public class SqlStatementProviderTest {
     public void testDeleteStatementGeneration() {
         SqlStatement statement = statementProvider.forDelete(DeleteInfo.<Integer, Product>builder()
                 .metaClass(Product.metaClass)
-                .limit(100)
+                .limit(100L)
                 .predicate(Product.$.name.greaterOrEqual("product1"))
                 .build());
         Assert.assertEquals("delete from Product where (not (name < ?)) limit 100", statement.statement());
@@ -106,7 +108,7 @@ public class SqlStatementProviderTest {
                 .metaClass(Product.metaClass)
                 .propertyUpdatesAdd(PropertyUpdateInfo.create(Product.$.name, Product.$.name.concat("aa")))
                 .predicate(Product.$.name.contains("bbb"))
-                .limit(100)
+                .limit(100L)
                 .build());
         Assert.assertEquals(
                 "update Product " +

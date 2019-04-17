@@ -15,6 +15,12 @@ import java.util.stream.Collectors;
 @AutoService(Extension.class)
 @SupportedAnnotationTypes("com.slimgears.rxrepo.annotations.UseFilters")
 public class FiltersExtension implements Extension {
+    public static class FilterUtils {
+        public boolean hasOwnFilter(PropertyInfo property) {
+            return ExtensionUtils.hasInnerClass(property, "Filter");
+        }
+    }
+
     @Override
     public String generateClassBody(Context context) {
         Collection<PropertyInfo> filterableProperties = context.properties()
@@ -28,6 +34,7 @@ public class FiltersExtension implements Extension {
 
         return (!filterableProperties.isEmpty() || isSearchable)
                 ? context.evaluatorForResource("filter-body.java.vm")
+                .variable("filterUtils", new FilterUtils())
                 .variable("filterableProperties", filterableProperties)
                 .variable("isSearchable", isSearchable)
                 .evaluate()

@@ -66,7 +66,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public EntityDeleteQuery<K, S> limit(int limit) {
+            public EntityDeleteQuery<K, S> limit(long limit) {
                 builder.limit(limit);
                 return this;
             }
@@ -117,7 +117,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public EntityUpdateQuery<K, S> limit(int limit) {
+            public EntityUpdateQuery<K, S> limit(long limit) {
                 builder.limit(limit);
                 return this;
             }
@@ -143,8 +143,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
         return new SelectQueryBuilder<K, S>() {
             private final ImmutableList.Builder<SortingInfo<S, ?, ?>> sortingInfos = ImmutableList.builder();
             private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
-            private Integer limit;
-            private Integer skip;
+            private Long limit;
+            private Long skip;
 
             @Override
             public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, S, V> field, boolean ascending) {
@@ -170,7 +170,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
                     @Override
                     public Maybe<T> first() {
-                        QueryInfo<K, S, T> query = builder.limit(1).build();
+                        QueryInfo<K, S, T> query = builder.limit(1L).build();
                         return queryProvider
                                 .query(query)
                                 .singleElement();
@@ -182,8 +182,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         return queryProvider.aggregate(query, aggregator);
                     }
 
-                    @Override
-                    public Observable<T> retrieve(PropertyExpression<T, ?, ?>... properties) {
+                    @Override @SafeVarargs
+                    public final Observable<T> retrieve(PropertyExpression<T, ?, ?>... properties) {
                         QueryInfo<K, S, T> query = builder
                                 .propertiesAdd(properties)
                                 .build();
@@ -208,7 +208,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
                     @Override
                     public Observable<T> first() {
-                        QueryInfo<K, S, T> query = builder.limit(1).build();
+                        QueryInfo<K, S, T> query = builder.limit(1L).build();
                         return queryProvider
                                 .liveQuery(query)
                                 .flatMapMaybe(n -> queryProvider.query(query).singleElement());
@@ -232,8 +232,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                                 .concatWith(queryProvider.liveAggregate(query, aggregator));
                     }
 
-                    @Override
-                    public Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties) {
+                    @Override @SafeVarargs
+                    public final Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties) {
                         QueryInfo<K, S, T> query = builder
                                 .propertiesAdd(properties)
                                 .build();
@@ -251,7 +251,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public SelectQueryBuilder<K, S> limit(int limit) {
+            public SelectQueryBuilder<K, S> limit(long limit) {
                 this.limit = limit;
                 return this;
             }
@@ -265,7 +265,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public SelectQueryBuilder<K, S> skip(int skip) {
+            public SelectQueryBuilder<K, S> skip(long skip) {
                 this.skip = skip;
                 return this;
             }

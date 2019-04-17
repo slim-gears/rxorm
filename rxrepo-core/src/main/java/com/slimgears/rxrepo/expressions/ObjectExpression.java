@@ -9,6 +9,7 @@ import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.ComparableArgumentExpression;
 import com.slimgears.rxrepo.expressions.internal.ComparablePropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.ComparableUnaryOperationExpression;
+import com.slimgears.rxrepo.expressions.internal.FilterCollectionOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.NumericArgumentExpression;
 import com.slimgears.rxrepo.expressions.internal.NumericPropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.NumericUnaryOperationExpression;
@@ -55,6 +56,7 @@ public interface ObjectExpression<S, T> extends Expression {
         return isNull().not();
     }
 
+    @SuppressWarnings("unchecked")
     default BooleanExpression<S> in(T... values) {
         return in(ConstantExpression.of(values));
     }
@@ -175,6 +177,13 @@ public interface ObjectExpression<S, T> extends Expression {
         return expression instanceof BooleanExpression
                 ? (BooleanExpression<S>)expression
                 : BooleanUnaryOperationExpression.create(Type.AsBoolean, expression);
+    }
+
+    @SuppressWarnings("unchecked")
+    static <S, T> CollectionExpression<S, T> asCollection(ObjectExpression<S, ? extends Collection<T>> expression) {
+        return expression instanceof CollectionExpression
+                ? (CollectionExpression<S, T>)expression
+                : FilterCollectionOperationExpression.create(Type.CollectionFilter, expression, BooleanExpression.ofTrue());
     }
 
     static <S, N extends Number & Comparable<N>> NumericExpression<S, N> asNumeric(ObjectExpression<S, N> expression) {

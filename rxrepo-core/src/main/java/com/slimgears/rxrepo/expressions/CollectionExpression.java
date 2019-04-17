@@ -6,6 +6,7 @@ import com.slimgears.rxrepo.expressions.internal.CollectionArgumentExpression;
 import com.slimgears.rxrepo.expressions.internal.FilterCollectionOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.FlatMapCollectionOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.MapCollectionOperationExpression;
+import com.slimgears.rxrepo.expressions.internal.NumericUnaryOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.TypeTokens;
 import com.slimgears.util.reflect.TypeToken;
 
@@ -25,26 +26,30 @@ public interface CollectionExpression<S, E> extends ObjectExpression<S, Collecti
     }
 
     default BooleanExpression<S> isEmpty() {
-        return BooleanUnaryOperationExpression.create(Type.IsEmpty, this);
+        return BooleanUnaryOperationExpression.create(Type.CollectionIsEmpty, this);
     }
 
     default BooleanExpression<S> isNotEmpty() {
         return isEmpty().not();
     }
 
+    default NumericExpression<S, Integer> size() {
+        return NumericUnaryOperationExpression.create(Type.CollectionSize, this);
+    }
+
     default <R> CollectionExpression<S, R> map(ObjectExpression<E, R> mapper) {
         return MapCollectionOperationExpression
-                .create(Type.MapCollection, this, mapper);
+                .create(Type.CollectionMap, this, mapper);
     }
 
     default <R> CollectionExpression<S, R> flatMap(ObjectExpression<E, Collection<R>> mapper) {
         return FlatMapCollectionOperationExpression
-                .create(Type.FlatMapCollection, this, mapper);
+                .create(Type.CollectionFlatMap, this, mapper);
     }
 
     default CollectionExpression<S, E> filter(ObjectExpression<E, Boolean> filter) {
         return FilterCollectionOperationExpression
-                .create(Type.FilterCollection, this, filter);
+                .create(Type.CollectionFilter, this, filter);
     }
 
     default BooleanExpression<S> any(ObjectExpression<E, Boolean> condition) {

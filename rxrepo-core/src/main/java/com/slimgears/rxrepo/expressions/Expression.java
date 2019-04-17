@@ -86,11 +86,13 @@ public interface Expression {
         NumericComposition(NumericComposedExpression.class, OperationType.Composition, ValueType.Numeric, Type::fromComposition),
         StringComposition(StringComposedExpression.class, OperationType.Composition, ValueType.String, Type::fromComposition),
         BooleanComposition(BooleanComposedExpression.class, OperationType.Composition, ValueType.Boolean, Type::fromComposition),
-        CollectionComposition(CollectionComposedExpression.class, OperationType.Composition, ValueType.Collection, Type::fromComposition),
 
-        MapCollection(MapCollectionOperationExpression.class, OperationType.Collection, ValueType.Collection, Type::overridden),
-        FlatMapCollection(FlatMapCollectionOperationExpression.class, OperationType.Collection, ValueType.Collection, Type::overridden),
-        FilterCollection(FilterCollectionOperationExpression.class, OperationType.Collection, ValueType.Collection, Type::overridden),
+        CollectionComposition(CollectionComposedExpression.class, OperationType.Composition, ValueType.Collection, Type::fromComposition),
+        CollectionIsEmpty(BooleanUnaryOperationExpression.class, OperationType.Unary, ValueType.Boolean, just(Boolean.class)),
+        CollectionSize(NumericUnaryOperationExpression.class, OperationType.Unary, ValueType.Numeric, just(Integer.class)),
+        CollectionMap(MapCollectionOperationExpression.class, OperationType.Collection, ValueType.Collection, Type::overridden),
+        CollectionFlatMap(FlatMapCollectionOperationExpression.class, OperationType.Collection, ValueType.Collection, Type::overridden),
+        CollectionFilter(FilterCollectionOperationExpression.class, OperationType.Collection, ValueType.Collection, Type::overridden),
 
         Count(NumericUnaryOperationExpression.class, OperationType.Unary, ValueType.Numeric, just(Long.class)),
         Min(ComparableUnaryOperationExpression.class, OperationType.Unary, ValueType.Comparable, Type::fromArgument),

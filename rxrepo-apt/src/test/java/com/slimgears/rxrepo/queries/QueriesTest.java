@@ -19,8 +19,8 @@ public class QueriesTest {
                         .and(TestEntity.$.refEntity.id.lessOrEqual(8)))
                 .sortAscending(TestEntity.$.refEntity.id)
                 .sortDescending(TestEntity.$.text)
-                .skip(3)
-                .limit(12)
+                .skip(3L)
+                .limit(12L)
                 .build();
 
         List<TestEntity> list = createTestEntities(1000)

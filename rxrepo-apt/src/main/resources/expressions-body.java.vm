@@ -25,7 +25,7 @@
             this.self = self;
 #foreach ($p in $properties)
             this.$p.name() = ##
-    #if ($p.isReferenceProperty())##
+    #if ($p.isReferenceProperty() || $expressionUtils.hasOwnExpressions($p))##
             $[$p.type().erasureName()].ReferencePropertyExpression.create(##
     #elseif ($p.isStringProperty())##
             $[com.slimgears.rxrepo.expressions.PropertyExpression].ofString(##
@@ -55,13 +55,13 @@
             return this.self.objectType();
         }
 
-        static #typeParamsDeclaration($sourceClass) Expressions<$targetClass.simpleName()#typeParams($sourceClass)#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> create() {
+        public static #typeParamsDeclaration($sourceClass) Expressions<$targetClass.simpleName()#typeParams($sourceClass)#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> create() {
             return new Expressions<>(ObjectExpression.arg(new $[com.slimgears.util.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)>(){}));
         }
 
 #foreach ($p in $properties)
         public final ##
-    #if ($p.isReferenceProperty())##
+    #if ($p.isReferenceProperty() || $expressionUtils.hasOwnExpressions($p))##
         $[$p.type().erasureName()].ReferencePropertyExpression<__S, $targetClass.simpleName()#typeParams($sourceClass)#foreach ($tp in $p.type().typeParams()), $tp.typeName()#end>##
     #elseif ($p.isStringProperty())##
         $[com.slimgears.rxrepo.expressions.internal.StringPropertyExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass)>##
@@ -91,7 +91,7 @@
             this.property = property;
         }
 
-        static <__S, __T#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> ReferencePropertyExpression<__S, __T#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> create(ObjectExpression<__S, __T> target, PropertyMeta<__T, $targetClass.simpleName()#typeParams($sourceClass)> property) {
+        public static <__S, __T#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> ReferencePropertyExpression<__S, __T#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> create(ObjectExpression<__S, __T> target, PropertyMeta<__T, $targetClass.simpleName()#typeParams($sourceClass)> property) {
             return new ReferencePropertyExpression<>(target, property);
         }
 

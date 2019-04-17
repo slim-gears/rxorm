@@ -11,7 +11,7 @@ import java.util.function.Function;
 
 public interface QueryBuilder<__B extends QueryBuilder<__B, K, S>, K, S extends HasMetaClassWithKey<K, S>> {
     __B where(BooleanExpression<S> predicate);
-    __B limit(int limit);
+    __B limit(long limit);
     __B where(Filter<S> filter);
 
     @SuppressWarnings("unchecked")

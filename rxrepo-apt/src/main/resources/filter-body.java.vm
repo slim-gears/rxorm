@@ -1,14 +1,16 @@
 #parse("macros.vm")
 
 #macro (filterType $p)##
-    #if ($p.isReferenceProperty())##
+    #if ($p.isReferenceProperty() || $filterUtils.hasOwnFilter($p))##
             $[$p.type().erasureName()].Filter#typeParams($p.type())##
     #elseif ($p.isStringProperty())##
             $[com.slimgears.rxrepo.filters.StringFilter]##
     #elseif ($p.isNumericProperty() || $p.isComparableProperty())##
             $[com.slimgears.rxrepo.filters.ComparableFilter]<$[$p.type().asBoxed()]>##
-    #elseif ($p.isBooleanProperty() )##
+    #elseif ($p.isBooleanProperty())##
             $[com.slimgears.rxrepo.filters.StringFilter]##
+    #elseif ($p.isCollectionProperty())##
+            $[com.slimgears.rxrepo.filters.CollectionFilter]<$[$p.collectionElementType()]>##
     #else##
             $[com.slimgears.rxrepo.filters.ValueFilter]<$[$p.type().asBoxed()]>##
     #end##

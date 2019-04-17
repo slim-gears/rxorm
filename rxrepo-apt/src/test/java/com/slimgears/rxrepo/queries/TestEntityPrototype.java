@@ -18,6 +18,6 @@ public interface TestEntityPrototype {
     @Key @Searchable TestKey key();
     @Indexable @Filterable @Searchable String text();
     @Indexable @Filterable int number();
-    @Reference @Filterable TestRefEntity refEntity();
+    @Filterable TestRefEntity refEntity();
     Collection<TestRefEntity> refEntities();
 }

@@ -1,12 +1,16 @@
 package com.slimgears.rxrepo.query;
 
 import com.slimgears.rxrepo.expressions.BooleanExpression;
+import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.filters.Filter;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.reactivex.functions.Function;
 
 import java.util.Arrays;
 import java.util.List;
@@ -32,6 +36,10 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
         return query().where(predicate).select().retrieve();
     }
 
+    default Observable<S> find(Filter<S> filter) {
+        return find(filter.toExpression(ObjectExpression.arg(metaClass().objectClass())).orElse(null));
+    }
+
     default Maybe<S> find(K key) {
         return query()
                 .where(PropertyExpression.ofObject(metaClass().keyProperty()).eq(key))
@@ -46,6 +54,34 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
     default Single<S[]> udpate(S[] entities) {
         return update(Arrays.asList(entities))
                 .map(l -> l.toArray(entities.clone()));
+    }
+
+    default Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
+        try {
+            return updater
+                    .apply(find(key))
+                    .flatMap(entity -> update(entity).toMaybe());
+        } catch (Exception e) {
+            return Maybe.error(e);
+        }
+    }
+
+    default Completable clear() {
+        return delete().where((BooleanExpression<S>)null).execute().ignoreElement();
+    }
+
+    default Completable delete(K key) {
+        return delete()
+                .where(PropertyExpression.ofObject(metaClass().keyProperty()).eq(key))
+                .execute()
+                .ignoreElement();
+    }
+
+    default Completable delete(K[] keys) {
+        return delete()
+                .where(PropertyExpression.ofObject(metaClass().keyProperty()).in(keys))
+                .execute()
+                .ignoreElement();
     }
 
     default Observable<Notification<S>> observe() {

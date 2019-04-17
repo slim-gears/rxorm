@@ -3,8 +3,6 @@ package com.slimgears.rxrepo.queries;
 import com.slimgears.rxrepo.annotations.Filterable;
 import com.slimgears.rxrepo.annotations.Indexable;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.filters.ComparableFilter;
-import com.slimgears.rxrepo.filters.StringFilter;
 import com.slimgears.rxrepo.util.Expressions;
 import org.junit.Assert;
 import org.junit.Test;
@@ -12,9 +10,10 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.function.Function;
 
-import static com.slimgears.rxrepo.filters.ComparableFilter.greaterOrEqual;
-import static com.slimgears.rxrepo.filters.ComparableFilter.lessThan;
-import static com.slimgears.rxrepo.filters.StringFilter.contains;
+import static com.slimgears.rxrepo.filters.ComparableFilter.fromGreaterOrEqual;
+import static com.slimgears.rxrepo.filters.ComparableFilter.fromLessThan;
+import static com.slimgears.rxrepo.filters.StringFilter.fromContains;
+
 
 public class ExpressionsTest {
     private final TestEntity testEntity1 = TestEntity.builder()
@@ -89,9 +88,9 @@ public class ExpressionsTest {
     @Test
     public void testFilterToExpression() {
         TestEntity.Filter filter = TestEntity.Filter.builder()
-                .refEntity(TestRefEntity.Filter.builder().id(greaterOrEqual(8)).build())
-                .number(lessThan(5))
-                .text(contains("ity 1"))
+                .refEntity(TestRefEntity.Filter.builder().id(fromGreaterOrEqual(8)).build())
+                .number(fromLessThan(5))
+                .text(fromContains("ity 1"))
                 .searchText("ity")
                 .build();
 

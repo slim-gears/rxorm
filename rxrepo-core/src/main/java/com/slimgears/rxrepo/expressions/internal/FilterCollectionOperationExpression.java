@@ -19,7 +19,7 @@ public abstract class FilterCollectionOperationExpression<S, T> implements Colle
     @JsonCreator
     public static <S, T> FilterCollectionOperationExpression<S, T> create(
             @JsonProperty("type") Type type,
-            @JsonProperty("source") ObjectExpression<S, Collection<T>> source,
+            @JsonProperty("source") ObjectExpression<S, ? extends Collection<T>> source,
             @JsonProperty("operation") ObjectExpression<T, Boolean> operation) {
         return new AutoValue_FilterCollectionOperationExpression<>(type, source, operation);
     }
