@@ -14,10 +14,12 @@ import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.reflect.TypeToken;
 import io.reactivex.Completable;
+import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 
 import java.util.Objects;
+import java.util.Optional;
 
 public class SqlQueryProvider implements QueryProvider {
     private final static String aggregationField = "__aggregation";
@@ -26,10 +28,10 @@ public class SqlQueryProvider implements QueryProvider {
     private final SchemaProvider schemaProvider;
     private final ReferenceResolver referenceResolver;
 
-    public SqlQueryProvider(SqlStatementProvider statementProvider,
-                            SqlStatementExecutor statementExecutor,
-                            SchemaProvider schemaProvider,
-                            ReferenceResolver referenceResolver) {
+    SqlQueryProvider(SqlStatementProvider statementProvider,
+                     SqlStatementExecutor statementExecutor,
+                     SchemaProvider schemaProvider,
+                     ReferenceResolver referenceResolver) {
         this.statementProvider = statementProvider;
         this.statementExecutor = statementExecutor;
         this.schemaProvider = schemaProvider;
@@ -43,8 +45,7 @@ public class SqlQueryProvider implements QueryProvider {
         Completable references = Observable
                 .fromIterable(metaClass.properties())
                 .filter(PropertyMetas::isReference)
-                .map(prop -> prop.getValue(entity))
-                .filter(Objects::nonNull)
+                .flatMapMaybe(prop -> Optional.ofNullable(prop.getValue(entity)).map(Maybe::just).orElseGet(Maybe::empty))
                 .ofType(HasMetaClassWithKey.class)
                 .flatMapSingle(this::insertOrUpdate)
                 .ignoreElements();

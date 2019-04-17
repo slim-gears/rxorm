@@ -16,17 +16,18 @@ public class OrientDbSessionProvider {
 
     <T> T withSession(Function<ODatabaseDocument, T> func) {
         try {
-            return func.apply(databaseSessionProvider.acquire());
+            ODatabaseDocument dbSession = databaseSessionProvider.acquire();
+            dbSession.activateOnCurrentThread();
+            return func.apply(dbSession);
         } finally {
             databaseSessionProvider.release();
         }
     }
 
     void withSession(Consumer<ODatabaseDocument> func) {
-        try {
-            func.accept(databaseSessionProvider.acquire());
-        } finally {
-            databaseSessionProvider.release();
-        }
+        this.<Void>withSession(session -> {
+            func.accept(session);
+            return null;
+        });
     }
 }
