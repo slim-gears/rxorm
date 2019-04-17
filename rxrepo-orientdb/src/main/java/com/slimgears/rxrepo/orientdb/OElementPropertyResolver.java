@@ -1,16 +1,13 @@
 package com.slimgears.rxrepo.orientdb;
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.record.OElement;
 import com.slimgears.rxrepo.util.PropertyResolver;
-
-import java.util.function.Supplier;
 
 public class OElementPropertyResolver extends AbstractOrientPropertyResolver {
     private final OElement oElement;
 
-    private OElementPropertyResolver(Supplier<ODatabaseDocument> dbSession, OElement oElement) {
-        super(dbSession);
+    private OElementPropertyResolver(OrientDbSessionProvider dbSessionProvider, OElement oElement) {
+        super(dbSessionProvider);
         this.oElement = oElement;
     }
 
@@ -29,7 +26,7 @@ public class OElementPropertyResolver extends AbstractOrientPropertyResolver {
         return oElement.getProperty(name);
     }
 
-    public static PropertyResolver create(Supplier<ODatabaseDocument> dbSession, OElement oElement) {
-        return new OElementPropertyResolver(dbSession, oElement);
+    public static PropertyResolver create(OrientDbSessionProvider dbSessionProvider, OElement oElement) {
+        return new OElementPropertyResolver(dbSessionProvider, oElement);
     }
 }

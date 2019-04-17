@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
 @UseExpressions
 @UseCopyAnnotator
 public interface ProductPrototype {
-    @Key @Searchable int id();
+    @Key @Filterable @Searchable ProductKey key();
     @Nullable @Filterable @Searchable String name();
     @Reference @Filterable @Nullable Inventory inventory();
     @Searchable int price();

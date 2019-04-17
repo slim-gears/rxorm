@@ -1,24 +1,32 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
+import com.slimgears.util.generic.RecurrentThreadLocal;
 
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class OrientDbSessionProvider implements Supplier<ODatabaseDocument> {
-    private final ThreadLocal<ODatabaseDocument> databaseSessionThreadLocal;
-
-    interface Closeable extends java.io.Closeable {
-        void close();
-    }
+public class OrientDbSessionProvider {
+    private final RecurrentThreadLocal<ODatabaseDocument> databaseSessionProvider;
 
     public OrientDbSessionProvider(Supplier<ODatabaseDocument> databaseSessionProvider) {
-        this.databaseSessionThreadLocal = ThreadLocal.withInitial(databaseSessionProvider);
+        this.databaseSessionProvider = new RecurrentThreadLocal<>(databaseSessionProvider);
     }
 
-    @Override
-    public ODatabaseDocument get() {
-        ODatabaseDocument session = databaseSessionThreadLocal.get();
-        session.activateOnCurrentThread();
-        return session;
+    <T> T withSession(Function<ODatabaseDocument, T> func) {
+        try {
+            return func.apply(databaseSessionProvider.acquire());
+        } finally {
+            databaseSessionProvider.release();
+        }
+    }
+
+    void withSession(Consumer<ODatabaseDocument> func) {
+        try {
+            func.accept(databaseSessionProvider.acquire());
+        } finally {
+            databaseSessionProvider.release();
+        }
     }
 }

@@ -1,6 +1,5 @@
 package com.slimgears.rxrepo.orientdb;
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.stream.Lazy;
@@ -10,7 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.*;
 
@@ -21,12 +19,12 @@ public class OResultPropertyResolver extends AbstractOrientPropertyResolver {
     private final Lazy<Iterable<String>> propertyNames;
     private final Map<String, PropertyResolver> resolvers = new HashMap<>();
 
-    private OResultPropertyResolver(Supplier<ODatabaseDocument> dbSession, OResult oResult) {
-        this(dbSession, oResult, "");
+    private OResultPropertyResolver(OrientDbSessionProvider dbSessionProvider, OResult oResult) {
+        this(dbSessionProvider, oResult, "");
     }
 
-    private OResultPropertyResolver(Supplier<ODatabaseDocument> dbSession, OResult oResult, String prefix) {
-        super(dbSession);
+    private OResultPropertyResolver(OrientDbSessionProvider dbSessionProvider, OResult oResult, String prefix) {
+        super(dbSessionProvider);
         this.oResult = oResult;
         this.prefix = prefix;
         this.index = (int)Arrays.stream(split(prefix)).filter(p -> !p.isEmpty()).count();
@@ -50,9 +48,9 @@ public class OResultPropertyResolver extends AbstractOrientPropertyResolver {
                 .orElseGet(() -> oResult.getProperty(prefix + name));
     }
 
-    public static PropertyResolver create(Supplier<ODatabaseDocument> dbSession, OResult oResult) {
+    public static PropertyResolver create(OrientDbSessionProvider dbSessionProvider, OResult oResult) {
         return Optional.ofNullable(oResult)
-                .map(or -> new OResultPropertyResolver(dbSession, or))
+                .map(or -> new OResultPropertyResolver(dbSessionProvider, or))
                 .orElse(null);
     }
 
@@ -67,7 +65,7 @@ public class OResultPropertyResolver extends AbstractOrientPropertyResolver {
         map.entrySet()
                 .stream()
                 .filter(e -> !e.getValue().isEmpty() && e.getValue().get(0).length() > e.getKey().length())
-                .forEach(e -> resolvers.put(e.getKey(), new OResultPropertyResolver(dbSession, oResult, e.getKey() + ".")));
+                .forEach(e -> resolvers.put(e.getKey(), new OResultPropertyResolver(dbSessionProvider, oResult, e.getKey() + ".")));
 
         return map.keySet();
     }

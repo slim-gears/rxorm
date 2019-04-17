@@ -9,11 +9,11 @@ import com.slimgears.util.reflect.TypeToken;
 public interface PropertyResolver {
     Iterable<String> propertyNames();
     Object getProperty(String name, Class type);
-    <K> K getKey(Class<K> keyClass);
+    Object getKey(Class<?> keyClass);
 
+    @SuppressWarnings("unchecked")
     default <V> V getProperty(PropertyMeta<?, V> propertyMeta) {
         Object value = getProperty(propertyMeta.name(), propertyMeta.type().asClass());
-        //noinspection unchecked
         return (value instanceof PropertyResolver)
                 ? ((PropertyResolver)value).toObject(propertyMeta.type())
                 : (V)value;
@@ -27,8 +27,8 @@ public interface PropertyResolver {
         return PropertyResolvers.toObject(this, metaClass);
     }
 
+    @SuppressWarnings("unchecked")
     default <T> T toObject(TypeToken<? extends T> typeToken) {
-        //noinspection unchecked
         return (T)toObject(MetaClasses.forToken((TypeToken)typeToken));
     }
 

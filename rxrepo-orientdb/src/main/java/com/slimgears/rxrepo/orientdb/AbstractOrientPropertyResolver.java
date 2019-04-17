@@ -6,17 +6,18 @@ import com.orientechnologies.orient.core.db.record.OTrackedMap;
 import com.orientechnologies.orient.core.db.record.OTrackedSet;
 import com.orientechnologies.orient.core.id.ORecordId;
 import com.orientechnologies.orient.core.record.OElement;
+import com.orientechnologies.orient.core.sql.executor.OResult;
+import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.slimgears.rxrepo.util.PropertyResolver;
 
 import java.util.Map;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public abstract class AbstractOrientPropertyResolver implements PropertyResolver {
-    protected final Supplier<ODatabaseDocument> dbSession;
+    final OrientDbSessionProvider dbSessionProvider;
 
-    protected AbstractOrientPropertyResolver(Supplier<ODatabaseDocument> dbSession) {
-        this.dbSession = dbSession;
+    AbstractOrientPropertyResolver(OrientDbSessionProvider dbSessionProvider) {
+        this.dbSessionProvider = dbSessionProvider;
     }
 
     @Override
@@ -25,27 +26,27 @@ public abstract class AbstractOrientPropertyResolver implements PropertyResolver
         return toValue(obj, type);
     }
 
-    @SuppressWarnings("unchecked")
-    protected Object toValue(Object obj, Class expectedType) {
-        return toValue(dbSession, obj, expectedType);
+    private Object toValue(Object obj, Class expectedType) {
+        return toValue(dbSessionProvider, obj, expectedType);
     }
 
-    static Object toValue(Supplier<ODatabaseDocument> dbSession, Object obj, Class expectedType) {
+    @SuppressWarnings("unchecked")
+    private static Object toValue(OrientDbSessionProvider dbSessionProvider, Object obj, Class expectedType) {
         if (obj instanceof OElement) {
-            return OElementPropertyResolver.create(dbSession, (OElement)obj);
+            return OElementPropertyResolver.create(dbSessionProvider, (OElement)obj);
         } else if (expectedType.isEnum() && obj != null) {
             return Enum.valueOf(expectedType, obj.toString());
         } else if (obj instanceof ORecordId) {
-            return toValue(dbSession, dbSession.get().load((ORecordId)obj), expectedType);
+            return toValue(dbSessionProvider, dbSessionProvider.withSession((ODatabaseDocument s) -> s.load((ORecordId)obj)), expectedType);
         } else if (obj instanceof OTrackedList) {
             return ((OTrackedList<OElement>)obj)
                     .stream()
-                    .map(v -> toValue(dbSession, v, expectedType))
+                    .map(v -> toValue(dbSessionProvider, v, expectedType))
                     .collect(Collectors.toList());
         } else if (obj instanceof OTrackedSet) {
             return ((OTrackedSet<OElement>)obj)
                     .stream()
-                    .map(v -> toValue(dbSession, v, expectedType))
+                    .map(v -> toValue(dbSessionProvider, v, expectedType))
                     .collect(Collectors.toSet());
         } else if (obj instanceof OTrackedMap) {
             return ((OTrackedMap<OElement>)obj)
@@ -53,7 +54,14 @@ public abstract class AbstractOrientPropertyResolver implements PropertyResolver
                     .stream()
                     .collect(Collectors.toMap(
                             Map.Entry::getKey,
-                            e -> toValue(dbSession, e.getValue(), expectedType)));
+                            e -> toValue(dbSessionProvider, e.getValue(), expectedType)));
+        } else if (obj instanceof OResult) {
+            return OResultPropertyResolver.create(dbSessionProvider, (OResult)obj);
+        } else if (obj instanceof OResultSet) {
+            return ((OResultSet)obj)
+                    .stream()
+                    .map(r -> toValue(dbSessionProvider, r, expectedType))
+                    .collect(Collectors.toList());
         }
         return obj;
     }

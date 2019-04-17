@@ -1,20 +1,25 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.orientechnologies.orient.core.db.OLiveQueryMonitor;
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
+import com.orientechnologies.orient.core.record.OElement;
+import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.util.PropertyResolver;
+import com.slimgears.util.autovalue.annotations.HasMetaClass;
+import com.slimgears.util.autovalue.annotations.MetaClass;
+import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.schedulers.Schedulers;
 
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -29,18 +34,18 @@ public class OrientDbStatementExecutor implements SqlStatementExecutor {
     @Override
     public Observable<PropertyResolver> executeQuery(SqlStatement statement) {
         return toObservable(
-                () -> {
+                session -> {
                     logStatement("Querying", statement);
-                    return sessionProvider.get().query(statement.statement(), statement.args());
+                    return session.query(statement.statement(), convertArgs(statement.args()));
                 });
     }
 
     @Override
     public Observable<PropertyResolver> executeCommandReturnEntries(SqlStatement statement) {
         return toObservable(
-                () -> {
+                session -> {
                     logStatement("Executing command", statement);
-                    return sessionProvider.get().command(statement.statement(), statement.args());
+                    return session.command(statement.statement(), convertArgs(statement.args()));
                 })
                 .retry(5)
                 .doOnError(e -> log.severe(e::toString))
@@ -59,30 +64,53 @@ public class OrientDbStatementExecutor implements SqlStatementExecutor {
         return Observable.<OrientDbLiveQueryListener.LiveQueryNotification>create(
                 emitter -> {
                     logStatement("Live querying", statement);
-                    OLiveQueryMonitor monitor = sessionProvider.get().live(statement.statement(), new OrientDbLiveQueryListener(emitter), statement.args());
-                    emitter.setCancellable(monitor::unSubscribe);
+                    sessionProvider.withSession(dbSession -> {
+                        OLiveQueryMonitor monitor = dbSession.live(statement.statement(), new OrientDbLiveQueryListener(emitter), convertArgs(statement.args()));
+                        emitter.setCancellable(monitor::unSubscribe);
+                    });
                 })
                 .map(res -> Notification.ofModified(
                         Optional.ofNullable(res.oldResult())
-                                .map(or -> OResultPropertyResolver.create(res::database, or))
+                                .map(or -> OResultPropertyResolver.create(new OrientDbSessionProvider(res::database), or))
                                 .orElse(null),
                         Optional.ofNullable(res.newResult())
-                                .map(or -> OResultPropertyResolver.create(res::database, or))
+                                .map(or -> OResultPropertyResolver.create(new OrientDbSessionProvider(res::database), or))
                                 .orElse(null)));
     }
 
-    private Observable<PropertyResolver> toObservable(Supplier<OResultSet> resultSetSupplier) {
+    private Observable<PropertyResolver> toObservable(Function<ODatabaseDocument, OResultSet> resultSetSupplier) {
         return Observable.<OResult>create(
-                emitter -> {
-                    OResultSet resultSet = resultSetSupplier.get();
+                emitter -> sessionProvider.withSession(dbSession -> {
+                    OResultSet resultSet = resultSetSupplier.apply(dbSession);
                     emitter.setCancellable(resultSet::close);
                     resultSet.stream()
                             .peek(res -> log.fine(() -> "Received: " + res))
                             .forEach(emitter::onNext);
                     emitter.onComplete();
-                })
+                }))
                 .map(res -> OResultPropertyResolver.create(sessionProvider, res))
                 .subscribeOn(Schedulers.io());
+    }
+
+    private Object[] convertArgs(Object[] args) {
+        Object[] newArgs = Arrays.copyOf(args, args.length);
+        for (int i = 0; i < args.length; ++i) {
+            newArgs[i] = convertArg(newArgs[i]);
+        }
+        return newArgs;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object convertArg(Object obj) {
+        if (!(obj instanceof HasMetaClass)) {
+            return obj;
+        }
+
+        HasMetaClass<?> hasMetaClass = (HasMetaClass)obj;
+        MetaClass<?> metaClass = hasMetaClass.metaClass();
+        OElement oElement = new ODocument();
+        metaClass.properties().forEach(p -> oElement.setProperty(p.name(), convertArg(((PropertyMeta)p).getValue(obj))));
+        return oElement;
     }
 
     private void logStatement(String title, SqlStatement statement) {
