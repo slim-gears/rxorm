@@ -13,6 +13,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     private final Lazy<ReferenceResolver> referenceResolver;
     private final Lazy<SchemaProvider> schemaProvider;
     private final Lazy<SqlExpressionGenerator> expressionGenerator;
+    private final Lazy<SqlAssignmentGenerator> assignmentGenerator;
     private final Lazy<QueryProvider> queryProvider;
 
     private DefaultSqlServiceFactory(
@@ -20,12 +21,14 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor,
             Function<SqlServiceFactory, ReferenceResolver> referenceResolver,
             Function<SqlServiceFactory, SchemaProvider> schemaProvider,
-            Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator) {
+            Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
+            Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator) {
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
         this.statementExecutor = Lazy.of(() -> statementExecutor.apply(this));
         this.referenceResolver = Lazy.of(() -> referenceResolver.apply(this));
         this.schemaProvider = Lazy.of(() -> schemaProvider.apply(this));
         this.expressionGenerator = Lazy.of(() -> expressionGenerator.apply(this));
+        this.assignmentGenerator = Lazy.of(() -> assignmentGenerator.apply(this));
         this.queryProvider = Lazy.of(() -> new SqlQueryProvider(
                 statementProvider(),
                 statementExecutor(),
@@ -54,6 +57,11 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     }
 
     @Override
+    public SqlAssignmentGenerator assignmentGenerator() {
+        return assignmentGenerator.get();
+    }
+
+    @Override
     public ReferenceResolver referenceResolver() {
         return referenceResolver.get();
     }
@@ -66,7 +74,10 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     public static SqlServiceFactory.Builder builder() {
         return new Builder()
                 .expressionGenerator(DefaultSqlExpressionGenerator::new)
-                .statementProvider(factory -> new DefaultSqlStatementProvider(factory.expressionGenerator(), factory.schemaProvider()));
+                .statementProvider(factory -> new DefaultSqlStatementProvider(
+                        factory.expressionGenerator(),
+                        factory.assignmentGenerator(),
+                        factory.schemaProvider()));
     }
 
     static class Builder implements SqlServiceFactory.Builder {
@@ -75,6 +86,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         private Function<SqlServiceFactory, SchemaProvider> schemaProvider;
         private Function<SqlServiceFactory, ReferenceResolver> referenceResolver;
         private Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator;
+        private Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator;
 
         @Override
         public SqlServiceFactory.Builder statementProvider(Function<SqlServiceFactory, SqlStatementProvider> statementProvider) {
@@ -107,13 +119,20 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         }
 
         @Override
+        public SqlServiceFactory.Builder assignmentGenerator(Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator) {
+            this.assignmentGenerator = assignmentGenerator;
+            return this;
+        }
+
+        @Override
         public SqlServiceFactory build() {
             return new DefaultSqlServiceFactory(
                     requireNonNull(statementProvider),
                     requireNonNull(statementExecutor),
                     requireNonNull(referenceResolver),
                     requireNonNull(schemaProvider),
-                    requireNonNull(expressionGenerator));
+                    requireNonNull(expressionGenerator),
+                    requireNonNull(assignmentGenerator));
         }
     }
 }

@@ -21,23 +21,25 @@ import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.slimgears.rxrepo.sql.SqlStatement.of;
+import static com.slimgears.rxrepo.sql.StatementUtils.concat;
 
 public class DefaultSqlStatementProvider implements SqlStatementProvider {
     private final SqlExpressionGenerator sqlExpressionGenerator;
+    private final SqlAssignmentGenerator sqlAssignmentGenerator;
     private final SchemaProvider schemaProvider;
 
-    public DefaultSqlStatementProvider(SqlExpressionGenerator sqlExpressionGenerator, SchemaProvider schemaProvider) {
+    public DefaultSqlStatementProvider(SqlExpressionGenerator sqlExpressionGenerator,
+                                       SqlAssignmentGenerator sqlAssignmentGenerator,
+                                       SchemaProvider schemaProvider) {
         this.sqlExpressionGenerator = sqlExpressionGenerator;
+        this.sqlAssignmentGenerator = sqlAssignmentGenerator;
         this.schemaProvider = schemaProvider;
     }
 
@@ -95,19 +97,13 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                         "set",
                         Streams
                                 .fromIterable(metaClass.properties())
-                                .flatMap(toAssignment(entity, resolver))
+                                .flatMap(sqlAssignmentGenerator.toAssignment(entity, resolver))
                                 .collect(Collectors.joining(", ")),
                         "upsert",
                         "return after",
                         "where",
                         toConditionClause(PropertyExpression.ofObject(keyProperty).eq(keyProperty.getValue(entity)))
                 ));
-    }
-
-    private String concat(String... clauses) {
-        return Arrays
-                .stream(clauses).filter(c -> !c.isEmpty())
-                .collect(Collectors.joining(" "));
     }
 
     private SqlStatement statement(Supplier<SqlStatement> statementSupplier) {
@@ -198,20 +194,5 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
 
     private <S> String toConditionClause(ObjectExpression<S, Boolean> condition) {
         return sqlExpressionGenerator.toSqlExpression(condition);
-    }
-
-    private <T> Function<PropertyMeta<T, ?>, Stream<String>> toAssignment(T entity, ReferenceResolver referenceResolver) {
-        return prop -> {
-            Object obj = prop.getValue(entity);
-            if (obj == null) {
-                return Stream.empty();
-            }
-            //noinspection unchecked
-            String val = (obj instanceof HasMetaClassWithKey)
-                    ? sqlExpressionGenerator.fromStatement(referenceResolver.toReferenceValue((HasMetaClassWithKey)obj))
-                    : sqlExpressionGenerator.fromConstant(obj);
-            String assignment = concat(sqlExpressionGenerator.fromProperty(prop), "=", val);
-            return Stream.of(assignment);
-        };
     }
 }

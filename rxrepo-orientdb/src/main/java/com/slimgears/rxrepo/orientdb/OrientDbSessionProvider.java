@@ -7,11 +7,15 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class OrientDbSessionProvider {
+class OrientDbSessionProvider {
     private final RecurrentThreadLocal<ODatabaseDocument> databaseSessionProvider;
 
-    public OrientDbSessionProvider(Supplier<ODatabaseDocument> databaseSessionProvider) {
+    private OrientDbSessionProvider(Supplier<ODatabaseDocument> databaseSessionProvider) {
         this.databaseSessionProvider = new RecurrentThreadLocal<>(databaseSessionProvider);
+    }
+
+    static OrientDbSessionProvider create(Supplier<ODatabaseDocument> dbSessionSupplier) {
+        return new OrientDbSessionProvider(dbSessionSupplier);
     }
 
     <T> T withSession(Function<ODatabaseDocument, T> func) {

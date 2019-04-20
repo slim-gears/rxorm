@@ -12,7 +12,7 @@ import java.util.Optional;
 
 import static java.util.stream.Collectors.*;
 
-public class OResultPropertyResolver extends AbstractOrientPropertyResolver {
+class OResultPropertyResolver extends AbstractOrientPropertyResolver {
     private final OResult oResult;
     private final String prefix;
     private final int index;

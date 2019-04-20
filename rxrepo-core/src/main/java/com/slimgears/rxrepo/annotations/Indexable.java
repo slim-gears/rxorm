@@ -9,4 +9,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 public @interface Indexable {
     boolean unique() default false;
+    boolean asString() default false;
 }

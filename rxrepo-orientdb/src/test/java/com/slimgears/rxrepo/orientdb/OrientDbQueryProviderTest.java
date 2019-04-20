@@ -1,28 +1,16 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.google.common.base.Stopwatch;
-import com.orientechnologies.common.serialization.OBinaryConverter;
-import com.orientechnologies.common.serialization.OBinaryConverterFactory;
-import com.orientechnologies.common.serialization.types.OBinarySerializer;
 import com.orientechnologies.common.serialization.types.OBinaryTypeSerializer;
-import com.orientechnologies.common.serialization.types.OStringSerializer;
-import com.orientechnologies.orient.core.conflict.ORecordConflictStrategy;
 import com.orientechnologies.orient.core.db.ODatabaseSession;
 import com.orientechnologies.orient.core.db.ODatabaseType;
 import com.orientechnologies.orient.core.db.OrientDB;
 import com.orientechnologies.orient.core.db.OrientDBConfig;
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentAbstract;
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx;
-import com.orientechnologies.orient.core.id.ORecordId;
 import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
-import com.orientechnologies.orient.core.index.OSimpleKeyIndexDefinition;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OType;
-import com.orientechnologies.orient.core.serialization.serializer.binary.OBinarySerializerFactory;
-import com.orientechnologies.orient.core.serialization.serializer.record.ORecordSerializer;
-import com.orientechnologies.orient.core.serialization.serializer.record.string.ORecordSerializerJSON;
-import com.orientechnologies.orient.core.storage.OStorage;
-import com.orientechnologies.orient.core.storage.impl.local.paginated.wal.OWALChanges;
+import com.orientechnologies.orient.core.record.impl.ODocument;
+import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.orientechnologies.orient.server.OServer;
 import com.orientechnologies.orient.server.OServerMain;
 import com.orientechnologies.orient.server.config.OServerConfiguration;
@@ -30,29 +18,23 @@ import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.EntitySet;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.Repository;
-import com.slimgears.rxrepo.query.provider.QueryProvider;
-import com.slimgears.rxrepo.sql.DefaultSqlExpressionGenerator;
-import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
-import com.slimgears.rxrepo.sql.SqlServiceFactory;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.UseLogLevel;
 import io.reactivex.observers.TestObserver;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import javax.inject.Provider;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -81,18 +63,7 @@ public class OrientDbQueryProviderTest {
     public void setUp() {
         dbClient = new OrientDB("embedded:testDbServer", OrientDBConfig.defaultConfig());
         dbClient.create(dbName, ODatabaseType.MEMORY);
-        OrientDbSessionProvider sessionProvider = new OrientDbSessionProvider(() -> dbClient.open(dbName, "admin", "admin"));
-
-        QueryProvider queryProvider = SqlServiceFactory.builder()
-                .schemaProvider(() -> new OrientDbSchemaProvider(sessionProvider))
-                .statementExecutor(() -> new OrientDbStatementExecutor(sessionProvider))
-                .expressionGenerator(OrientDbSqlExpressionGenerator::new)
-                .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.schemaProvider()))
-                .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
-                .build()
-                .queryProvider();
-
-        repository = Repository.fromProvider(queryProvider);
+        repository = OrientDbRepository.create(() -> dbClient.open(dbName, "admin", "admin"));
     }
 
     @After
@@ -102,8 +73,9 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
+    @UseLogLevel(UseLogLevel.Level.FINEST)
     public void testInsertLiveRetrieve() throws InterruptedException {
-        EntitySet<ProductKey, Product> productSet = repository.entities(Product.metaClass);
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
 
         AtomicInteger counter = new AtomicInteger();
 
@@ -149,27 +121,58 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
+    //@UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testAddAndRetrieveByKey() throws InterruptedException {
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+        Product product = Product.builder()
+                .name("Product 1")
+                .key(UniqueId.productId(1))
+                .price(1001)
+                .build();
+
+        productSet.update(product).test().await().assertNoErrors();
+        Assert.assertEquals(Long.valueOf(1), productSet.query().where(Product.$.key.eq(UniqueId.productId(1))).count().blockingGet());
+    }
+
+    @Test
+    //@UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testAddAlreadyExistingObject() throws InterruptedException {
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+        Product product = Product.builder()
+                .name("Product 1")
+                .key(UniqueId.productId(1))
+                .price(1001)
+                .build();
+
+        productSet.update(product).test().await().assertNoErrors();
+        productSet.update(product).test().await().assertNoErrors();
+        Assert.assertEquals(Long.valueOf(1), productSet.query().count().blockingGet());
+    }
+
+    @Test
+    //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testAddSameInventory() throws InterruptedException {
-        EntitySet<ProductKey, Product> productSet = repository.entities(Product.metaClass);
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+        EntitySet<UniqueId, Inventory> inventorySet = repository.entities(Inventory.metaClass);
         productSet
                 .update(Arrays.asList(
                         Product.builder()
                                 .name("Product 1")
-                                .key(ProductKey.create(1))
+                                .key(UniqueId.productId(1))
                                 .price(1001)
                                 .inventory(Inventory
                                         .builder()
-                                        .id(2)
+                                        .id(UniqueId.inventoryId(2))
                                         .name("Inventory 2")
                                         .build())
                                 .build(),
                         Product.builder()
                                 .name("Product 2")
-                                .key(ProductKey.create(2))
+                                .key(UniqueId.productId(2))
                                 .price(1002)
                                 .inventory(Inventory
                                         .builder()
-                                        .id(2)
+                                        .id(UniqueId.inventoryId(2))
                                         .name("Inventory 2")
                                         .build())
                                 .build()
@@ -181,11 +184,13 @@ public class OrientDbQueryProviderTest {
                 .assertValueAt(0, items -> items.size() == 2)
                 .assertValueAt(0, items -> items.stream().anyMatch(p -> Objects.equals(p.name(), "Product 1")))
                 .assertValueAt(0, items -> items.stream().anyMatch(p -> Objects.equals(p.name(), "Product 2")));
+
+        Assert.assertEquals(Long.valueOf(1), inventorySet.query().count().blockingGet());
     }
 
     @Test
     public void testInsertThenRetrieve() throws InterruptedException {
-        EntitySet<ProductKey, Product> productSet = repository.entities(Product.metaClass);
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(1000);
         Stopwatch stopwatch = Stopwatch.createUnstarted();
         productSet
@@ -218,7 +223,7 @@ public class OrientDbQueryProviderTest {
                 .query()
                 .where(Product.$.name.contains("231"))
                 .select()
-                .retrieve(Product.$.key.id, Product.$.price, Product.$.inventory.id, Product.$.inventory.name)
+                .retrieve(Product.$.key, Product.$.price, Product.$.inventory.id, Product.$.inventory.name)
                 .test()
                 .await()
                 .assertNoErrors()
@@ -230,9 +235,9 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testInsertThenSearch() throws InterruptedException {
-        EntitySet<ProductKey, Product> productSet = repository.entities(Product.metaClass);
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(100);
         Stopwatch stopwatch = Stopwatch.createUnstarted();
         productSet
@@ -248,7 +253,7 @@ public class OrientDbQueryProviderTest {
                 .query()
                 .where(Product.$.searchText("Product 31"))
                 .select()
-                .retrieve(Product.$.key.id, Product.$.name, Product.$.price, Product.$.inventory.id, Product.$.inventory.name)
+                .retrieve(Product.$.key, Product.$.name, Product.$.price, Product.$.inventory.id, Product.$.inventory.name)
                 .test()
                 .await()
                 .assertNoErrors()
@@ -257,7 +262,7 @@ public class OrientDbQueryProviderTest {
 
     @Test
     public void testInsertThenUpdate() throws InterruptedException {
-        EntitySet<ProductKey, Product> productSet = repository.entities(Product.metaClass);
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(1000);
         productSet
                 .update(products)
@@ -281,14 +286,80 @@ public class OrientDbQueryProviderTest {
                 });
     }
 
+    @Test @Ignore
+    public void testAddThenQueryRawOrientDb() {
+        try (OrientDB dbClient = new OrientDB("embedded:testDbServer", OrientDBConfig.defaultConfig())) {
+            dbClient.create(dbName, ODatabaseType.MEMORY);
+            try (ODatabaseSession dbSession = dbClient.open(dbName, "admin", "admin")) {
+                OClass oClass = dbSession.createClass("MyClass");
+                oClass.createProperty("myField", OType.EMBEDDED);
+
+                dbSession.command("insert into MyClass set myField = {'id': 1, '@type': 'd'}")
+                        .stream()
+                        .map(OResult::toJSON)
+                        .forEach(el -> System.out.println("Inserted element: " + el));
+
+                dbSession.command("insert into MyClass set myField = ?",
+                        new ODocument().field("id", 1))
+                        .stream()
+                        .map(OResult::toJSON)
+                        .forEach(el -> System.out.println("Inserted element: " + el));
+
+                dbSession.query("select from MyClass where myField = {'id': 1, '@type': 'd', '@version': 0}")
+                        .stream()
+                        .map(OResult::toJSON)
+                        .forEach(el -> System.out.println("Retrieved element (with filter): " + el));
+
+                dbSession.query("select from MyClass where myField = ?",
+                        new ODocument().field("id", 1))
+                        .stream()
+                        .map(OResult::toJSON)
+                        .forEach(el -> System.out.println("Retrieved element (with filter): " + el));
+            }
+        }
+    }
+
+    @Test @Ignore
+    public void testCustomIndex() {
+        try (OrientDB dbClient = new OrientDB("embedded:testDb", OrientDBConfig.defaultConfig())) {
+            dbClient.create(dbName, ODatabaseType.MEMORY);
+            try (ODatabaseSession session = dbClient.open(dbName, "admin", "admin")) {
+                OClass oClass = session.createClass("MyClass");
+                oClass.createProperty("key", OType.STRING);
+                session.getMetadata().getIndexManager().createIndex(
+                        "MyClass.keyIndex",
+                        OClass.INDEX_TYPE.UNIQUE_HASH_INDEX.name(),
+                        new ORuntimeKeyIndexDefinition<>(OBinaryTypeSerializer.ID),
+                        null,
+                        null,
+                        null);
+                session.command("update MyClass set key = ? upsert return after where (key = ?)", UniqueId.productId(2), UniqueId.productId(2))
+                        .close();
+
+                session.command("update MyClass set key = ? upsert return after where (key = ?)", UniqueId.productId(2), UniqueId.productId(2))
+                        .stream()
+                        .close();
+
+                session.query("select from MyClass where key = ?", UniqueId.productId(2))
+                        .stream()
+                        .map(OResult::toJSON)
+                        .forEach(System.out::println);
+            }
+        }
+    }
+
     private Iterable<Product> createProducts(int count) {
         List<Inventory> inventories = IntStream.range(0, count / 10)
-                .mapToObj(i -> Inventory.builder().id(i).name("Inventory " + i).build())
+                .mapToObj(i -> Inventory
+                        .builder()
+                        .id(UniqueId.inventoryId(i))
+                        .name("Inventory " + i)
+                        .build())
                 .collect(Collectors.toList());
 
         return IntStream.range(0, count)
                 .mapToObj(i -> Product.builder()
-                        .key(ProductKey.create(i))
+                        .key(UniqueId.productId(i))
                         .name("Product " + i)
                         .inventory(inventories.get(i % inventories.size()))
                         .price(100 + (i % 7)*(i % 11) + i % 13)

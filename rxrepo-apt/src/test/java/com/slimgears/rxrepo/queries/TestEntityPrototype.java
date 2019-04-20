@@ -6,7 +6,6 @@ import com.slimgears.rxrepo.annotations.Searchable;
 import com.slimgears.rxrepo.annotations.UseFilters;
 import com.slimgears.util.autovalue.annotations.AutoValuePrototype;
 import com.slimgears.util.autovalue.annotations.Key;
-import com.slimgears.util.autovalue.annotations.Reference;
 import com.slimgears.util.autovalue.annotations.UseCopyAnnotator;
 
 import java.util.Collection;

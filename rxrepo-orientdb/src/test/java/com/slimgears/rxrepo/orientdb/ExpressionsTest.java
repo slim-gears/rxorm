@@ -8,19 +8,22 @@ import org.junit.Test;
 import java.util.Objects;
 import java.util.function.Function;
 
+import static com.slimgears.rxrepo.orientdb.UniqueId.inventoryId;
+import static com.slimgears.rxrepo.orientdb.UniqueId.productId;
+
 public class ExpressionsTest {
     private final Product product1 = Product.builder()
-            .key(ProductKey.create(0))
+            .key(productId(0))
                 .name("Product 0")
                 .price(9)
-                .inventory(Inventory.builder().name("Inventory 1").id(1).build())
+                .inventory(Inventory.builder().name("Inventory 1").id(inventoryId(1)).build())
             .build();
 
     private final Product product2 = Product.builder()
-            .key(ProductKey.create(10))
+            .key(productId(10))
                 .name("Product 10")
                 .price(9)
-                .inventory(Inventory.builder().name("Inventory 1").id(1).build())
+                .inventory(Inventory.builder().name("Inventory 1").id(inventoryId(1)).build())
             .build();
 
     @Test

@@ -2,7 +2,6 @@ package com.slimgears.rxrepo.apt;
 
 import com.slimgears.rxrepo.annotations.UseFilters;
 import com.slimgears.util.autovalue.annotations.AutoValuePrototype;
-import com.slimgears.util.autovalue.annotations.Reference;
 
 import java.util.Collection;
 

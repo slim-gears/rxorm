@@ -10,6 +10,7 @@ public interface SqlServiceFactory {
     SqlStatementExecutor statementExecutor();
     SchemaProvider schemaProvider();
     SqlExpressionGenerator expressionGenerator();
+    SqlAssignmentGenerator assignmentGenerator();
     ReferenceResolver referenceResolver();
     QueryProvider queryProvider();
 
@@ -23,6 +24,7 @@ public interface SqlServiceFactory {
         Builder schemaProvider(Function<SqlServiceFactory, SchemaProvider> schemaProvider);
         Builder referenceResolver(Function<SqlServiceFactory, ReferenceResolver> referenceResolver);
         Builder expressionGenerator(Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator);
+        Builder assignmentGenerator(Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator);
         SqlServiceFactory build();
 
         default Builder statementProvider(Supplier<SqlStatementProvider> statementProvider) {
@@ -43,6 +45,10 @@ public interface SqlServiceFactory {
 
         default Builder expressionGenerator(Supplier<SqlExpressionGenerator> expressionGenerator) {
             return expressionGenerator(f -> expressionGenerator.get());
+        }
+
+        default Builder assignmentGenerator(Supplier<SqlAssignmentGenerator> assignmentGenerator) {
+            return assignmentGenerator(f -> assignmentGenerator.get());
         }
     }
 }

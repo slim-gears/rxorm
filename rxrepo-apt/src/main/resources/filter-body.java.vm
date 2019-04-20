@@ -1,7 +1,7 @@
 #parse("macros.vm")
 
 #macro (filterType $p)##
-    #if ($p.isReferenceProperty() || $filterUtils.hasOwnFilter($p))##
+    #if ($filterUtils.hasOwnFilter($p))##
             $[$p.type().erasureName()].Filter#typeParams($p.type())##
     #elseif ($p.isStringProperty())##
             $[com.slimgears.rxrepo.filters.StringFilter]##

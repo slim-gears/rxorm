@@ -9,10 +9,10 @@ import io.reactivex.ObservableEmitter;
 
 import javax.annotation.Nullable;
 
-public class OrientDbLiveQueryListener implements OLiveQueryResultListener {
+class OrientDbLiveQueryListener implements OLiveQueryResultListener {
     private final ObservableEmitter<LiveQueryNotification> emitter;
 
-    public OrientDbLiveQueryListener(ObservableEmitter<LiveQueryNotification> emitter) {
+    OrientDbLiveQueryListener(ObservableEmitter<LiveQueryNotification> emitter) {
         this.emitter = emitter;
     }
 

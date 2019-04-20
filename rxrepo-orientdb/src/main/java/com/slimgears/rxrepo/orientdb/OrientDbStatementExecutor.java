@@ -23,11 +23,11 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-public class OrientDbStatementExecutor implements SqlStatementExecutor {
+class OrientDbStatementExecutor implements SqlStatementExecutor {
     private final static Logger log = Logger.getLogger(OrientDbStatementExecutor.class.getName());
     private final OrientDbSessionProvider sessionProvider;
 
-    public OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider) {
+    OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider) {
         this.sessionProvider = sessionProvider;
     }
 
@@ -71,10 +71,10 @@ public class OrientDbStatementExecutor implements SqlStatementExecutor {
                 })
                 .map(res -> Notification.ofModified(
                         Optional.ofNullable(res.oldResult())
-                                .map(or -> OResultPropertyResolver.create(new OrientDbSessionProvider(res::database), or))
+                                .map(or -> OResultPropertyResolver.create(OrientDbSessionProvider.create(res::database), or))
                                 .orElse(null),
                         Optional.ofNullable(res.newResult())
-                                .map(or -> OResultPropertyResolver.create(new OrientDbSessionProvider(res::database), or))
+                                .map(or -> OResultPropertyResolver.create(OrientDbSessionProvider.create(res::database), or))
                                 .orElse(null)));
     }
 
@@ -84,7 +84,7 @@ public class OrientDbStatementExecutor implements SqlStatementExecutor {
                     OResultSet resultSet = resultSetSupplier.apply(dbSession);
                     emitter.setCancellable(resultSet::close);
                     resultSet.stream()
-                            .peek(res -> log.fine(() -> "Received: " + res))
+                            .peek(res -> log.fine(() -> "Received: " + res.toJSON()))
                             .forEach(emitter::onNext);
                     emitter.onComplete();
                 }))
@@ -108,8 +108,9 @@ public class OrientDbStatementExecutor implements SqlStatementExecutor {
 
         HasMetaClass<?> hasMetaClass = (HasMetaClass)obj;
         MetaClass<?> metaClass = hasMetaClass.metaClass();
-        OElement oElement = new ODocument();
+        OElement oElement = new ODocument(OrientDbSchemaProvider.toClassName(metaClass.objectClass()));
         metaClass.properties().forEach(p -> oElement.setProperty(p.name(), convertArg(((PropertyMeta)p).getValue(obj))));
+
         return oElement;
     }
 
