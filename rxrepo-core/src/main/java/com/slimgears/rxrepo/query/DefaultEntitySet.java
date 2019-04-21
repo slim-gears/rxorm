@@ -18,16 +18,19 @@ import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.rx.Observables;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
+    private final static Duration bufferIdleTime = Duration.ofMillis(100);
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
 
@@ -233,13 +236,17 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     }
 
                     @Override @SafeVarargs
-                    public final Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties) {
+                    public final Observable<List<Notification<T>>> observe(PropertyExpression<T, ?, ?>... properties) {
                         QueryInfo<K, S, T> query = builder
                                 .propertiesAdd(properties)
                                 .build();
                         return queryProvider.query(query)
                                 .map(Notification::ofCreated)
-                                .concatWith(queryProvider.liveQuery(query));
+                                .toList()
+                                .toObservable()
+                                .concatWith(queryProvider
+                                        .liveQuery(query)
+                                        .compose(Observables.bufferUntilIdle(bufferIdleTime)));
                     }
                 };
             }

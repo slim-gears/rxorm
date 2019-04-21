@@ -21,6 +21,7 @@ import com.slimgears.rxrepo.query.NotificationPrototype;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.UseLogLevel;
+import io.reactivex.Observable;
 import io.reactivex.observers.TestObserver;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -85,6 +86,7 @@ public class OrientDbQueryProviderTest {
                 //.where(Product.$.price.greaterThan(110))
                 .liveSelect()
                 .observe()
+                .flatMap(Observable::fromIterable)
                 .doOnNext(n -> System.out.println("Received notifications: " + counter.incrementAndGet()))
                 .doOnSubscribe(d -> System.out.println("Subscribed for live query"))
                 .test();
@@ -194,6 +196,7 @@ public class OrientDbQueryProviderTest {
         productSet.query()
                 .liveSelect()
                 .observe()
+                .flatMap(Observable::fromIterable)
                 .test()
                 .awaitCount(1000)
                 .assertValueAt(10, NotificationPrototype::isCreate);

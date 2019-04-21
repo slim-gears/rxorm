@@ -27,10 +27,10 @@ public interface LiveSelectQuery<T> {
     }
 
     @SuppressWarnings("unchecked")
-    Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties);
+    Observable<List<Notification<T>>> observe(PropertyExpression<T, ?, ?>... properties);
 
-    default Observable<Notification<T>> observe() {
-        //noinspection unchecked
-        return observe(new PropertyExpression[0]);
+    @SuppressWarnings("unchecked")
+    default Observable<List<Notification<T>>> observe() {
+        return observe((PropertyExpression<T, ?, ?>[])new PropertyExpression[0]);
     }
 }

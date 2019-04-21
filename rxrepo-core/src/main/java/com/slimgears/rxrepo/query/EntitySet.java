@@ -85,7 +85,7 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
                 .ignoreElement();
     }
 
-    default Observable<Notification<S>> observe() {
+    default Observable<List<Notification<S>>> observe() {
         return query().liveSelect().observe();
     }
 }
