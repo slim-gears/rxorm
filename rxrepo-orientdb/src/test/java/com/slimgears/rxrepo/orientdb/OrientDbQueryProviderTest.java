@@ -115,10 +115,6 @@ public class OrientDbQueryProviderTest {
                 .awaitCount(1029)
                 .assertValueAt(1028, Notification::isDelete)
                 .assertNoErrors();
-
-        productCount
-                .awaitCount(1029)
-                .assertNoErrors();
     }
 
     @Test
