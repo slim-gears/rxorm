@@ -69,7 +69,7 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
     private String searchTextToWildcard(String searchText) {
         return Arrays
                 .stream(searchText.split("\\s"))
-                .map(t -> "+" + t)
+                .map(t -> "+" + t + "*")
                 .collect(Collectors.joining(" "));
     }
 }

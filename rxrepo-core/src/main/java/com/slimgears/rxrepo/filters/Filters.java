@@ -8,7 +8,9 @@ import java.util.Optional;
 
 public class Filters {
     public static <S, T> Optional<BooleanExpression<S>> fromTextFilter(SearchableFilter filter, ObjectExpression<S, T> arg) {
-        return Optional.ofNullable(filter.searchText()).map(arg::searchText);
+        return Optional.ofNullable(filter.searchText())
+                .filter(text -> !text.isEmpty())
+                .map(arg::searchText);
     }
 
     @SafeVarargs
