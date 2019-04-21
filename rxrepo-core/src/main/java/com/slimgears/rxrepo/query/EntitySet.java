@@ -32,19 +32,16 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
         return entities.flatMapSingle(this::update);
     }
 
-    default Observable<S> find(BooleanExpression<S> predicate) {
+    default Observable<S> findAll(BooleanExpression<S> predicate) {
         return query().where(predicate).select().retrieve();
     }
 
-    default Observable<S> find(Filter<S> filter) {
-        return find(filter.toExpression(ObjectExpression.arg(metaClass().objectClass())).orElse(null));
+    default Observable<S> findAll(Filter<S> filter) {
+        return findAll(filter.toExpression(ObjectExpression.arg(metaClass().objectClass())).orElse(null));
     }
 
     default Maybe<S> find(K key) {
-        return query()
-                .where(PropertyExpression.ofObject(metaClass().keyProperty()).eq(key))
-                .select()
-                .first();
+        return findFirst(PropertyExpression.ofObject(metaClass().keyProperty()).eq(key));
     }
 
     default Maybe<S> findFirst(BooleanExpression<S> predicate) {
@@ -67,7 +64,7 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
     }
 
     default Completable clear() {
-        return delete().where((BooleanExpression<S>)null).execute().ignoreElement();
+        return deleteAll(null);
     }
 
     default Completable delete(K key) {
@@ -78,8 +75,12 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
     }
 
     default Completable delete(K[] keys) {
+        return deleteAll(PropertyExpression.ofObject(metaClass().keyProperty()).in(keys));
+    }
+
+    default Completable deleteAll(BooleanExpression<S> predicate) {
         return delete()
-                .where(PropertyExpression.ofObject(metaClass().keyProperty()).in(keys))
+                .where(predicate)
                 .execute()
                 .ignoreElement();
     }

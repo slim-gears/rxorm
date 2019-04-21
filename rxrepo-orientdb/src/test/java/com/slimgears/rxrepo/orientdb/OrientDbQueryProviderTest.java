@@ -17,6 +17,7 @@ import com.orientechnologies.orient.server.config.OServerConfiguration;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.EntitySet;
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.query.NotificationPrototype;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.UseLogLevel;
@@ -73,8 +74,8 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
-    public void testInsertLiveRetrieve() throws InterruptedException {
+    //@UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testLiveSelectThenInsert() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
 
         AtomicInteger counter = new AtomicInteger();
@@ -186,6 +187,48 @@ public class OrientDbQueryProviderTest {
                 .assertValueAt(0, items -> items.stream().anyMatch(p -> Objects.equals(p.name(), "Product 2")));
 
         Assert.assertEquals(Long.valueOf(1), inventorySet.query().count().blockingGet());
+    }
+
+    @Test
+    public void testInsertThenLiveSelectShouldReturnAdded() throws InterruptedException {
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+        Iterable<Product> products = createProducts(1000);
+        productSet.update(products).test().await();
+
+        productSet.query()
+                .liveSelect()
+                .observe()
+                .test()
+                .awaitCount(1000)
+                .assertValueAt(10, NotificationPrototype::isCreate);
+    }
+
+    @Test
+    @UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testInsertThenLiveSelectCountShouldReturnCount() throws InterruptedException {
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+        Iterable<Product> products = createProducts(1000);
+        productSet.update(products).test().await();
+
+        TestObserver<Long> countObserver = productSet.query()
+                .liveSelect()
+                .count()
+                .test();
+
+        countObserver
+                .awaitCount(1)
+                .assertValueAt(0, c -> c == 1000);
+
+        productSet.delete()
+                .where(Product.$.searchText("Product 1*"))
+                .execute()
+                .test()
+                .await()
+                .assertValue(111);
+
+        countObserver
+                .awaitCount(2)
+                .assertValueAt(1, 889L);
     }
 
     @Test
