@@ -32,7 +32,9 @@ public class SqlStatementProviderTest {
     public void testQueryStatementGeneration() {
         SqlStatement statement = statementProvider.forQuery(QueryInfo.<Integer, Product, Product>builder()
                 .metaClass(Product.metaClass)
-                .predicate(Product.$.name.contains("substr").and(Product.$.price.lessThan(100)))
+                .predicate(Product.$.name.contains("substr")
+                        .and(Product.$.price.lessThan(100))
+                        .and(Product.$.type.in(ProductPrototype.Type.ComputeHardware, ProductPrototype.Type.ComputerSoftware)))
                 .properties(ImmutableList.of(Product.$.name, Product.$.price, Product.$.id))
                 .sortAscending(Product.$.name)
                 .sortDescending(Product.$.id)

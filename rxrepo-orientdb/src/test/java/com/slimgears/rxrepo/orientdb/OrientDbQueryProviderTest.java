@@ -271,6 +271,15 @@ public class OrientDbQueryProviderTest {
                 .assertValue(p -> p.price() == 110)
                 .assertValue(p -> "Inventory 31".equals(Objects.requireNonNull(p.inventory()).name()))
                 .assertValueCount(1);
+
+        productSet
+                .query()
+                .where(Product.$.type.in(ProductPrototype.Type.ComputerSoftware, ProductPrototype.Type.ComputeHardware))
+                .skip(66)
+                .retrieve()
+                .test()
+                .await()
+                .assertValueCount(600);
     }
 
     @Test
@@ -388,6 +397,12 @@ public class OrientDbQueryProviderTest {
     }
 
     private Iterable<Product> createProducts(int count) {
+        final Product.Type[] productTypes = {
+                ProductPrototype.Type.ConsumerElectronics,
+                ProductPrototype.Type.ComputeHardware,
+                ProductPrototype.Type.ComputerSoftware
+        };
+
         List<Inventory> inventories = IntStream.range(0, count / 10)
                 .mapToObj(i -> Inventory
                         .builder()
@@ -400,6 +415,7 @@ public class OrientDbQueryProviderTest {
                 .mapToObj(i -> Product.builder()
                         .key(UniqueId.productId(i))
                         .name("Product " + i)
+                        .type(productTypes[i % productTypes.length])
                         .inventory(inventories.get(i % inventories.size()))
                         .price(100 + (i % 7)*(i % 11) + i % 13)
                         .build())

@@ -13,8 +13,15 @@ import javax.annotation.Nullable;
 @UseExpressions
 @UseCopyAnnotator
 public interface ProductPrototype {
+    enum Type {
+        ConsumerElectronics,
+        ComputeHardware,
+        ComputerSoftware
+    }
+
     @Key @Filterable UniqueId key();
     @Nullable @Filterable @Searchable String name();
     @Filterable @Nullable Inventory inventory();
+    @Nullable Type type();
     @Searchable int price();
 }

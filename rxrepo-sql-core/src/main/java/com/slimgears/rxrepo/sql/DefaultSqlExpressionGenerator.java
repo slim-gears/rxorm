@@ -8,8 +8,6 @@ import com.slimgears.util.stream.Lazy;
 
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
     private final Lazy<ExpressionTextGenerator> sqlGenerator;
@@ -30,6 +28,7 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
                 .add(Expression.Type.And, "(%s and %s)")
                 .add(Expression.Type.Or, "(%s or %s)")
                 .add(Expression.Type.Not, "(not %s)")
+                .add(Expression.Type.ValueIn, "(%s in (%s))")
                 .add(Expression.Type.Equals, "(%s = %s)")
                 .add(Expression.Type.GreaterThan, "(%s > %s)")
                 .add(Expression.Type.LessThan, "(%s < %s)")
@@ -81,7 +80,7 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
         return withParams(params, () -> toSqlExpression(expression, arg));
     }
 
-    protected static ExpressionTextGenerator.Reducer notSupported() {
+    private static ExpressionTextGenerator.Reducer notSupported() {
         return (exp, str) -> {
             throw new IllegalArgumentException("Not supported expression");
         };

@@ -9,8 +9,15 @@ import javax.annotation.Nullable;
 @AutoValuePrototype
 @UseExpressions
 public interface ProductPrototype {
+    enum Type {
+        ConsumerElectronics,
+        ComputeHardware,
+        ComputerSoftware
+    }
+
     @Key int id();
     @Nullable String name();
     @Nullable Inventory inventory();
+    @Nullable Type type();
     int price();
 }
