@@ -11,6 +11,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -44,11 +45,12 @@ public class SqlStatementProviderTest {
 
         Assert.assertEquals(
                 "select name, price, id from Product " +
-                        "where ((name like '%' + ? + '%') and (price < ?)) " +
+                        "where (((name like '%' + ? + '%') and (price < ?)) and (type in (?))) " +
                         "order by name asc then by id desc " +
                         "limit 100 " +
                         "skip 200", statement.statement());
-        Assert.assertArrayEquals(statement.args(), new Object[]{"substr", 100});
+        Assert.assertArrayEquals(statement.args(),
+                new Object[]{"substr", 100, Arrays.asList(ProductPrototype.Type.ComputeHardware, ProductPrototype.Type.ComputerSoftware)});
     }
 
     @Test
@@ -80,6 +82,7 @@ public class SqlStatementProviderTest {
                         .id(300)
                         .name("inv1")
                         .build())
+                .type(ProductPrototype.Type.ComputeHardware)
                 .build();
 
         ReferenceResolver referenceResolverMock = Mockito.mock(ReferenceResolver.class);
@@ -87,11 +90,11 @@ public class SqlStatementProviderTest {
         SqlStatement statement = statementProvider.forInsertOrUpdate(product, referenceResolverMock);
         Assert.assertEquals(
                 "update Product " +
-                        "set id = ?, name = ?, inventory = (#31:23), price = ? " +
+                        "set id = ?, name = ?, inventory = (#31:23), type = ?, price = ? " +
                         "upsert " +
                         "return after " +
                         "where (id = ?)", statement.statement());
-        Assert.assertArrayEquals(new Object[] { 200, "prd1", 30, 200}, statement.args());
+        Assert.assertArrayEquals(new Object[] { 200, "prd1", ProductPrototype.Type.ComputeHardware, 30, 200}, statement.args());
     }
 
     @Test
