@@ -44,9 +44,9 @@ public class SqlStatementProviderTest {
                 .build());
 
         Assert.assertEquals(
-                "select name, price, id from Product " +
-                        "where (((name like '%' + ? + '%') and (price < ?)) and (type in (?))) " +
-                        "order by name asc then by id desc " +
+                "select `name`, `price`, `id` from Product " +
+                        "where (((`name` like '%' + ? + '%') and (`price` < ?)) and (`type` in (?))) " +
+                        "order by `name` asc then by `id` desc " +
                         "limit 100 " +
                         "skip 200", statement.statement());
         Assert.assertArrayEquals(statement.args(),
@@ -64,9 +64,9 @@ public class SqlStatementProviderTest {
                 .build());
 
         Assert.assertEquals(
-                "select (LEN(inventory.name) + ?) " +
+                "select (LEN(`inventory`.`name`) + ?) " +
                         "from Product " +
-                        "where ((name like '%' + ? + '%') and (price < ?)) " +
+                        "where ((`name` like '%' + ? + '%') and (`price` < ?)) " +
                         "limit 100 " +
                         "skip 200", statement.statement());
         Assert.assertArrayEquals(new Object[]{5, "substr", 100}, statement.args());
@@ -90,10 +90,10 @@ public class SqlStatementProviderTest {
         SqlStatement statement = statementProvider.forInsertOrUpdate(product, referenceResolverMock);
         Assert.assertEquals(
                 "update Product " +
-                        "set id = ?, name = ?, inventory = (#31:23), type = ?, price = ? " +
+                        "set `id` = ?, `name` = ?, `inventory` = (#31:23), `type` = ?, `price` = ? " +
                         "upsert " +
                         "return after " +
-                        "where (id = ?)", statement.statement());
+                        "where (`id` = ?)", statement.statement());
         Assert.assertArrayEquals(new Object[] { 200, "prd1", ProductPrototype.Type.ComputeHardware, 30, 200}, statement.args());
     }
 
@@ -104,7 +104,7 @@ public class SqlStatementProviderTest {
                 .limit(100L)
                 .predicate(Product.$.name.greaterOrEqual("product1"))
                 .build());
-        Assert.assertEquals("delete from Product where (not (name < ?)) limit 100", statement.statement());
+        Assert.assertEquals("delete from Product where (not (`name` < ?)) limit 100", statement.statement());
         Assert.assertArrayEquals(new Object[]{"product1"}, statement.args());
     }
 
@@ -118,9 +118,9 @@ public class SqlStatementProviderTest {
                 .build());
         Assert.assertEquals(
                 "update Product " +
-                        "set name = (name + ?) " +
+                        "set `name` = (`name` + ?) " +
                         "return after " +
-                        "where (name like '%' + ? + '%') " +
+                        "where (`name` like '%' + ? + '%') " +
                         "limit 100", statement.statement());
         Assert.assertArrayEquals(new Object[]{"aa", "bbb"}, statement.args());
     }

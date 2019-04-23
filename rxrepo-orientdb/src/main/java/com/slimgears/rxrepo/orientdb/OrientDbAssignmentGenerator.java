@@ -4,6 +4,9 @@ import com.slimgears.rxrepo.sql.DefaultSqlAssignmentGenerator;
 import com.slimgears.rxrepo.sql.PropertyMetas;
 import com.slimgears.rxrepo.sql.ReferenceResolver;
 import com.slimgears.rxrepo.sql.SqlExpressionGenerator;
+import com.slimgears.rxrepo.util.PropertyResolver;
+import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 
 import java.util.function.Function;
@@ -20,18 +23,25 @@ class OrientDbAssignmentGenerator extends DefaultSqlAssignmentGenerator {
     }
 
     @Override
-    public <T> Function<PropertyMeta<T, ?>, Stream<String>> toAssignment(T object, ReferenceResolver referenceResolver) {
-        Function<PropertyMeta<T, ?>, Stream<String>> inherited = super.toAssignment(object, referenceResolver);
+    public <K, T extends HasMetaClassWithKey<K, T>> Function<String, Stream<String>> toAssignment(
+            MetaClassWithKey<K, T> metaClass,
+            PropertyResolver propertyResolver,
+            ReferenceResolver referenceResolver) {
+        Function<String, Stream<String>> inherited = super.toAssignment(metaClass, propertyResolver, referenceResolver);
         return prop -> Stream.concat(
                 inherited.apply(prop),
-                enhanceAssignmentForAsStringIndex(object, prop));
+                enhanceAssignmentForAsStringIndex(metaClass, propertyResolver, prop));
     }
 
-    private <T> Stream<String> enhanceAssignmentForAsStringIndex(T object, PropertyMeta<T, ?> propertyMeta) {
-        if (PropertyMetas.isIndexableByString(propertyMeta)) {
-            Object val = propertyMeta.getValue(object);
+    private <K, T extends HasMetaClassWithKey<K, T>> Stream<String> enhanceAssignmentForAsStringIndex(MetaClassWithKey<K, T> metaClass, PropertyResolver propertyResolver, String propertyName) {
+        PropertyMeta<T, ?> propertyMeta = metaClass.getProperty(propertyName);
+        if (propertyMeta != null && PropertyMetas.isIndexableByString(propertyMeta)) {
+            Object val = propertyResolver.getProperty(propertyMeta);
             return val != null
-                    ? Stream.of(concat(sqlExpressionGenerator.fromProperty(propertyMeta) + "AsString", "=", sqlExpressionGenerator.fromConstant(val.toString())))
+                    ? Stream.of(concat(
+                            (sqlExpressionGenerator.fromProperty(propertyMeta) + "`AsString`").replace("``", ""),
+                            "=",
+                            sqlExpressionGenerator.fromConstant(val.toString())))
                     : Stream.empty();
         }
 

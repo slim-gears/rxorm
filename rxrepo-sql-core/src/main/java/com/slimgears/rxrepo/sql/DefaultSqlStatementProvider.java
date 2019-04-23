@@ -13,6 +13,7 @@ import com.slimgears.rxrepo.query.provider.HasSortingInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.SortingInfo;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
+import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
@@ -87,22 +88,35 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forInsertOrUpdate(S entity, ReferenceResolver resolver) {
-        MetaClassWithKey<K, S> metaClass = entity.metaClass();
+    public <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forInsertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver, ReferenceResolver resolver) {
         PropertyMeta<S, K> keyProperty = metaClass.keyProperty();
 
         return statement(() -> of(
                         "update",
-                        schemaProvider.tableName(entity.metaClass()),
+                        schemaProvider.tableName(metaClass),
                         "set",
                         Streams
-                                .fromIterable(metaClass.properties())
-                                .flatMap(sqlAssignmentGenerator.toAssignment(entity, resolver))
+                                .fromIterable(propertyResolver.propertyNames())
+                                .flatMap(sqlAssignmentGenerator.toAssignment(metaClass, propertyResolver, resolver))
                                 .collect(Collectors.joining(", ")),
                         "upsert",
                         "return after",
                         "where",
-                        toConditionClause(PropertyExpression.ofObject(keyProperty).eq(keyProperty.getValue(entity)))
+                        toConditionClause(PropertyExpression.ofObject(keyProperty).eq(propertyResolver.getProperty(keyProperty)))
+                ));
+    }
+
+    @Override
+    public <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forInsert(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver, ReferenceResolver resolver) {
+        return statement(() -> of(
+                        "insert",
+                        "into",
+                        schemaProvider.tableName(metaClass),
+                        "set",
+                        Streams
+                                .fromIterable(propertyResolver.propertyNames())
+                                .flatMap(sqlAssignmentGenerator.toAssignment(metaClass, propertyResolver, resolver))
+                                .collect(Collectors.joining(", "))
                 ));
     }
 
@@ -112,11 +126,11 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
         return statement.withArgs(params.toArray());
     }
 
+    @SuppressWarnings("unchecked")
     private <K, S extends HasMetaClassWithKey<K, S>, T, Q extends HasMapping<S, T> & HasEntityMeta<K, S> & HasProperties<T>> String selectClause(Q queryInfo) {
-        //noinspection unchecked
         ObjectExpression<S, T> expression = Optional
                 .ofNullable(queryInfo.mapping())
-                .orElse(ObjectExpression.<S>arg((TypeToken)queryInfo.metaClass().objectClass()));
+                .orElse(ObjectExpression.arg((TypeToken)queryInfo.metaClass().objectClass()));
 
         return Optional.of(toMappingClause(expression, queryInfo.properties()))
                 .filter(exp -> !exp.isEmpty())

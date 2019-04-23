@@ -1,13 +1,18 @@
 package com.slimgears.rxrepo.sql;
 
+import com.google.common.collect.Streams;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.util.ExpressionTextGenerator;
 import com.slimgears.util.stream.Lazy;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
     private final Lazy<ExpressionTextGenerator> sqlGenerator;
@@ -55,7 +60,7 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
                 .add(Expression.Type.SearchText, notSupported())
                 .add(Expression.OperationType.Argument, "__argument__")
                 .add(Expression.OperationType.Constant, "%s")
-                .add(Expression.OperationType.Property, ExpressionTextGenerator.Reducer.join("."))
+                .add(Expression.OperationType.Property, this::reduceProperty)
                 .add(Expression.OperationType.Composition, "")
                 .add(Expression.ValueType.Null, "null");
     }
@@ -84,6 +89,17 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
         return (exp, str) -> {
             throw new IllegalArgumentException("Not supported expression");
         };
+    }
+
+    private <S, T> String reduceProperty(ObjectExpression<S, T> expression, String[] parts) {
+        return Streams.concat(
+                Arrays.stream(parts).limit(parts.length - 1),
+                Stream.of(Optional.ofNullable(parts[parts.length - 1])
+                        .filter(p -> !p.isEmpty())
+                        .map(p -> "`" + p + "`")
+                        .orElse("")))
+                .filter(p -> !p.isEmpty())
+                .collect(Collectors.joining("."));
     }
 
     protected ExpressionTextGenerator.Interceptor createInterceptor() {

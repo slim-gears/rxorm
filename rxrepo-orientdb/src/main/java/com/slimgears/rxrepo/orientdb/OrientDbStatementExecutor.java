@@ -47,7 +47,6 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                     logStatement("Executing command", statement);
                     return session.command(statement.statement(), convertArgs(statement.args()));
                 })
-                .retry(5)
                 .doOnError(e -> log.severe(e::toString))
                 .subscribeOn(Schedulers.io());
     }
@@ -84,7 +83,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                     OResultSet resultSet = resultSetSupplier.apply(dbSession);
                     emitter.setCancellable(resultSet::close);
                     resultSet.stream()
-                            .peek(res -> log.fine(() -> "Received: " + res.toJSON()))
+                            .peek(res -> log.fine(() -> "Received: " + res))
                             .forEach(emitter::onNext);
                     emitter.onComplete();
                 }))

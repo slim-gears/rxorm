@@ -21,6 +21,7 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
     EntityUpdateQuery<K, S> update();
     SelectQueryBuilder<K, S> query();
     Single<S> update(S entity);
+    Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater);
 
     default Single<List<S>> update(Iterable<S> entities) {
         return Observable.fromIterable(entities)
@@ -30,6 +31,10 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
 
     default Observable<S> update(Observable<S> entities) {
         return entities.flatMapSingle(this::update);
+    }
+
+    default Observable<S> findAll() {
+        return findAll((BooleanExpression<S>)null);
     }
 
     default Observable<S> findAll(BooleanExpression<S> predicate) {
@@ -51,16 +56,6 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
     default Single<S[]> udpate(S[] entities) {
         return update(Arrays.asList(entities))
                 .map(l -> l.toArray(entities.clone()));
-    }
-
-    default Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
-        try {
-            return updater
-                    .apply(find(key))
-                    .flatMap(entity -> update(entity).toMaybe());
-        } catch (Exception e) {
-            return Maybe.error(e);
-        }
     }
 
     default Completable clear() {

@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.sql;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.CollectionExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.HasMapping;
@@ -17,8 +18,8 @@ import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.reactivex.functions.Function;
 
-import java.util.Objects;
 import java.util.Optional;
 
 public class SqlQueryProvider implements QueryProvider {
@@ -40,6 +41,49 @@ public class SqlQueryProvider implements QueryProvider {
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
+        return insertOrUpdate(entity.metaClass(), PropertyResolver.fromObject(entity))
+                .retry(10);
+    }
+
+    @Override
+    public <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+        SqlStatement statement = statementProvider.forQuery(QueryInfo
+                .<K, S, S>builder()
+                .metaClass(metaClass)
+                .predicate(PropertyExpression.ofObject(metaClass.keyProperty()).eq(key))
+                .limit(1L)
+                .build());
+
+        return statementExecutor
+                .executeQuery(statement)
+                .firstElement()
+                .flatMap((PropertyResolver pr) -> entityUpdater
+                        .apply(Maybe.just(pr.toObject(metaClass)))
+                        .map(obj -> pr.mergeWith(PropertyResolver.fromObject(obj)))
+                        .flatMap(_pr -> insertOrUpdate(metaClass, _pr).toMaybe()))
+                .switchIfEmpty(Maybe.defer(() -> entityUpdater
+                        .apply(Maybe.empty())
+                        .flatMap(e -> insert(e).toMaybe())))
+                .retry(10);
+    }
+
+    private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
+        //noinspection unchecked
+        Completable references = Observable
+                .fromIterable(metaClass.properties())
+                .filter(PropertyMetas::isReference)
+                .flatMapMaybe(prop -> Optional.ofNullable(propertyResolver.getProperty(prop)).map(Maybe::just).orElseGet(Maybe::empty))
+                .ofType(HasMetaClassWithKey.class)
+                .flatMapSingle(this::insertOrUpdate)
+                .ignoreElements();
+
+        return references.andThen(schemaProvider.createOrUpdate(metaClass).andThen(statementExecutor
+                .executeCommandReturnEntries(statementProvider.forInsertOrUpdate(metaClass, propertyResolver, referenceResolver))
+                .map(pr -> pr.toObject(metaClass))
+                .singleOrError()));
+    }
+
+    private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insert(S entity) {
         MetaClassWithKey<K, S> metaClass = entity.metaClass();
         //noinspection unchecked
         Completable references = Observable
@@ -47,12 +91,12 @@ public class SqlQueryProvider implements QueryProvider {
                 .filter(PropertyMetas::isReference)
                 .flatMapMaybe(prop -> Optional.ofNullable(prop.getValue(entity)).map(Maybe::just).orElseGet(Maybe::empty))
                 .ofType(HasMetaClassWithKey.class)
-                .flatMapSingle(this::insertOrUpdate)
+                .flatMapSingle(this::insert)
                 .ignoreElements();
 
-        return references.andThen(schemaProvider.createOrUpdate(entity.metaClass()).andThen(statementExecutor
-                .executeCommandReturnEntries(statementProvider.forInsertOrUpdate(entity, referenceResolver))
-                .map(pr -> pr.toObject(entity.metaClass()))
+        return references.andThen(schemaProvider.createOrUpdate(metaClass).andThen(statementExecutor
+                .executeCommandReturnEntries(statementProvider.forInsert(entity, referenceResolver))
+                .map(pr -> pr.toObject(metaClass))
                 .singleOrError()));
     }
 

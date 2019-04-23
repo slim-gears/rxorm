@@ -27,6 +27,10 @@ public interface PropertyResolver {
         return PropertyResolvers.toObject(this, metaClass);
     }
 
+    default PropertyResolver mergeWith(PropertyResolver propertyResolver) {
+        return PropertyResolvers.merge(propertyResolver, this);
+    }
+
     @SuppressWarnings("unchecked")
     default <T> T toObject(TypeToken<? extends T> typeToken) {
         return (T)toObject(MetaClasses.forToken((TypeToken)typeToken));

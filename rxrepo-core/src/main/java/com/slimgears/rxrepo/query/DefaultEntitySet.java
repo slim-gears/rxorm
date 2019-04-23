@@ -22,6 +22,7 @@ import com.slimgears.util.rx.Observables;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.reactivex.functions.Function;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -31,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
     private final static Duration bufferIdleTime = Duration.ofMillis(100);
+    private final static long retryCount = 5;
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
 
@@ -282,5 +284,10 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     @Override
     public Single<S> update(S entity) {
         return queryProvider.insertOrUpdate(entity);
+    }
+
+    @Override
+    public Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
+        return queryProvider.insertOrUpdate(metaClass, key, updater).retry(retryCount);
     }
 }

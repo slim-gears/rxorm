@@ -6,6 +6,7 @@ import com.orientechnologies.orient.core.db.ODatabaseSession;
 import com.orientechnologies.orient.core.db.ODatabaseType;
 import com.orientechnologies.orient.core.db.OrientDB;
 import com.orientechnologies.orient.core.db.OrientDBConfig;
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OType;
@@ -21,8 +22,10 @@ import com.slimgears.rxrepo.query.NotificationPrototype;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.UseLogLevel;
+import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.observers.TestObserver;
+import io.reactivex.subjects.CompletableSubject;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -37,6 +40,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -203,7 +207,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testInsertThenLiveSelectCountShouldReturnCount() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(1000);
@@ -231,6 +235,41 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
+    //@UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testAtomicUpdate() throws InterruptedException {
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+        CompletableSubject trigger1 = CompletableSubject.create();
+        CompletableSubject trigger2 = CompletableSubject.create();
+
+        productSet.update(createProducts(1)).test().await().assertNoErrors();
+
+        TestObserver<Product> prodUpdateTester1 = productSet
+                .update(UniqueId.productId(0), prod -> prod
+                        .flatMap(p -> Maybe.just(p.toBuilder().name(p.name() + " Updated name #1").build())
+                                .delay(trigger1.toFlowable())))
+                .test();
+
+        Thread.sleep(500);
+
+        TestObserver<Product> prodUpdateTester2 = productSet
+                .update(UniqueId.productId(0), prod -> prod
+                        .flatMap(p -> Maybe.just(p.toBuilder().name(p.name() + " Updated name #2").build())
+                                .delay(trigger2.toFlowable())))
+                .test();
+
+        Thread.sleep(500);
+        trigger1.onComplete();
+        prodUpdateTester1.await().assertNoErrors();
+
+        trigger2.onComplete();
+        prodUpdateTester2
+                .await()
+                .assertNoErrors()
+                .assertValue(p -> "Product 0 Updated name #1 Updated name #2".equals(p.name()));
+    }
+
+    @Test
+    @UseLogLevel(UseLogLevel.Level.FINEST)
     public void testInsertThenRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(1000);
@@ -312,6 +351,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
+    //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testInsertThenUpdate() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(1000);
@@ -399,6 +439,33 @@ public class OrientDbQueryProviderTest {
         }
     }
 
+    @Test @Ignore
+    @UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testRawOrientDbLuceneIndex() throws InterruptedException {
+        try (OrientDB dbClient = new OrientDB("embedded:testDb", OrientDBConfig.defaultConfig())) {
+            dbClient.create(dbName, ODatabaseType.MEMORY);
+            Supplier<ODatabaseDocument> sessionSupplier = () -> dbClient.open(dbName, "admin", "admin");
+            Repository repository = OrientDbRepository.create(sessionSupplier);
+            repository.entities(Product.metaClass).findAll().test().await();
+
+            try (ODatabaseDocument session = sessionSupplier.get()) {
+                OClass oClass = session.getClass("Product");
+                oClass.createIndex("Product.fullIndex", "FULLTEXT", null, null, "LUCENE", new String[] {
+                        "name",
+                        "inventory.name"
+                });
+            }
+
+            repository.entities(Product.metaClass).update(createProducts(30)).test().await().assertNoErrors();
+            try (ODatabaseDocument session = sessionSupplier.get()) {
+                session.query("select from Product where search_index('Product.fullIndex', '+Inventory +1') = true")
+                        .stream()
+                        .map(OResult::toString)
+                        .forEach(System.out::println);
+            }
+        }
+    }
+
     private Iterable<Product> createProducts(int count) {
         final Product.Type[] productTypes = {
                 ProductPrototype.Type.ConsumerElectronics,
@@ -406,7 +473,7 @@ public class OrientDbQueryProviderTest {
                 ProductPrototype.Type.ComputerSoftware
         };
 
-        List<Inventory> inventories = IntStream.range(0, count / 10)
+        List<Inventory> inventories = IntStream.range(0, Math.max(1, count / 10))
                 .mapToObj(i -> Inventory
                         .builder()
                         .id(UniqueId.inventoryId(i))

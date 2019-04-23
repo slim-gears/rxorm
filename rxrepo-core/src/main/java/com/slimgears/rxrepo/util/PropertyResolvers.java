@@ -9,6 +9,7 @@ import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Streams;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,47 @@ class PropertyResolvers {
         };
     }
 
+    static PropertyResolver merge(PropertyResolver... propertyResolvers) {
+        List<PropertyResolver> resolvers = Arrays
+                .stream(propertyResolvers)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        Set<String> propertyNames = Arrays
+                .stream(propertyResolvers)
+                .filter(Objects::nonNull)
+                .flatMap(pr -> Streams.fromIterable(pr.propertyNames()))
+                .collect(Collectors.toSet());
+
+
+        return new PropertyResolver() {
+            @Override
+            public Iterable<String> propertyNames() {
+                return propertyNames;
+            }
+
+            @Override
+            public Object getProperty(String name, Class type) {
+                return resolvers
+                        .stream()
+                        .map(pr -> pr.getProperty(name, type))
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(null);
+            }
+
+            @Override
+            public Object getKey(Class<?> keyClass) {
+                return resolvers
+                        .stream()
+                        .map(pr -> pr.getKey(keyClass))
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(null);
+            }
+        };
+    }
+
     static <T extends HasMetaClass<T>> PropertyResolver fromObject(T obj) {
         if (obj == null) {
             return empty();
@@ -76,8 +118,9 @@ class PropertyResolvers {
 
             @Override
             public Object getProperty(String name, Class type) {
-                PropertyMeta<T, ?> property = metaClass.getProperty(name);
-                return fromValue(property.type(), property.getValue(obj));
+                return Optional.ofNullable(metaClass.getProperty(name))
+                        .map(p -> fromValue(p.type(), p.getValue(obj)))
+                        .orElse(null);
             }
 
             @Override
