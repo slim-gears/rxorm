@@ -1,6 +1,8 @@
 package com.slimgears.rxrepo.sql;
 
+import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
+import io.reactivex.Scheduler;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -11,6 +13,7 @@ public interface SqlServiceFactory {
     SchemaProvider schemaProvider();
     SqlExpressionGenerator expressionGenerator();
     SqlAssignmentGenerator assignmentGenerator();
+    Scheduler scheduler();
     ReferenceResolver referenceResolver();
     QueryProvider queryProvider();
 
@@ -25,7 +28,12 @@ public interface SqlServiceFactory {
         Builder referenceResolver(Function<SqlServiceFactory, ReferenceResolver> referenceResolver);
         Builder expressionGenerator(Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator);
         Builder assignmentGenerator(Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator);
+        Builder scheduler(Scheduler scheduler);
         SqlServiceFactory build();
+
+        default Repository buildRepository() {
+            return Repository.fromProvider(build().queryProvider());
+        }
 
         default Builder statementProvider(Supplier<SqlStatementProvider> statementProvider) {
             return statementProvider(f -> statementProvider.get());

@@ -24,6 +24,7 @@ import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.UseLogLevel;
 import io.reactivex.Maybe;
 import io.reactivex.observers.TestObserver;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.CompletableSubject;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -72,7 +73,10 @@ public class OrientDbQueryProviderTest {
         System.err.println("Starting test: " + testNameRule.getMethodName());
         dbClient = new OrientDB("embedded:testDbServer", OrientDBConfig.defaultConfig());
         dbClient.create(dbName, ODatabaseType.MEMORY);
-        repository = OrientDbRepository.create(() -> dbClient.open(dbName, "admin", "admin"));
+        repository = OrientDbRepository
+                .builder(() -> dbClient.open(dbName, "admin", "admin"))
+                .scheduler(Schedulers.io())
+                .buildRepository();
     }
 
     @After
@@ -447,7 +451,11 @@ public class OrientDbQueryProviderTest {
         try (OrientDB dbClient = new OrientDB("embedded:testDb", OrientDBConfig.defaultConfig())) {
             dbClient.create(dbName, ODatabaseType.MEMORY);
             Supplier<ODatabaseDocument> sessionSupplier = () -> dbClient.open(dbName, "admin", "admin");
-            Repository repository = OrientDbRepository.create(sessionSupplier);
+            Repository repository = OrientDbRepository
+                    .builder(sessionSupplier)
+                    .scheduler(Schedulers.io())
+                    .buildRepository();
+
             repository.entities(Product.metaClass).findAll().test().await();
 
             try (ODatabaseDocument session = sessionSupplier.get()) {

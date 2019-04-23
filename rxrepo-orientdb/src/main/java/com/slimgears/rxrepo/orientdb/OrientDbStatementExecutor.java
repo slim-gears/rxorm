@@ -14,8 +14,8 @@ import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import io.reactivex.Observable;
+import io.reactivex.Scheduler;
 import io.reactivex.Single;
-import io.reactivex.schedulers.Schedulers;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -26,9 +26,11 @@ import java.util.stream.Collectors;
 class OrientDbStatementExecutor implements SqlStatementExecutor {
     private final static Logger log = Logger.getLogger(OrientDbStatementExecutor.class.getName());
     private final OrientDbSessionProvider sessionProvider;
+    private final Scheduler scheduler;
 
-    OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider) {
+    OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider, Scheduler scheduler) {
         this.sessionProvider = sessionProvider;
+        this.scheduler = scheduler;
     }
 
     @Override
@@ -48,7 +50,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                     return session.command(statement.statement(), convertArgs(statement.args()));
                 })
                 .doOnError(e -> log.severe(e::toString))
-                .subscribeOn(Schedulers.io());
+                .subscribeOn(scheduler);
     }
 
     @Override
@@ -88,7 +90,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                     emitter.onComplete();
                 }))
                 .map(res -> OResultPropertyResolver.create(sessionProvider, res))
-                .subscribeOn(Schedulers.io());
+                .subscribeOn(scheduler);
     }
 
     private Object[] convertArgs(Object[] args) {

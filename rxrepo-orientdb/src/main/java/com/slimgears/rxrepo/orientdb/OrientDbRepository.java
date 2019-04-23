@@ -8,11 +8,11 @@ import com.slimgears.rxrepo.sql.SqlServiceFactory;
 import java.util.function.Supplier;
 
 public class OrientDbRepository {
-    private static SqlServiceFactory.Builder builder(Supplier<ODatabaseDocument> sessionSupplier) {
+    public static SqlServiceFactory.Builder builder(Supplier<ODatabaseDocument> sessionSupplier) {
         OrientDbSessionProvider sessionProvider = OrientDbSessionProvider.create(sessionSupplier);
         return SqlServiceFactory.builder()
                 .schemaProvider(() -> new OrientDbSchemaProvider(sessionProvider))
-                .statementExecutor(() -> new OrientDbStatementExecutor(sessionProvider))
+                .statementExecutor(svc -> new OrientDbStatementExecutor(sessionProvider, svc.scheduler()))
                 .expressionGenerator(OrientDbSqlExpressionGenerator::new)
                 .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                 .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))

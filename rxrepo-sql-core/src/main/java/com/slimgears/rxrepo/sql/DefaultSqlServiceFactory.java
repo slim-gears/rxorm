@@ -2,7 +2,10 @@ package com.slimgears.rxrepo.sql;
 
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.stream.Lazy;
+import io.reactivex.Scheduler;
+import io.reactivex.schedulers.Schedulers;
 
+import javax.annotation.Nonnull;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -15,20 +18,23 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     private final Lazy<SqlExpressionGenerator> expressionGenerator;
     private final Lazy<SqlAssignmentGenerator> assignmentGenerator;
     private final Lazy<QueryProvider> queryProvider;
+    private final Scheduler scheduler;
 
     private DefaultSqlServiceFactory(
-            Function<SqlServiceFactory, SqlStatementProvider> statementProvider,
-            Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor,
-            Function<SqlServiceFactory, ReferenceResolver> referenceResolver,
-            Function<SqlServiceFactory, SchemaProvider> schemaProvider,
-            Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
-            Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator) {
+            @Nonnull Function<SqlServiceFactory, SqlStatementProvider> statementProvider,
+            @Nonnull Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor,
+            @Nonnull Function<SqlServiceFactory, ReferenceResolver> referenceResolver,
+            @Nonnull Function<SqlServiceFactory, SchemaProvider> schemaProvider,
+            @Nonnull Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
+            @Nonnull Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator,
+            @Nonnull Scheduler scheduler) {
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
         this.statementExecutor = Lazy.of(() -> statementExecutor.apply(this));
         this.referenceResolver = Lazy.of(() -> referenceResolver.apply(this));
         this.schemaProvider = Lazy.of(() -> schemaProvider.apply(this));
         this.expressionGenerator = Lazy.of(() -> expressionGenerator.apply(this));
         this.assignmentGenerator = Lazy.of(() -> assignmentGenerator.apply(this));
+        this.scheduler = scheduler;
         this.queryProvider = Lazy.of(() -> new SqlQueryProvider(
                 statementProvider(),
                 statementExecutor(),
@@ -62,6 +68,11 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     }
 
     @Override
+    public Scheduler scheduler() {
+        return scheduler;
+    }
+
+    @Override
     public ReferenceResolver referenceResolver() {
         return referenceResolver.get();
     }
@@ -87,6 +98,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         private Function<SqlServiceFactory, ReferenceResolver> referenceResolver;
         private Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator;
         private Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator;
+        private Scheduler scheduler = Schedulers.single();
 
         @Override
         public SqlServiceFactory.Builder statementProvider(Function<SqlServiceFactory, SqlStatementProvider> statementProvider) {
@@ -125,6 +137,12 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         }
 
         @Override
+        public SqlServiceFactory.Builder scheduler(Scheduler scheduler) {
+            this.scheduler = scheduler;
+            return this;
+        }
+
+        @Override
         public SqlServiceFactory build() {
             return new DefaultSqlServiceFactory(
                     requireNonNull(statementProvider),
@@ -132,7 +150,8 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                     requireNonNull(referenceResolver),
                     requireNonNull(schemaProvider),
                     requireNonNull(expressionGenerator),
-                    requireNonNull(assignmentGenerator));
+                    requireNonNull(assignmentGenerator),
+                    scheduler);
         }
     }
 }
