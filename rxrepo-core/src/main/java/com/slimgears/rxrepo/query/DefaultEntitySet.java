@@ -18,28 +18,36 @@ import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.rx.Maybes;
+import com.slimgears.util.rx.Observables;
+import com.slimgears.util.rx.Singles;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
+import io.reactivex.ObservableTransformer;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
-    private final static long retryCount = 10;
+    private final static int retryCount = 10;
+    private final static Duration retryInitialDuration = Duration.ofMillis(5);
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
+    private final Collection<Repository.QueryListener> queryListeners;
 
-    private DefaultEntitySet(QueryProvider queryProvider, MetaClassWithKey<K, S> metaClass) {
+    private DefaultEntitySet(QueryProvider queryProvider, MetaClassWithKey<K, S> metaClass, Collection<Repository.QueryListener> queryListeners) {
         this.queryProvider = queryProvider;
         this.metaClass = metaClass;
+        this.queryListeners = queryListeners;
     }
 
-    static <K, S extends HasMetaClassWithKey<K, S>> DefaultEntitySet<K, S> create(QueryProvider queryProvider, MetaClassWithKey<K, S> metaClass) {
-        return new DefaultEntitySet<>(queryProvider, metaClass);
+    static <K, S extends HasMetaClassWithKey<K, S>> DefaultEntitySet<K, S> create(QueryProvider queryProvider, MetaClassWithKey<K, S> metaClass, Collection<Repository.QueryListener> queryListeners) {
+        return new DefaultEntitySet<>(queryProvider, metaClass, queryListeners);
     }
 
     @Override
@@ -111,7 +119,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         .defer(() -> queryProvider.update(builder
                                 .predicate(predicate.get())
                                 .build()))
-                        .retry(retryCount);
+                        .compose(Observables.backoffDelayRetry(retryInitialDuration, retryCount));
             }
 
             @Override
@@ -177,6 +185,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         QueryInfo<K, S, T> query = builder.limit(1L).build();
                         return queryProvider
                                 .query(query)
+                                .compose(applyOnQuery(query))
                                 .singleElement();
                     }
 
@@ -192,7 +201,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                                 .propertiesAdd(properties)
                                 .build();
 
-                        return queryProvider.query(query);
+                        return queryProvider.query(query)
+                                .compose(applyOnQuery(query));
                     }
                 };
             }
@@ -215,6 +225,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         QueryInfo<K, S, T> query = builder.limit(1L).build();
                         return queryProvider
                                 .liveQuery(query)
+                                .compose(applyOnLiveQuery(query))
                                 .switchMapMaybe(n -> queryProvider.query(query).singleElement());
                     }
 
@@ -223,6 +234,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider
                                 .liveQuery(query)
+                                .compose(applyOnLiveQuery(query))
                                 .concatMapSingle(n -> queryProvider
                                         .query(query)
                                         .toList());
@@ -243,7 +255,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                                 .build();
                         return queryProvider.query(query)
                                 .map(Notification::ofCreated)
-                                .concatWith(queryProvider.liveQuery(query));
+                                .concatWith(queryProvider.liveQuery(query))
+                                .compose(applyOnLiveQuery(query));
                     }
                 };
             }
@@ -278,11 +291,30 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
     @Override
     public Single<S> update(S entity) {
-        return Single.defer(() -> queryProvider.insertOrUpdate(entity)).retry(retryCount);
+        return Single
+                .defer(() -> queryProvider.insertOrUpdate(entity))
+                .compose(Singles.backoffDelayRetry(retryInitialDuration, retryCount));
     }
 
     @Override
     public Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
-        return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, updater)).retry(retryCount);
+        return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, updater))
+                .compose(Maybes.backoffDelayRetry(retryInitialDuration, retryCount));
+    }
+
+    private <T> ObservableTransformer<T, T> applyOnQuery(QueryInfo<K, S, T> queryInfo) {
+        return source -> {
+            AtomicReference<Observable<T>> observable = new AtomicReference<>(source);
+            queryListeners.forEach(l -> observable.updateAndGet(o -> l.onQuery(queryInfo, o)));
+            return observable.get();
+        };
+    }
+
+    private <T> ObservableTransformer<Notification<T>, Notification<T>> applyOnLiveQuery(QueryInfo<K, S, T> queryInfo) {
+        return source -> {
+            AtomicReference<Observable<Notification<T>>> observable = new AtomicReference<>(source);
+            queryListeners.forEach(l -> observable.updateAndGet(o -> l.onLiveQuery(queryInfo, o)));
+            return observable.get();
+        };
     }
 }

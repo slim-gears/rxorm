@@ -31,7 +31,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 
 import java.util.Arrays;
@@ -48,6 +50,7 @@ import java.util.stream.IntStream;
 @RunWith(AnnotationRulesJUnit.class)
 //@UseLogLevel(UseLogLevel.Level.FINE)
 public class OrientDbQueryProviderTest {
+    @Rule public final TestName testNameRule = new TestName();
     private static final String dbName = "testDb";
     private static OServer server;
     private Repository repository;
@@ -66,6 +69,7 @@ public class OrientDbQueryProviderTest {
 
     @Before
     public void setUp() {
+        System.err.println("Starting test: " + testNameRule.getMethodName());
         dbClient = new OrientDB("embedded:testDbServer", OrientDBConfig.defaultConfig());
         dbClient.create(dbName, ODatabaseType.MEMORY);
         repository = OrientDbRepository.create(() -> dbClient.open(dbName, "admin", "admin"));
@@ -75,6 +79,7 @@ public class OrientDbQueryProviderTest {
     public void tearDown() {
         dbClient.drop(dbName);
         dbClient.close();
+        System.err.println("Test finished: " + testNameRule.getMethodName());
     }
 
     @Test
