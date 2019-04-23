@@ -6,8 +6,6 @@ dependencies {
     implementation libs.jacksonAnnotations, libs.jacksonDataBind
     implementation libs.guava
     implementation libs.slimReflectUtils
-    implementation libs.slimRxUtils
-
     annotationProcessor project(':rxrepo-apt')
     annotationProcessor libs.autoValue
     annotationProcessor libs.slimAutoValueUtils

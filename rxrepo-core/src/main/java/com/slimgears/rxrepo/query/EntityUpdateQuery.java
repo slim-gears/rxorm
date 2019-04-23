@@ -27,5 +27,5 @@ public interface EntityUpdateQuery<K, S extends HasMetaClassWithKey<K, S>>
         return remove(property, ConstantExpression.of(item));
     }
 
-    Observable<S> execute();
+    Observable<S> prepare();
 }

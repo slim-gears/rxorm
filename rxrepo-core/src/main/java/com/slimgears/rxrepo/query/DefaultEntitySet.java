@@ -18,21 +18,18 @@ import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.rx.Observables;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
-import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
-    private final static Duration bufferIdleTime = Duration.ofMillis(100);
-    private final static long retryCount = 5;
+    private final static long retryCount = 10;
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
 
@@ -109,10 +106,12 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public Observable<S> execute() {
-                return queryProvider.update(builder
-                        .predicate(predicate.get())
-                        .build());
+            public Observable<S> prepare() {
+                return Observable
+                        .defer(() -> queryProvider.update(builder
+                                .predicate(predicate.get())
+                                .build()))
+                        .retry(retryCount);
             }
 
             @Override
@@ -216,7 +215,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         QueryInfo<K, S, T> query = builder.limit(1L).build();
                         return queryProvider
                                 .liveQuery(query)
-                                .flatMapMaybe(n -> queryProvider.query(query).singleElement());
+                                .switchMapMaybe(n -> queryProvider.query(query).singleElement());
                     }
 
                     @Override
@@ -224,7 +223,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider
                                 .liveQuery(query)
-                                .switchMapSingle(n -> queryProvider
+                                .concatMapSingle(n -> queryProvider
                                         .query(query)
                                         .toList());
                     }
@@ -238,17 +237,13 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     }
 
                     @Override @SafeVarargs
-                    public final Observable<List<Notification<T>>> observe(PropertyExpression<T, ?, ?>... properties) {
+                    public final Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties) {
                         QueryInfo<K, S, T> query = builder
                                 .propertiesAdd(properties)
                                 .build();
                         return queryProvider.query(query)
                                 .map(Notification::ofCreated)
-                                .toList()
-                                .toObservable()
-                                .concatWith(queryProvider
-                                        .liveQuery(query)
-                                        .compose(Observables.bufferUntilIdle(bufferIdleTime)));
+                                .concatWith(queryProvider.liveQuery(query));
                     }
                 };
             }
@@ -283,11 +278,11 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
     @Override
     public Single<S> update(S entity) {
-        return queryProvider.insertOrUpdate(entity);
+        return Single.defer(() -> queryProvider.insertOrUpdate(entity)).retry(retryCount);
     }
 
     @Override
     public Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
-        return queryProvider.insertOrUpdate(metaClass, key, updater).retry(retryCount);
+        return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, updater)).retry(retryCount);
     }
 }

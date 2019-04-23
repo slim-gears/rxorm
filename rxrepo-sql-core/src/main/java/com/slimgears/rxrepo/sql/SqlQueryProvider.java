@@ -41,8 +41,7 @@ public class SqlQueryProvider implements QueryProvider {
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
-        return insertOrUpdate(entity.metaClass(), PropertyResolver.fromObject(entity))
-                .retry(10);
+        return insertOrUpdate(entity.metaClass(), PropertyResolver.fromObject(entity));
     }
 
     @Override
@@ -63,8 +62,7 @@ public class SqlQueryProvider implements QueryProvider {
                         .flatMap(_pr -> insertOrUpdate(metaClass, _pr).toMaybe()))
                 .switchIfEmpty(Maybe.defer(() -> entityUpdater
                         .apply(Maybe.empty())
-                        .flatMap(e -> insert(e).toMaybe())))
-                .retry(10);
+                        .flatMap(e -> insert(e).toMaybe())));
     }
 
     private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {

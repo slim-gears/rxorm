@@ -7,8 +7,6 @@ import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 
-import java.util.List;
-
 public interface SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
     extends QueryBuilder<SelectQueryBuilder<K, S>, K, S> {
     SelectQueryBuilder<K, S> skip(long skip);
@@ -53,7 +51,7 @@ public interface SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
     }
 
     @SuppressWarnings("unchecked")
-    default Observable<List<Notification<S>>> observe(PropertyExpression<S, ?, ?>... properties) {
+    default Observable<Notification<S>> observe(PropertyExpression<S, ?, ?>... properties) {
         return liveSelect().observe(properties);
     }
 

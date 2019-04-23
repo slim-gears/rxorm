@@ -23,7 +23,6 @@ import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.UseLogLevel;
 import io.reactivex.Maybe;
-import io.reactivex.Observable;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.CompletableSubject;
 import org.junit.After;
@@ -90,7 +89,6 @@ public class OrientDbQueryProviderTest {
                 //.where(Product.$.price.greaterThan(110))
                 .liveSelect()
                 .observe()
-                .flatMap(Observable::fromIterable)
                 .doOnNext(n -> System.out.println("Received notifications: " + counter.incrementAndGet()))
                 .doOnSubscribe(d -> System.out.println("Subscribed for live query"))
                 .test();
@@ -200,7 +198,6 @@ public class OrientDbQueryProviderTest {
         productSet.query()
                 .liveSelect()
                 .observe()
-                .flatMap(Observable::fromIterable)
                 .test()
                 .awaitCount(1000)
                 .assertValueAt(10, NotificationPrototype::isCreate);
@@ -351,7 +348,6 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testInsertThenUpdate() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(1000);
@@ -366,12 +362,13 @@ public class OrientDbQueryProviderTest {
                 .set(Product.$.name, Product.$.name.concat(" - ").concat(Product.$.inventory.name.asString()))
                 .where(Product.$.key.id.betweenExclusive(100, 200))
                 .limit(20)
-                .execute()
+                .prepare()
                 .test()
                 .await()
                 .assertNoErrors()
                 .assertValueCount(20)
                 .assertValueAt(15, pr -> {
+                    System.out.println(pr);
                     Matcher matcher = Pattern.compile("Product 1([0-9]+) - Inventory ([0-9]+)").matcher(Objects.requireNonNull(pr.name()));
                     return matcher.matches() && matcher.group(1).equals(matcher.group(2));
                 });
