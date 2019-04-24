@@ -40,8 +40,10 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     private final MetaClassWithKey<K, S> metaClass;
     private final Collection<Repository.QueryListener> queryListeners;
 
-    private DefaultEntitySet(QueryProvider queryProvider, MetaClassWithKey<K, S> metaClass, Collection<Repository.QueryListener> queryListeners) {
-        this.queryProvider = queryProvider;
+    private DefaultEntitySet(QueryProvider queryProvider,
+                             MetaClassWithKey<K, S> metaClass,
+                             Collection<Repository.QueryListener> queryListeners) {
+        this.queryProvider = CacheQueryProvider.of(queryProvider);
         this.metaClass = metaClass;
         this.queryListeners = queryListeners;
     }

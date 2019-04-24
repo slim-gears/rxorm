@@ -13,6 +13,7 @@ import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Scheduler;
 import io.reactivex.Single;
@@ -27,8 +28,10 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
     private final static Logger log = Logger.getLogger(OrientDbStatementExecutor.class.getName());
     private final OrientDbSessionProvider sessionProvider;
     private final Scheduler scheduler;
+    private final Completable shutdown;
 
-    OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider, Scheduler scheduler) {
+    OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider, Scheduler scheduler, Completable shutdown) {
+        this.shutdown = shutdown;
         this.sessionProvider = sessionProvider;
         this.scheduler = scheduler;
     }
@@ -76,7 +79,9 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                                 .orElse(null),
                         Optional.ofNullable(res.newResult())
                                 .map(or -> OResultPropertyResolver.create(OrientDbSessionProvider.create(res::database), or))
-                                .orElse(null)));
+                                .orElse(null)))
+                .takeUntil(shutdown.andThen(Observable.just(0)))
+                .observeOn(scheduler);
     }
 
     private Observable<PropertyResolver> toObservable(Function<ODatabaseDocument, OResultSet> resultSetSupplier) {

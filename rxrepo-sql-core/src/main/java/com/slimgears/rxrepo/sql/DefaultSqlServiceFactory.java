@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.sql;
 
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.stream.Lazy;
+import io.reactivex.Completable;
 import io.reactivex.Scheduler;
 import io.reactivex.schedulers.Schedulers;
 
@@ -19,6 +20,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     private final Lazy<SqlAssignmentGenerator> assignmentGenerator;
     private final Lazy<QueryProvider> queryProvider;
     private final Scheduler scheduler;
+    private final Completable shutdownSignal;
 
     private DefaultSqlServiceFactory(
             @Nonnull Function<SqlServiceFactory, SqlStatementProvider> statementProvider,
@@ -27,7 +29,8 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             @Nonnull Function<SqlServiceFactory, SchemaProvider> schemaProvider,
             @Nonnull Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
             @Nonnull Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator,
-            @Nonnull Scheduler scheduler) {
+            @Nonnull Scheduler scheduler,
+            @Nonnull Completable shutdownSignal) {
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
         this.statementExecutor = Lazy.of(() -> statementExecutor.apply(this));
         this.referenceResolver = Lazy.of(() -> referenceResolver.apply(this));
@@ -35,6 +38,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         this.expressionGenerator = Lazy.of(() -> expressionGenerator.apply(this));
         this.assignmentGenerator = Lazy.of(() -> assignmentGenerator.apply(this));
         this.scheduler = scheduler;
+        this.shutdownSignal = shutdownSignal;
         this.queryProvider = Lazy.of(() -> new SqlQueryProvider(
                 statementProvider(),
                 statementExecutor(),
@@ -73,6 +77,11 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     }
 
     @Override
+    public Completable shutdownSignal() {
+        return shutdownSignal;
+    }
+
+    @Override
     public ReferenceResolver referenceResolver() {
         return referenceResolver.get();
     }
@@ -99,6 +108,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         private Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator;
         private Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator;
         private Scheduler scheduler = Schedulers.single();
+        private Completable shutdownSignal = Completable.never();
 
         @Override
         public SqlServiceFactory.Builder statementProvider(Function<SqlServiceFactory, SqlStatementProvider> statementProvider) {
@@ -143,6 +153,12 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         }
 
         @Override
+        public SqlServiceFactory.Builder shutdownSignal(Completable shutdown) {
+            this.shutdownSignal = shutdown;
+            return this;
+        }
+
+        @Override
         public SqlServiceFactory build() {
             return new DefaultSqlServiceFactory(
                     requireNonNull(statementProvider),
@@ -151,7 +167,8 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                     requireNonNull(schemaProvider),
                     requireNonNull(expressionGenerator),
                     requireNonNull(assignmentGenerator),
-                    scheduler);
+                    scheduler,
+                    shutdownSignal);
         }
     }
 }

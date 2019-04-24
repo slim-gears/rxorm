@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.sql;
 
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
+import io.reactivex.Completable;
 import io.reactivex.Scheduler;
 
 import java.util.function.Function;
@@ -14,6 +15,7 @@ public interface SqlServiceFactory {
     SqlExpressionGenerator expressionGenerator();
     SqlAssignmentGenerator assignmentGenerator();
     Scheduler scheduler();
+    Completable shutdownSignal();
     ReferenceResolver referenceResolver();
     QueryProvider queryProvider();
 
@@ -29,6 +31,7 @@ public interface SqlServiceFactory {
         Builder expressionGenerator(Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator);
         Builder assignmentGenerator(Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator);
         Builder scheduler(Scheduler scheduler);
+        Builder shutdownSignal(Completable shutdown);
         SqlServiceFactory build();
 
         default Repository buildRepository() {
