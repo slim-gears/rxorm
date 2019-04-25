@@ -305,7 +305,6 @@ public class OrientDbQueryProviderTest {
                 .await()
                 .assertValue(2364);
 
-        //noinspection unchecked
         productSet
                 .query()
                 .where(Product.$.name.contains("231"))
@@ -331,7 +330,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    //@UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(UseLogLevel.Level.FINEST)
     public void testInsertThenSearch() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(100);
@@ -344,7 +343,6 @@ public class OrientDbQueryProviderTest {
                 .await()
                 .assertNoErrors();
 
-        //noinspection unchecked
         productSet
                 .query()
                 .where(Product.$.searchText("Product 31"))
@@ -381,6 +379,27 @@ public class OrientDbQueryProviderTest {
                     Matcher matcher = Pattern.compile("Product 1([0-9]+) - Inventory ([0-9]+)").matcher(Objects.requireNonNull(pr.name()));
                     return matcher.matches() && matcher.group(1).equals(matcher.group(2));
                 });
+    }
+
+    @Test
+    @UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testPartialRetrieve() throws InterruptedException {
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+        Iterable<Product> products = createProducts(10);
+        productSet
+                .update(products)
+                .test()
+                .await()
+                .assertNoErrors();
+
+        productSet
+                .query()
+                .where(Product.$.price.lessOrEqual(115))
+                .orderBy(Product.$.key.id)
+                .retrieve(Product.$.name)
+                .test()
+                .await()
+                .assertValueAt(1, p -> "Product 1".equals(p.name()));
     }
 
     @Test @Ignore

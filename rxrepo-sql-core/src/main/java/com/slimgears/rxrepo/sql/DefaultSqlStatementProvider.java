@@ -24,14 +24,18 @@ import com.slimgears.util.stream.Streams;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import static com.slimgears.rxrepo.sql.SqlStatement.of;
 import static com.slimgears.rxrepo.sql.StatementUtils.concat;
 
 public class DefaultSqlStatementProvider implements SqlStatementProvider {
+    private final static Logger log = Logger.getLogger(DefaultSqlStatementProvider.class.getName());
+
     private final SqlExpressionGenerator sqlExpressionGenerator;
     private final SqlAssignmentGenerator sqlAssignmentGenerator;
     private final SchemaProvider schemaProvider;
@@ -148,10 +152,11 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                 projectedName);
     }
 
-    private <S, T> String toMappingClause(ObjectExpression<S, T> expression, Collection<PropertyExpression<T, ?, ?>> properies) {
+    private <S, T> String toMappingClause(ObjectExpression<S, T> expression, Collection<PropertyExpression<T, ?, ?>> properties) {
         return Optionals.or(
-                () -> Optional.ofNullable(properies)
+                () -> Optional.ofNullable(properties)
                         .filter(p -> !p.isEmpty())
+                        .map(this::eliminateRedundantProperties)
                         .map(p -> p.stream()
                                 .map(prop -> sqlExpressionGenerator.toSqlExpression(prop, expression))
                                 .collect(Collectors.joining(", "))),
@@ -208,5 +213,31 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
 
     private <S> String toConditionClause(ObjectExpression<S, Boolean> condition) {
         return sqlExpressionGenerator.toSqlExpression(condition);
+    }
+
+    private <T> Collection<PropertyExpression<T, ?, ?>> eliminateRedundantProperties(Collection<PropertyExpression<T, ?, ?>> properties) {
+        log.finest(() -> "Requested properties: " + properties.stream()
+                .map(sqlExpressionGenerator::toSqlExpression)
+                .collect(Collectors.joining(", ")));
+
+        Map<PropertyMeta<?, ?>, PropertyExpression<T, ?, ?>> propertyMap = properties
+                .stream()
+                .collect(Collectors.toMap(PropertyExpression::property, p -> p, (a, b) -> a));
+
+        properties.forEach(p -> eliminateParents(propertyMap, p));
+
+        log.finest(() -> "Filtered properties: " + propertyMap.values().stream()
+                .map(sqlExpressionGenerator::toSqlExpression)
+                .collect(Collectors.joining(", ")));
+
+        return propertyMap.values();
+    }
+
+    private static <S, T, V> void eliminateParents(Map<PropertyMeta<?, ?>, PropertyExpression<S, ?, ?>> properties, PropertyExpression<S, T, V> property) {
+        if (property.target() instanceof PropertyExpression) {
+            PropertyExpression<S, ?, ?> parentProperty = (PropertyExpression<S, ?, ?>)property.target();
+            properties.remove(parentProperty.property());
+            eliminateParents(properties, parentProperty);
+        }
     }
 }

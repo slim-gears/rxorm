@@ -6,31 +6,38 @@ import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
 import io.reactivex.Observable;
 import io.reactivex.functions.IntFunction;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
-public interface LiveSelectQuery<T> {
-    default Observable<Long> count() {
+@SuppressWarnings("WeakerAccess")
+public abstract class LiveSelectQuery<T> {
+    public abstract Observable<T> first();
+    public abstract Observable<List<? extends T>> toList();
+    public abstract <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Observable<R> aggregate(Aggregator<T, T, R, E> aggregator);
+
+    public Observable<Long> count() {
         return aggregate(Aggregator.count());
     }
 
-    default Observable<T[]> toArray(IntFunction<T[]> arrayCreator) {
+    public Observable<T[]> toArray(IntFunction<T[]> arrayCreator) {
         return toList().map(list -> list.toArray(arrayCreator.apply(list.size())));
     }
 
-    Observable<T> first();
-    Observable<List<? extends T>> toList();
-    <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Observable<R> aggregate(Aggregator<T, T, R, E> aggregator);
-    default <R> R apply(Function<LiveSelectQuery<T>, R> mapper) {
+    public <R> R apply(Function<LiveSelectQuery<T>, R> mapper) {
         return mapper.apply(this);
     }
 
-    @SuppressWarnings("unchecked")
-    Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties);
-
-    default Observable<Notification<T>> observe() {
-        //noinspection unchecked
-        return observe(new PropertyExpression[0]);
+    @SafeVarargs
+    public final Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties) {
+        return observe(Arrays.asList(properties));
     }
+
+    public Observable<Notification<T>> observe() {
+        return observe(Collections.emptyList());
+    }
+
+    protected abstract Observable<Notification<T>> observe(Collection<PropertyExpression<T, ?, ?>> properties);
 }

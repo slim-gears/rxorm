@@ -7,25 +7,31 @@ import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Function;
 
-@SuppressWarnings("unchecked")
-public interface SelectQuery<T> {
-    Maybe<T> first();
-    <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Single<R> aggregate(Aggregator<T, T, R, E> aggregator);
-    Observable<T> retrieve(PropertyExpression<T, ?, ?>... properties);
+public abstract class SelectQuery<T> {
+    public abstract Maybe<T> first();
+    public abstract <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Single<R> aggregate(Aggregator<T, T, R, E> aggregator);
 
-    default <R> R apply(Function<SelectQuery<T>, R> mapper) {
+    @SafeVarargs
+    public final Observable<T> retrieve(PropertyExpression<T, ?, ?>... properties) {
+        return retrieve(Arrays.asList(properties));
+    }
+
+    public <R> R apply(Function<SelectQuery<T>, R> mapper) {
         return mapper.apply(this);
     }
 
-    default Observable<T> retrieve() {
+    public Observable<T> retrieve() {
         //noinspection unchecked
         return retrieve(new PropertyExpression[0]);
     }
 
-    default Single<Long> count() {
+    public Single<Long> count() {
         return aggregate(Aggregator.count());
     }
+
+    protected abstract Observable<T> retrieve(Collection<PropertyExpression<T, ?, ?>> properties);
 }

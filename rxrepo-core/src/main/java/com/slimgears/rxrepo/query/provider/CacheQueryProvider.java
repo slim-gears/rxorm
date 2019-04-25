@@ -1,10 +1,7 @@
-package com.slimgears.rxrepo.query;
+package com.slimgears.rxrepo.query.provider;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
-import com.slimgears.rxrepo.query.provider.DeleteInfo;
-import com.slimgears.rxrepo.query.provider.QueryInfo;
-import com.slimgears.rxrepo.query.provider.QueryProvider;
-import com.slimgears.rxrepo.query.provider.UpdateInfo;
+import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Maybe;
