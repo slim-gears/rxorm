@@ -8,7 +8,6 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
-import com.slimgears.rxrepo.query.provider.CacheQueryProvider;
 import com.slimgears.rxrepo.query.provider.CollectionPropertyUpdateInfo;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.PropertyUpdateInfo;
@@ -49,7 +48,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
     private DefaultEntitySet(QueryProvider queryProvider,
                              MetaClassWithKey<K, S> metaClass) {
-        this.queryProvider = CacheQueryProvider.of(queryProvider);
+        this.queryProvider = queryProvider;
         this.metaClass = metaClass;
     }
 
