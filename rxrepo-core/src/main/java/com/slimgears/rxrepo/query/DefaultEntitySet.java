@@ -33,6 +33,7 @@ import io.reactivex.functions.Function;
 import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -319,7 +320,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             Collection<? extends PropertyExpression<T, ?, ?>> requiredProperties = includedProperties
-                    .collect(Collectors.toMap(PropertyExpression::property, p -> p, (a, b) -> a))
+                    .collect(Collectors.toMap(PropertyExpression::property, p -> p, (a, b) -> a, LinkedHashMap::new))
                     .values();
 
             builder.propertiesAddAll(requiredProperties);
