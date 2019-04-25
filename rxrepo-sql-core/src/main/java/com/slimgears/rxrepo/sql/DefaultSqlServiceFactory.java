@@ -100,7 +100,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                         factory.schemaProvider()));
     }
 
-    static class Builder implements SqlServiceFactory.Builder {
+    static class Builder extends SqlServiceFactory.Builder {
         private Function<SqlServiceFactory, SqlStatementProvider> statementProvider;
         private Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor;
         private Function<SqlServiceFactory, SchemaProvider> schemaProvider;
