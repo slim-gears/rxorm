@@ -15,4 +15,5 @@ import javax.annotation.Nullable;
 public interface InventoryPrototype {
     @Key @Filterable UniqueId id();
     @Nullable @Searchable @Filterable String name();
+    @Nullable Inventory inventory();
 }

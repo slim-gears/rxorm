@@ -161,6 +161,24 @@ public class OrientDbQueryProviderTest {
 
     @Test
     //@UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testAddRecursiveInventory() throws InterruptedException {
+        EntitySet<UniqueId, Inventory> inventorySet = repository.entities(Inventory.metaClass);
+        inventorySet
+                .update(Inventory.builder()
+                        .id(UniqueId.inventoryId(1))
+                        .name("Inventory 1")
+                        .inventory(Inventory.builder()
+                                .id(UniqueId.inventoryId(2))
+                                .name("Inventory 2")
+                                .build())
+                        .build())
+                .test()
+                .await()
+                .assertNoErrors();
+    }
+
+    @Test
+    //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testAddSameInventory() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         EntitySet<UniqueId, Inventory> inventorySet = repository.entities(Inventory.metaClass);
