@@ -20,12 +20,14 @@ import io.reactivex.Single;
 
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 class OrientDbStatementExecutor implements SqlStatementExecutor {
     private final static Logger log = Logger.getLogger(OrientDbStatementExecutor.class.getName());
+    private final static long timeoutMillis = 5000;
     private final OrientDbSessionProvider sessionProvider;
     private final Scheduler scheduler;
     private final Completable shutdown;
@@ -95,7 +97,8 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                     emitter.onComplete();
                 }))
                 .map(res -> OResultPropertyResolver.create(sessionProvider, res))
-                .subscribeOn(scheduler);
+                .subscribeOn(scheduler)
+                .timeout(timeoutMillis, TimeUnit.MILLISECONDS);
     }
 
     private Object[] convertArgs(Object[] args) {

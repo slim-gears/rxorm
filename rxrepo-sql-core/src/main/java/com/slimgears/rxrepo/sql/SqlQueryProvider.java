@@ -56,14 +56,21 @@ public class SqlQueryProvider implements QueryProvider {
         return statementExecutor
                 .executeQuery(statement)
                 .firstElement()
-                .flatMap((PropertyResolver pr) -> entityUpdater
-                        .apply(Maybe.just(pr.toObject(metaClass)))
-                        .map(obj -> pr.mergeWith(PropertyResolver.fromObject(obj)))
-                        .flatMap(_pr -> insertOrUpdate(metaClass, _pr).toMaybe()))
+                .flatMap((PropertyResolver pr) -> {
+                    S oldObj = pr.toObject(metaClass);
+                    return entityUpdater
+                            .apply(Maybe.just(oldObj))
+                            .filter(newObj -> !newObj.equals(oldObj))
+                            .map(newObj -> pr.mergeWith(PropertyResolver.fromObject(newObj)))
+                            .filter(newPr -> !pr.equals(newPr))
+                            .flatMap(newPr -> insertOrUpdate(metaClass, newPr).toMaybe())
+                            .switchIfEmpty(Maybe.just(oldObj));
+                })
                 .switchIfEmpty(Maybe.defer(() -> entityUpdater
                         .apply(Maybe.empty())
                         .flatMap(e -> insert(e).toMaybe())));
     }
+
 
     private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
         //noinspection unchecked
