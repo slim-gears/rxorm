@@ -2,10 +2,12 @@ package com.slimgears.rxrepo.orientdb;
 
 import com.orientechnologies.orient.core.db.OLiveQueryMonitor;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
+import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.sql.SqlStatementExecutor;
@@ -19,15 +21,21 @@ import io.reactivex.Scheduler;
 import io.reactivex.Single;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.ConcurrentModificationException;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 class OrientDbStatementExecutor implements SqlStatementExecutor {
     private final static Logger log = Logger.getLogger(OrientDbStatementExecutor.class.getName());
-    private final static long timeoutMillis = 5000;
+    private final static long timeoutMillis = 10000;
     private final OrientDbSessionProvider sessionProvider;
     private final Scheduler scheduler;
     private final Completable shutdown;
@@ -51,18 +59,31 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
     public Observable<PropertyResolver> executeCommandReturnEntries(SqlStatement statement) {
         return toObservable(
                 session -> {
-                    logStatement("Executing command", statement);
-                    return session.command(statement.statement(), convertArgs(statement.args()));
+                    try {
+                        logStatement("Executing command", statement);
+                        return session.command(statement.statement(), convertArgs(statement.args()));
+                    } catch (OConcurrentModificationException | ORecordDuplicatedException e) {
+                        throw new ConcurrentModificationException(e.getMessage(), e);
+                    }
+                    finally {
+                        logStatement("Executed command", statement);
+                    }
                 })
-                .doOnError(e -> log.severe(e::toString))
-                .subscribeOn(scheduler);
+                .doOnError(e -> log.severe("Error when executing " + toString(statement) + "\n" + e.toString()))
+                .subscribeOn(scheduler)
+                .timeout(timeoutMillis,
+                        TimeUnit.MILLISECONDS,
+                        Observable.error(new TimeoutException("Timeout when executing: " + toString(statement))));
     }
 
     @Override
     public Single<Integer> executeCommandReturnCount(SqlStatement statement) {
         return executeCommandReturnEntries(statement)
                 .map(res -> ((Long)res.getProperty("count", Long.class)).intValue())
-                .first(0);
+                .first(0)
+                .timeout(timeoutMillis,
+                        TimeUnit.MILLISECONDS,
+                        Single.error(new TimeoutException("Timeout when executing: " + toString(statement))));
     }
 
     @Override
@@ -111,7 +132,11 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
 
     @SuppressWarnings("unchecked")
     private Object convertArg(Object obj) {
-        if (!(obj instanceof HasMetaClass)) {
+        if (obj instanceof Collection) {
+            return convertCollection((Collection<?>)obj);
+        } else if (obj instanceof Map) {
+            return convertMap((Map<?, ?>)obj);
+        } else if (!(obj instanceof HasMetaClass)) {
             return obj;
         }
 
@@ -123,7 +148,26 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
         return oElement;
     }
 
+    private Map<?, ?> convertMap(Map<?, ?> map) {
+        return map.entrySet()
+                .stream()
+                .collect(Collectors.toMap(e -> convertArg(e.getKey()), e -> convertArg(e.getValue())));
+    }
+
+    private Collection<?> convertCollection(Collection<?> collection) {
+        if (collection instanceof List) {
+            return collection.stream().map(this::convertArg).collect(Collectors.toList());
+        } else if (collection instanceof Set) {
+            return collection.stream().map(this::convertArg).collect(Collectors.toSet());
+        }
+        return collection;
+    }
+
     private void logStatement(String title, SqlStatement statement) {
-        log.fine(() -> title + ": " + statement.statement() + "(params: [" + Arrays.stream(statement.args()).map(Object::toString).collect(Collectors.joining(", ")) + "]");
+        log.fine(() -> title + ": " + toString(statement));
+    }
+
+    private String toString(SqlStatement statement) {
+        return statement.statement() + "(params: [" + Arrays.stream(statement.args()).map(Object::toString).collect(Collectors.joining(", ")) + "]";
     }
 }

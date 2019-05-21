@@ -1,5 +1,8 @@
 package com.slimgears.rxrepo.util;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.slimgears.util.autovalue.annotations.BuilderPrototype;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaBuilder;
@@ -142,9 +145,9 @@ class PropertyResolvers {
                 Stream<?> stream = Streams.fromIterable((Iterable<?>)value)
                         .map(val -> fromValue(elementType, val));
                 if (value instanceof Set) {
-                    return stream.collect(Collectors.toSet());
+                    return stream.collect(ImmutableSet.toImmutableSet());
                 } else if (value instanceof List) {
-                    return stream.collect(Collectors.toList());
+                    return stream.collect(ImmutableList.toImmutableList());
                 }
             }
         }
@@ -161,19 +164,22 @@ class PropertyResolvers {
                     .flatMap(Streams.ofType(PropertyResolver.class))
                     .map(pr -> pr.toObject(elementType));
             if (value instanceof List) {
-                return (V)objects.collect(Collectors.toList());
+                return (V)objects.collect(ImmutableList.toImmutableList());
             } else if (value instanceof Set) {
-                return (V)objects.collect(Collectors.toSet());
+                return (V)objects.collect(ImmutableSet.toImmutableSet());
             } else {
                 throw new RuntimeException("Not supported iterable type: " + value.getClass());
             }
 
         } else if (value instanceof Map) {
-            TypeToken<?> elementType = typeParam(type, 1);
+            TypeToken<?> keyType = typeParam(type, 0);
+            TypeToken<?> valType = typeParam(type, 1);
             return (V)((Map<?,?>)value)
                     .entrySet()
                     .stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, val -> toValue(elementType, value)));
+                    .collect(ImmutableMap.toImmutableMap(
+                            val -> toValue(keyType, val.getKey()),
+                            val -> toValue(valType, val.getValue())));
         } else if (type.asClass().isInstance(value)) {
             return (V)value;
         } else if ((value instanceof PropertyResolver) && HasMetaClass.class.isAssignableFrom(type.asClass())) {
@@ -197,11 +203,10 @@ class PropertyResolvers {
         final V value;
 
         void set(MetaBuilder<T> builder) {
-            property.setValue(builder, value);
+            property.setValue(builder, PropertyResolvers.toValue(property.type(), value));
         }
 
         private PropertyValue(PropertyMeta<T, V> property, V value) {
-
             this.property = property;
             this.value = value;
         }

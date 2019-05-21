@@ -25,6 +25,8 @@ public interface SqlServiceFactory {
     }
 
     abstract class Builder {
+        private UnaryOperator<QueryProvider> decorator = UnaryOperator.identity();
+
         public abstract Builder statementProvider(Function<SqlServiceFactory, SqlStatementProvider> statementProvider);
         public abstract Builder statementExecutor(Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor);
         public abstract Builder schemaProvider(Function<SqlServiceFactory, SchemaProvider> schemaProvider);
@@ -37,7 +39,13 @@ public interface SqlServiceFactory {
 
         @SafeVarargs
         public final Repository buildRepository(UnaryOperator<QueryProvider>... decorators) {
-            return Repository.fromProvider(build().queryProvider(), decorators);
+            return Repository.fromProvider(this.decorator.apply(build().queryProvider()), decorators);
+        }
+
+        public final SqlServiceFactory.Builder decorate(UnaryOperator<QueryProvider> decorator) {
+            UnaryOperator<QueryProvider> oldDecorator = this.decorator;
+            this.decorator = qp -> decorator.apply(oldDecorator.apply(qp));
+            return this;
         }
 
         public Builder statementProvider(Supplier<SqlStatementProvider> statementProvider) {

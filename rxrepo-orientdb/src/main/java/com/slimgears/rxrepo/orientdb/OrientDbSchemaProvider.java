@@ -82,6 +82,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
                 }
 
                 Streams.fromIterable(metaClass.properties())
+                        .peek(this::validateProperty)
                         .filter(p -> p.hasAnnotation(Indexable.class) && !p.hasAnnotation(Key.class))
                         .forEach(p -> addIndex(oClass, p, p.getAnnotation(Indexable.class).unique()));
 
@@ -111,6 +112,13 @@ class OrientDbSchemaProvider implements SchemaProvider {
                 this.pendingClasses.remove();
             }
         }
+    }
+
+    private void validateProperty(PropertyMeta<?, ?> propertyMeta) {
+//        if (Collection.class.isAssignableFrom(propertyMeta.type().asClass()) &&
+//                HasMetaClassWithKey.class.isAssignableFrom(propertyMeta.type().typeArguments()[0].asClass())) {
+//            throw new RuntimeException("Collections are not supported (" + propertyMeta.declaringType().objectClass().asClass().getSimpleName() + "." + propertyMeta.name());
+//        }
     }
 
     private static <T> void addIndex(OClass oClass, PropertyMeta<T, ?> propertyMeta, boolean unique) {

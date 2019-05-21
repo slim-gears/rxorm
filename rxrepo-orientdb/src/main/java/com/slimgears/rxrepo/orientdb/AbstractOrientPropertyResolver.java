@@ -1,5 +1,8 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.db.record.OTrackedList;
 import com.orientechnologies.orient.core.db.record.OTrackedMap;
@@ -9,9 +12,12 @@ import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.slimgears.rxrepo.util.PropertyResolver;
+import com.slimgears.util.stream.Streams;
 
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.stream.Stream;
 
 public abstract class AbstractOrientPropertyResolver implements PropertyResolver {
     final OrientDbSessionProvider dbSessionProvider;
@@ -39,20 +45,20 @@ public abstract class AbstractOrientPropertyResolver implements PropertyResolver
         } else if (obj instanceof ORecordId) {
             return toValue(dbSessionProvider, dbSessionProvider.withSession((ODatabaseDocument s) -> s.load((ORecordId)obj)), expectedType);
         } else if (obj instanceof OTrackedList) {
-            return ((OTrackedList<OElement>)obj)
+            return ((OTrackedList<?>)obj)
                     .stream()
                     .map(v -> toValue(dbSessionProvider, v, expectedType))
-                    .collect(Collectors.toList());
+                    .collect(ImmutableList.toImmutableList());
         } else if (obj instanceof OTrackedSet) {
-            return ((OTrackedSet<OElement>)obj)
+            return ((OTrackedSet<?>)obj)
                     .stream()
                     .map(v -> toValue(dbSessionProvider, v, expectedType))
-                    .collect(Collectors.toSet());
+                    .collect(ImmutableSet.toImmutableSet());
         } else if (obj instanceof OTrackedMap) {
-            return ((OTrackedMap<OElement>)obj)
+            return ((OTrackedMap<?>)obj)
                     .entrySet()
                     .stream()
-                    .collect(Collectors.toMap(
+                    .collect(ImmutableMap.toImmutableMap(
                             Map.Entry::getKey,
                             e -> toValue(dbSessionProvider, e.getValue(), expectedType)));
         } else if (obj instanceof OResult) {
@@ -61,7 +67,20 @@ public abstract class AbstractOrientPropertyResolver implements PropertyResolver
             return ((OResultSet)obj)
                     .stream()
                     .map(r -> toValue(dbSessionProvider, r, expectedType))
-                    .collect(Collectors.toList());
+                    .collect(ImmutableList.toImmutableList());
+        } else if (obj instanceof Iterable) {
+            Stream<?> stream = Streams.fromIterable((Iterable<?>)obj)
+                    .map(o -> toValue(dbSessionProvider, o, expectedType));
+            if (obj instanceof List) {
+                return stream.collect(ImmutableList.toImmutableList());
+            } else if (obj instanceof Set) {
+                return stream.collect(ImmutableSet.toImmutableSet());
+            }
+        } else if (obj instanceof Map) {
+            return ((Map<?, ?>)obj).entrySet().stream()
+                    .collect(ImmutableMap.toImmutableMap(
+                            e -> toValue(dbSessionProvider, e.getKey(), expectedType),
+                            e -> toValue(dbSessionProvider, e.getValue(), expectedType)));
         }
         return obj;
     }

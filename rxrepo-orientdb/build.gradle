@@ -7,7 +7,7 @@ dependencies {
     implementation libs.orientDbCore, libs.orientDbClient, libs.orientDbServer, libs.orientDbTools, libs.orientDbLucene, libs.orientDbStudio
     implementation libs.javaxAnnotationApi
     implementation libs.javaxInject
-    implementation libs.guava;
+    implementation libs.guava
     implementation libs.autoValueAnnotations
     implementation libs.jacksonAnnotations, libs.jacksonDataBind
     annotationProcessor libs.autoValue

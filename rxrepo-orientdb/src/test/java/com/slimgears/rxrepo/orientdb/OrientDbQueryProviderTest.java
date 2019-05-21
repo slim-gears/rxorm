@@ -1,6 +1,8 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.orientechnologies.common.serialization.types.OBinaryTypeSerializer;
 import com.orientechnologies.orient.core.db.ODatabaseSession;
 import com.orientechnologies.orient.core.db.ODatabaseType;
@@ -20,6 +22,7 @@ import com.slimgears.rxrepo.query.EntitySet;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.NotificationPrototype;
 import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.UseLogLevel;
 import io.reactivex.Maybe;
@@ -417,7 +420,108 @@ public class OrientDbQueryProviderTest {
                 .retrieve(Product.$.name)
                 .test()
                 .await()
+                .assertNoErrors()
                 .assertValueAt(1, p -> "Product 1".equals(p.name()));
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    @Test
+    @UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testEntityWithListOfReferenceField() throws InterruptedException {
+        EntitySet<UniqueId, Storage> storages = repository.entities(Storage.metaClass);
+        storages.update(Storage.builder()
+                .key(UniqueId.storageId(1))
+                .productList(ImmutableList.copyOf(createProducts(10)))
+                .build())
+                .test()
+                .await()
+                .assertNoErrors();
+
+        storages.findAll()
+                .test()
+                .await()
+                .assertNoErrors()
+                .assertValueCount(1)
+                .assertValue(s -> s.productList().size() == 10);
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    @Test
+    @UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testEntityWithStringByReferenceMapField() throws InterruptedException {
+        EntitySet<UniqueId, Storage> storages = repository.entities(Storage.metaClass);
+        storages.update(Storage.builder()
+                .key(UniqueId.storageId(1))
+                .productMapByName(Streams
+                        .fromIterable(createProducts(10))
+                        .collect(ImmutableMap.toImmutableMap(Product::name, p -> p)))
+                .build())
+                .test()
+                .await()
+                .assertNoErrors();
+
+        storages.findAll()
+                .test()
+                .await()
+                .assertNoErrors()
+                .assertValueCount(1)
+                .assertValue(s -> s.productMapByName().size() == 10);
+    }
+
+    @Test
+    @UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testEntityWithListOfStringField() throws InterruptedException {
+        Product product = Product.builder()
+                .key(UniqueId.productId(1))
+                .name("Product1")
+                .inventory(Inventory
+                        .builder()
+                        .id(UniqueId.inventoryId(2))
+                        .name("Inventory2")
+                        .build())
+                .price(100)
+                .type(ProductPrototype.Type.ComputeHardware)
+                .aliases(ImmutableList.of("p1", "p2"))
+                .build();
+
+        repository.entities(Product.metaClass)
+                .update(product)
+                .test()
+                .await()
+                .assertNoErrors();
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    @Test
+    @UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testEntityWithListOfEmbeddedField() throws InterruptedException {
+        Product product = Product.builder()
+                .key(UniqueId.productId(1))
+                .name("Product1")
+                .inventory(Inventory
+                        .builder()
+                        .id(UniqueId.inventoryId(2))
+                        .name("Inventory2")
+                        .build())
+                .price(100)
+                .type(ProductPrototype.Type.ComputeHardware)
+                .relatedIds(ImmutableList.of(UniqueId.storageId(3), UniqueId.inventoryId(2), UniqueId.productId(1)))
+                .build();
+
+        repository.entities(Product.metaClass)
+                .update(product)
+                .test()
+                .await()
+                .assertNoErrors();
+
+        repository.entities(Product.metaClass)
+                .findAll()
+                .take(1)
+                .singleElement()
+                .test()
+                .await()
+                .assertValue(p -> p.relatedIds().size() == 3)
+                .assertValue(p -> p.relatedIds().get(0).id() == 3);
     }
 
     @Test @Ignore

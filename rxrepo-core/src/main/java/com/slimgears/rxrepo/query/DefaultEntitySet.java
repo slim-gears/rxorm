@@ -32,6 +32,7 @@ import io.reactivex.functions.Function;
 import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.ConcurrentModificationException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
@@ -125,7 +126,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         .defer(() -> queryProvider.update(builder
                                 .predicate(predicate.get())
                                 .build()))
-                        .compose(Observables.backoffDelayRetry(retryInitialDuration, retryCount));
+                        .compose(Observables.backOffDelayRetry(DefaultEntitySet::isConcurrencyException, retryInitialDuration, retryCount));
             }
 
             @Override
@@ -294,13 +295,17 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     public Single<S> update(S entity) {
         return Single
                 .defer(() -> queryProvider.insertOrUpdate(entity))
-                .compose(Singles.backoffDelayRetry(retryInitialDuration, retryCount));
+                .compose(Singles.backOffDelayRetry(DefaultEntitySet::isConcurrencyException, retryInitialDuration, retryCount));
     }
 
     @Override
     public Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
         return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, updater))
-                .compose(Maybes.backoffDelayRetry(retryInitialDuration, retryCount));
+                .compose(Maybes.backOffDelayRetry(DefaultEntitySet::isConcurrencyException, retryInitialDuration, retryCount));
+    }
+
+    private static boolean isConcurrencyException(Throwable exception) {
+        return exception instanceof ConcurrentModificationException;
     }
 
     @SuppressWarnings("unchecked")

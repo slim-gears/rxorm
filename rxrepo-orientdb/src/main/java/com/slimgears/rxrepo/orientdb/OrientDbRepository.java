@@ -16,7 +16,8 @@ public class OrientDbRepository {
                 .expressionGenerator(OrientDbSqlExpressionGenerator::new)
                 .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                 .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
-                .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()));
+                .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
+                .decorate(OrientDbQueryProviderDecorator.decorator());
     }
 
     public static Repository create(Supplier<ODatabaseDocument> sessionSupplier) {

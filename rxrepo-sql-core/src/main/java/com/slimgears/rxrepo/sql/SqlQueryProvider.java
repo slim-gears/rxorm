@@ -82,10 +82,12 @@ public class SqlQueryProvider implements QueryProvider {
                 .flatMapSingle(this::insertOrUpdate)
                 .ignoreElements();
 
-        return references.andThen(schemaProvider.createOrUpdate(metaClass).andThen(statementExecutor
-                .executeCommandReturnEntries(statementProvider.forInsertOrUpdate(metaClass, propertyResolver, referenceResolver))
-                .map(pr -> pr.toObject(metaClass))
-                .singleOrError()));
+        return references
+                .andThen(schemaProvider.createOrUpdate(metaClass)
+                        .andThen(statementExecutor
+                                .executeCommandReturnEntries(statementProvider.forInsertOrUpdate(metaClass, propertyResolver, referenceResolver))
+                                .map(pr -> pr.toObject(metaClass))
+                                .singleOrError()));
     }
 
     private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insert(S entity) {
