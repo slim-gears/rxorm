@@ -19,6 +19,8 @@ import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Scheduler;
 import io.reactivex.Single;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,11 +32,12 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static com.slimgears.util.generic.LazyToString.lazy;
+
 class OrientDbStatementExecutor implements SqlStatementExecutor {
-    private final static Logger log = Logger.getLogger(OrientDbStatementExecutor.class.getName());
+    private final static Logger log = LoggerFactory.getLogger(OrientDbStatementExecutor.class);
     private final static long timeoutMillis = 10000;
     private final OrientDbSessionProvider sessionProvider;
     private final Scheduler scheduler;
@@ -64,12 +67,14 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                         return session.command(statement.statement(), convertArgs(statement.args()));
                     } catch (OConcurrentModificationException | ORecordDuplicatedException e) {
                         throw new ConcurrentModificationException(e.getMessage(), e);
+                    } catch (Throwable e) {
+                        log.debug("Error when executing {}", lazy(() -> toString(statement)), e);
+                        throw e;
                     }
                     finally {
                         logStatement("Executed command", statement);
                     }
                 })
-                .doOnError(e -> log.severe("Error when executing " + toString(statement) + "\n" + e.toString()))
                 .subscribeOn(scheduler)
                 .timeout(timeoutMillis,
                         TimeUnit.MILLISECONDS,
@@ -113,7 +118,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                     OResultSet resultSet = resultSetSupplier.apply(dbSession);
                     emitter.setCancellable(resultSet::close);
                     resultSet.stream()
-                            .peek(res -> log.fine(() -> "Received: " + res))
+                            .peek(res -> log.trace("Received: {}", res))
                             .forEach(emitter::onNext);
                     emitter.onComplete();
                 }))
@@ -142,7 +147,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
 
         HasMetaClass<?> hasMetaClass = (HasMetaClass)obj;
         MetaClass<?> metaClass = hasMetaClass.metaClass();
-        OElement oElement = new ODocument(OrientDbSchemaProvider.toClassName(metaClass.objectClass()));
+        OElement oElement = new ODocument(OrientDbSchemaProvider.toClassName(metaClass));
         metaClass.properties().forEach(p -> oElement.setProperty(p.name(), convertArg(((PropertyMeta)p).getValue(obj))));
 
         return oElement;
@@ -164,7 +169,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
     }
 
     private void logStatement(String title, SqlStatement statement) {
-        log.fine(() -> title + ": " + toString(statement));
+        log.trace("{}: {}", title, lazy(() -> toString(statement)));
     }
 
     private String toString(SqlStatement statement) {

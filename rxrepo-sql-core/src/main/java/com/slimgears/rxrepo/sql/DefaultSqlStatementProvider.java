@@ -20,6 +20,8 @@ import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,14 +30,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import static com.slimgears.rxrepo.sql.SqlStatement.of;
 import static com.slimgears.rxrepo.sql.StatementUtils.concat;
+import static com.slimgears.util.generic.LazyToString.lazy;
 
 public class DefaultSqlStatementProvider implements SqlStatementProvider {
-    private final static Logger log = Logger.getLogger(DefaultSqlStatementProvider.class.getName());
+    private final static Logger log = LoggerFactory.getLogger(DefaultSqlStatementProvider.class);
 
     private final SqlExpressionGenerator sqlExpressionGenerator;
     private final SqlAssignmentGenerator sqlAssignmentGenerator;
@@ -217,9 +219,9 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     private <T> Collection<PropertyExpression<T, ?, ?>> eliminateRedundantProperties(Collection<PropertyExpression<T, ?, ?>> properties) {
-        log.finest(() -> "Requested properties: " + properties.stream()
+        log.trace("Requested properties: {}", lazy(() -> properties.stream()
                 .map(sqlExpressionGenerator::toSqlExpression)
-                .collect(Collectors.joining(", ")));
+                .collect(Collectors.joining(", "))));
 
         Map<PropertyMeta<?, ?>, PropertyExpression<T, ?, ?>> propertyMap = properties
                 .stream()
@@ -227,9 +229,9 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
 
         properties.forEach(p -> eliminateParents(propertyMap, p));
 
-        log.finest(() -> "Filtered properties: " + propertyMap.values().stream()
+        log.trace("Filtered properties: {}", lazy(() -> propertyMap.values().stream()
                 .map(sqlExpressionGenerator::toSqlExpression)
-                .collect(Collectors.joining(", ")));
+                .collect(Collectors.joining(", "))));
 
         return propertyMap.values();
     }

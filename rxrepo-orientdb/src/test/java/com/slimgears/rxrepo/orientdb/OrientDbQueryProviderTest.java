@@ -1,5 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -22,6 +24,8 @@ import com.slimgears.rxrepo.query.EntitySet;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.NotificationPrototype;
 import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.sql.CacheSchemaProviderDecorator;
+import com.slimgears.rxrepo.sql.SchemaProvider;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.UseLogLevel;
@@ -39,6 +43,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -59,11 +64,13 @@ public class OrientDbQueryProviderTest {
     private static OServer server;
     private Repository repository;
     private OrientDB dbClient;
+    private Supplier<ODatabaseDocument> dbSessionSupplier;
 
     @BeforeClass
     public static void setUpClass() throws Exception {
         server = OServerMain.create(true);
         server.startup(new OServerConfiguration());
+        ((Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.ALL);
     }
 
     @AfterClass
@@ -76,8 +83,9 @@ public class OrientDbQueryProviderTest {
         System.err.println("Starting test: " + testNameRule.getMethodName());
         dbClient = new OrientDB("embedded:testDbServer", OrientDBConfig.defaultConfig());
         dbClient.create(dbName, ODatabaseType.MEMORY);
+        dbSessionSupplier = () -> dbClient.open(dbName, "admin", "admin");
         repository = OrientDbRepository
-                .builder(() -> dbClient.open(dbName, "admin", "admin"))
+                .builder(dbSessionSupplier)
                 .scheduler(Schedulers.io())
                 .buildRepository();
     }
@@ -181,7 +189,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    //@UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(UseLogLevel.Level.FINEST)
     public void testAddSameInventory() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         EntitySet<UniqueId, Inventory> inventorySet = repository.entities(Inventory.metaClass);
@@ -641,5 +649,16 @@ public class OrientDbQueryProviderTest {
                         .price(100 + (i % 7)*(i % 11) + i % 13)
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    @Test
+    public void testOrientDbSchemeProvider() throws InterruptedException {
+        SchemaProvider schemaProvider = new OrientDbSchemaProvider(OrientDbSessionProvider.create(dbSessionSupplier), Schedulers.single());
+        SchemaProvider cachedSchemaProvider = CacheSchemaProviderDecorator.decorate(schemaProvider);
+        cachedSchemaProvider.createOrUpdate(Inventory.metaClass)
+                .test()
+                .await()
+                .assertNoErrors()
+                .assertComplete();
     }
 }

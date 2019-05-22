@@ -26,7 +26,7 @@ public class SqlStatementProviderTest {
         SqlExpressionGenerator expressionGenerator = new DefaultSqlExpressionGenerator();
         SqlAssignmentGenerator assignmentGenerator = new DefaultSqlAssignmentGenerator(expressionGenerator);
         statementProvider = new DefaultSqlStatementProvider(expressionGenerator, assignmentGenerator, mockSchemaProvider);
-        when(mockSchemaProvider.tableName(any())).then(invocation -> invocation.<MetaClass<?>>getArgument(0).objectClass().asClass().getSimpleName());
+        when(mockSchemaProvider.tableName(any())).then(invocation -> invocation.<MetaClass<?>>getArgument(0).simpleName());
     }
 
     @Test

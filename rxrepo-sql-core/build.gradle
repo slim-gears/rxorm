@@ -1,8 +1,9 @@
 dependencies {
     implementation project(':rxrepo-core')
-    implementation libs.slimAutoValueUtilsAnnotations
+    implementation libs.slimAutoValueUtilsAnnotations, libs.slimGenericUtils
     implementation libs.rxJava
     implementation libs.guava
+    implementation libs.slf4j
 
     testImplementation libs.slimAutoValueUtilsAnnotations
     testImplementation libs.autoValueAnnotations

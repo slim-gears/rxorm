@@ -34,7 +34,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
         this.statementExecutor = Lazy.of(() -> statementExecutor.apply(this));
         this.referenceResolver = Lazy.of(() -> referenceResolver.apply(this));
-        this.schemaProvider = Lazy.of(() -> schemaProvider.apply(this));
+        this.schemaProvider = Lazy.of(() -> CacheSchemaProviderDecorator.decorate(schemaProvider.apply(this)));
         this.expressionGenerator = Lazy.of(() -> expressionGenerator.apply(this));
         this.assignmentGenerator = Lazy.of(() -> assignmentGenerator.apply(this));
         this.scheduler = scheduler;

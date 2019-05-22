@@ -10,8 +10,10 @@ dependencies {
     implementation libs.guava
     implementation libs.autoValueAnnotations
     implementation libs.jacksonAnnotations, libs.jacksonDataBind
+    implementation libs.slf4j
     annotationProcessor libs.autoValue
 
+    testImplementation libs.logbackClassic
     testAnnotationProcessor project(':rxrepo-apt')
     testAnnotationProcessor libs.autoValue
     testAnnotationProcessor libs.slimAutoValueUtils

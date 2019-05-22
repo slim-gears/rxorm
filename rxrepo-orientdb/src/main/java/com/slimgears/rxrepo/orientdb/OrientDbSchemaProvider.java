@@ -1,5 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
+import com.orientechnologies.orient.core.index.OIndexException;
 import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OProperty;
@@ -19,120 +21,115 @@ import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
+import io.reactivex.Scheduler;
+import io.reactivex.schedulers.Schedulers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
+
+import static com.slimgears.util.generic.LazyToString.lazy;
 
 class OrientDbSchemaProvider implements SchemaProvider {
-    private final static Logger log = Logger.getLogger(OrientDbSchemaProvider.class.getName());
+    private final static Logger log = LoggerFactory.getLogger(OrientDbSchemaProvider.class);
     private final OrientDbSessionProvider dbSessionProvider;
-    private final Map<String, OClass> classMap = new ConcurrentHashMap<>();
-    private final ThreadLocal<Set<String>> pendingClasses = ThreadLocal.withInitial(HashSet::new);
+    private final Scheduler scheduler;
 
-    OrientDbSchemaProvider(OrientDbSessionProvider sessionProvider) {
+    OrientDbSchemaProvider(OrientDbSessionProvider sessionProvider, Scheduler scheduler) {
         this.dbSessionProvider = sessionProvider;
+        this.scheduler = Schedulers.single();
     }
 
     @Override
     public <K, T> Completable createOrUpdate(MetaClassWithKey<K, T> metaClass) {
-        return Completable.fromAction(() -> ensureClass(metaClass));
+        return Completable
+                .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass)))
+                .subscribeOn(scheduler);
     }
 
     @Override
     public <K, T> String tableName(MetaClassWithKey<K, T> metaClass) {
-        return metaClass.objectClass().asClass().getSimpleName();
-    }
-
-    private <T> OClass ensureClass(MetaClass<T> metaClass) {
-        return classMap.computeIfAbsent(toClassName(metaClass.objectClass()), name -> createClass(metaClass));
+        return toClassName(metaClass);
     }
 
     @SuppressWarnings("unchecked")
-    private <T> OClass createClass(MetaClass<T> metaClass) {
-        String className = toClassName(metaClass.objectClass());
-        Set<String> pendingClasses = this.pendingClasses.get();
-        pendingClasses.add(className);
-        try {
-            log.fine(() -> "Creating class: " + className);
-            return dbSessionProvider.withSession(dbSession -> {
-                OClass oClass = dbSession.createClassIfNotExist(className);
-                Streams.fromIterable(metaClass.properties())
-                        .forEach(p -> addProperty(oClass, p));
+    private <T> OClass createClass(ODatabaseDocument dbSession, MetaClass<T> metaClass) {
+        String className = toClassName(metaClass);
+        log.debug("Creating class: {}", className);
+        OClass oClass = dbSession.createClassIfNotExist(className);
 
-                if (metaClass instanceof MetaClassWithKey) {
-                    MetaClassWithKey metaClassWithKey = (MetaClassWithKey) metaClass;
-
-                    OType oType = toOType(metaClassWithKey.keyProperty().type());
-                    if (oType.isLink()) {
-                        dbSession.getMetadata().getIndexManager().createIndex(
-                                className + "." + metaClassWithKey.keyProperty().name() + "Index",
-                                OClass.INDEX_TYPE.UNIQUE_HASH_INDEX.name(),
-                                new ORuntimeKeyIndexDefinition<>(OLinkSerializer.ID),
-                                null,
-                                null,
-                                null);
-                    } else {
-                        addIndex(oClass, metaClassWithKey.keyProperty(), true);
+        Streams.fromIterable(metaClass.properties())
+                .forEach(p -> {
+                    log.trace(">> Adding property {}.{}", className, p.name());
+                    try {
+                        addProperty(dbSession, oClass, p);
+                    } finally {
+                        log.trace("<< Adding property {}.{}", className, p.name());
                     }
-                }
+                });
 
-                Streams.fromIterable(metaClass.properties())
-                        .peek(this::validateProperty)
-                        .filter(p -> p.hasAnnotation(Indexable.class) && !p.hasAnnotation(Key.class))
-                        .forEach(p -> addIndex(oClass, p, p.getAnnotation(Indexable.class).unique()));
+        if (metaClass instanceof MetaClassWithKey) {
+            log.trace("{}: Adding key index", className);
+            MetaClassWithKey metaClassWithKey = (MetaClassWithKey) metaClass;
 
-                Streams.fromIterable(metaClass.properties())
-                        .filter(p -> p.type().is(HasMetaClassWithKey.class::isAssignableFrom))
-                        .map(PropertyMeta::type)
-                        .filter(t -> !pendingClasses.contains(toClassName(t)))
-                        .map(OrientDbSchemaProvider::toMetaClass)
-                        .forEach(this::ensureClass);
-
-                String[] textFields = Streams
-                        .fromIterable(metaClass.properties())
-                        .filter(p -> p.hasAnnotation(Searchable.class))
-                        .map(PropertyMeta::name)
-                        .toArray(String[]::new);
-
-                if (textFields.length > 0) {
-                    oClass.createIndex(className + ".textIndex", "FULLTEXT", null, null, "LUCENE", textFields);
-                }
-
-                return oClass;
-            });
-        }
-        finally {
-            pendingClasses.remove(className);
-            if (pendingClasses.isEmpty()) {
-                this.pendingClasses.remove();
+            OType oType = toOType(metaClassWithKey.keyProperty().type());
+            if (oType.isLink()) {
+                log.trace("{}: Adding reference key index", className);
+                dbSession.getMetadata().getIndexManager().createIndex(
+                        className + "." + metaClassWithKey.keyProperty().name() + "Index",
+                        OClass.INDEX_TYPE.UNIQUE_HASH_INDEX.name(),
+                        new ORuntimeKeyIndexDefinition<>(OLinkSerializer.ID),
+                        null,
+                        null,
+                        null);
+            } else {
+                log.trace("{}: Adding simple key index", className);
+                addIndex(oClass, metaClassWithKey.keyProperty(), true);
             }
         }
-    }
 
-    private void validateProperty(PropertyMeta<?, ?> propertyMeta) {
-//        if (Collection.class.isAssignableFrom(propertyMeta.type().asClass()) &&
-//                HasMetaClassWithKey.class.isAssignableFrom(propertyMeta.type().typeArguments()[0].asClass())) {
-//            throw new RuntimeException("Collections are not supported (" + propertyMeta.declaringType().objectClass().asClass().getSimpleName() + "." + propertyMeta.name());
-//        }
+        log.trace("{}: Adding indexes for properties", className);
+        Streams.fromIterable(metaClass.properties())
+                .filter(p -> p.hasAnnotation(Indexable.class) && !p.hasAnnotation(Key.class))
+                .forEach(p -> addIndex(oClass, p, p.getAnnotation(Indexable.class).unique()));
+
+        String[] textFields = Streams
+                .fromIterable(metaClass.properties())
+                .filter(p -> p.hasAnnotation(Searchable.class))
+                .map(PropertyMeta::name)
+                .toArray(String[]::new);
+
+        if (textFields.length > 0) {
+            try {
+                log.trace(">> {}: creating full text index for {}", className, lazy(() -> String.join(", ", textFields)));
+                oClass.createIndex(className + ".textIndex", "FULLTEXT", null, null, "LUCENE", textFields);
+                log.trace("<< {}: creating full text index for {}", className, lazy(() -> String.join(", ", textFields)));
+            } catch (OIndexException e) {
+                log.warn("Full text creation index failed", e);
+            }
+        }
+
+        log.trace("Class {} creation finished", className);
+        return oClass;
     }
 
     private static <T> void addIndex(OClass oClass, PropertyMeta<T, ?> propertyMeta, boolean unique) {
+        log.trace(">> {}: Adding property {} index", oClass.getName(), propertyMeta.name());
         OClass.INDEX_TYPE indexType = unique ? OClass.INDEX_TYPE.UNIQUE_HASH_INDEX : OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX;
         String propertyName = PropertyMetas.isIndexableByString(propertyMeta)
                 ? propertyMeta.name() + "AsString"
                 : propertyMeta.name();
         addIndex(oClass, propertyName, indexType);
+        log.trace("<< {}: Adding property {} index", oClass.getName(), propertyMeta.name());
     }
 
     private static void addIndex(OClass oClass, String propertyName, OClass.INDEX_TYPE indexType) {
+        log.trace(">> {}: Adding property {} index of type {}", oClass.getName(), propertyName, indexType);
         if (!oClass.areIndexed(propertyName)) {
             oClass.createIndex(oClass.getName() + "." + propertyName + "Index", indexType, propertyName);
         }
+        log.trace("<< {}: Adding property {} index of type {}", oClass.getName(), propertyName, indexType);
     }
 
     private static <T extends HasMetaClass<T>> MetaClass<T> toMetaClass(TypeToken typeToken) {
@@ -140,38 +137,36 @@ class OrientDbSchemaProvider implements SchemaProvider {
         return MetaClasses.forToken((TypeToken<T>)typeToken);
     }
 
-    private <T> void addProperty(OClass oClass, PropertyMeta<T, ?> propertyMeta) {
+    private <T> void addProperty(ODatabaseDocument dbSession, OClass oClass, PropertyMeta<T, ?> propertyMeta) {
         OType propertyOType = toOType(propertyMeta.type());
+        log.trace("{}: Adding property {} of type {} ({})", oClass.getName(), propertyMeta.name(), propertyMeta.type().asClass().getSimpleName(), propertyOType);
 
-        dbSessionProvider.withSession(dbSession -> {
-            if (propertyOType.isLink()) {
-                OClass linkedOClass = dbSession.getClass(toClassName(propertyMeta.type()));
-                if (oClass.existsProperty(propertyMeta.name())) {
-                    OProperty oProperty = oClass.getProperty(propertyMeta.name());
-                    if (oProperty.getType() != propertyOType) {
-                        oProperty.setType(propertyOType);
-                    }
-                    if (!Objects.equals(oProperty.getLinkedClass(), linkedOClass)) {
-                        oProperty.setLinkedClass(linkedOClass);
-                    }
-                } else {
-                    oClass.createProperty(propertyMeta.name(), propertyOType, linkedOClass);
+        if (propertyOType.isLink()) {
+            OClass linkedOClass = dbSession.getClass(toClassName(propertyMeta.type()));
+            if (oClass.existsProperty(propertyMeta.name())) {
+                OProperty oProperty = oClass.getProperty(propertyMeta.name());
+                if (oProperty.getType() != propertyOType) {
+                    oProperty.setType(propertyOType);
+                }
+                if (!Objects.equals(oProperty.getLinkedClass(), linkedOClass)) {
+                    oProperty.setLinkedClass(linkedOClass);
                 }
             } else {
-                if (oClass.existsProperty(propertyMeta.name())) {
-                    OProperty oProperty = oClass.getProperty(propertyMeta.name());
-                    if (oProperty.getType() != propertyOType) {
-                        oProperty.setType(propertyOType);
-                    }
-                } else {
-                    oClass.createProperty(propertyMeta.name(), propertyOType);
-                    if (PropertyMetas.isIndexableByString(propertyMeta)) {
-                        oClass.createProperty(propertyMeta.name() + "AsString", OType.STRING);
-                    }
+                oClass.createProperty(propertyMeta.name(), propertyOType, linkedOClass);
+            }
+        } else {
+            if (oClass.existsProperty(propertyMeta.name())) {
+                OProperty oProperty = oClass.getProperty(propertyMeta.name());
+                if (oProperty.getType() != propertyOType) {
+                    oProperty.setType(propertyOType);
+                }
+            } else {
+                oClass.createProperty(propertyMeta.name(), propertyOType);
+                if (PropertyMetas.isIndexableByString(propertyMeta)) {
+                    oClass.createProperty(propertyMeta.name() + "AsString", OType.STRING);
                 }
             }
-        });
-
+        }
     }
 
     private static OType toOType(TypeToken<?> token) {
@@ -183,6 +178,10 @@ class OrientDbSchemaProvider implements SchemaProvider {
                         : OType.ANY);
     }
 
+    static String toClassName(MetaClass<?> metaClass) {
+        return toClassName(metaClass.objectClass());
+    }
+
     static String toClassName(TypeToken<?> cls) {
         return toClassName(cls.asClass());
     }
@@ -190,5 +189,4 @@ class OrientDbSchemaProvider implements SchemaProvider {
     private static String toClassName(Class<?> cls) {
         return cls.getSimpleName();
     }
-
 }
