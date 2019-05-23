@@ -1,7 +1,5 @@
 package com.slimgears.rxrepo.orientdb;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -43,7 +41,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
-import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -70,7 +67,7 @@ public class OrientDbQueryProviderTest {
     public static void setUpClass() throws Exception {
         server = OServerMain.create(true);
         server.startup(new OServerConfiguration());
-        ((Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.ALL);
+        //((Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.ALL);
     }
 
     @AfterClass
@@ -660,5 +657,74 @@ public class OrientDbQueryProviderTest {
                 .await()
                 .assertNoErrors()
                 .assertComplete();
+    }
+
+    @Test
+    public void testOrientDbLiveQueryWithProjection() throws InterruptedException {
+        repository.entities(Product.metaClass).update(createProducts(10))
+                .test()
+                .await()
+                .assertNoErrors();
+
+        TestObserver<Notification<Product>> productNameChanges = repository
+                .entities(Product.metaClass)
+                .query()
+                .liveSelect()
+                .observe(Product.$.name)
+                .filter(NotificationPrototype::isModify)
+                .doOnNext(System.out::println)
+                .test();
+
+        TestObserver<Notification<Product>> productTypeChanges = repository
+                .entities(Product.metaClass)
+                .query()
+                .liveSelect()
+                .observe(Product.$.type)
+                .filter(NotificationPrototype::isModify)
+                .doOnNext(System.out::println)
+                .test();
+
+        TestObserver<Notification<Product>> productNameAndTypeChanges = repository
+                .entities(Product.metaClass)
+                .query()
+                .liveSelect()
+                .observe(Product.$.name, Product.$.type)
+                .filter(NotificationPrototype::isModify)
+                .doOnNext(System.out::println)
+                .test();
+
+        repository.entities(Product.metaClass)
+                .update(UniqueId.productId(1), productMaybe -> productMaybe
+                        .map(p -> p.toBuilder().name(p.name() + " - new name").build()))
+                .test()
+                .await()
+                .assertValue(p -> "Product 1 - new name".equals(p.name()))
+                .assertNoErrors();
+
+        productNameChanges.awaitCount(1).assertValueCount(1);
+        productNameAndTypeChanges.awaitCount(1).assertValueCount(1);
+        productTypeChanges.assertNoValues();
+
+        productNameChanges
+                .assertValue(NotificationPrototype::isModify)
+                .assertValue(n -> "Product 1".equals(Objects.requireNonNull(n.oldValue()).name()))
+                .assertValue(n -> "Product 1 - new name".equals(Objects.requireNonNull(n.newValue()).name()));
+
+        repository.entities(Product.metaClass)
+                .update(UniqueId.productId(1), productMaybe -> productMaybe
+                        .map(p -> p.toBuilder().type(ProductPrototype.Type.ComputerSoftware).build()))
+                .test()
+                .await()
+                .assertValue(p -> ProductPrototype.Type.ComputerSoftware.equals(p.type()))
+                .assertNoErrors();
+
+        productTypeChanges.awaitCount(1).assertValueCount(1);
+        productNameAndTypeChanges.awaitCount(2).assertValueCount(2);
+        productNameChanges.assertValueCount(1);
+
+        productTypeChanges
+                .assertValue(NotificationPrototype::isModify)
+                .assertValue(n -> ProductPrototype.Type.ComputeHardware.equals(Objects.requireNonNull(n.oldValue()).type()))
+                .assertValue(n -> ProductPrototype.Type.ComputerSoftware.equals(Objects.requireNonNull(n.newValue()).type()));
     }
 }

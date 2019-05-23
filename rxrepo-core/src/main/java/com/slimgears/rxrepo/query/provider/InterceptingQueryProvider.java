@@ -1,16 +1,11 @@
 package com.slimgears.rxrepo.query.provider;
 
-import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
-import io.reactivex.Single;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.disposables.Disposables;
-import io.reactivex.functions.Function;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -31,50 +26,19 @@ public class InterceptingQueryProvider implements UnaryOperator<QueryProvider>, 
         return new Decorator(queryProvider);
     }
 
-    private class Decorator implements QueryProvider {
-        private final QueryProvider underlyingProvider;
-
+    private class Decorator extends AbstractQueryProviderDecorator {
         private Decorator(QueryProvider underlyingProvider) {
-            this.underlyingProvider = underlyingProvider;
-        }
-
-        @Override
-        public <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
-            return underlyingProvider.insertOrUpdate(entity);
-        }
-
-        @Override
-        public <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-            return underlyingProvider.insertOrUpdate(metaClass, key, entityUpdater);
+            super(underlyingProvider);
         }
 
         @Override
         public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
-            return underlyingProvider
-                    .query(query)
-                    .compose(applyOnQuery(query));
+            return super.query(query).compose(applyOnQuery(query));
         }
 
         @Override
         public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-            return underlyingProvider
-                    .liveQuery(query)
-                    .compose(applyOnLiveQuery(query));
-        }
-
-        @Override
-        public <K, S extends HasMetaClassWithKey<K, S>, T, R> Single<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R, ?> aggregator) {
-            return underlyingProvider.aggregate(query, aggregator);
-        }
-
-        @Override
-        public <K, S extends HasMetaClassWithKey<K, S>> Observable<S> update(UpdateInfo<K, S> update) {
-            return underlyingProvider.update(update);
-        }
-
-        @Override
-        public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> delete) {
-            return underlyingProvider.delete(delete);
+            return super.liveQuery(query).compose(applyOnLiveQuery(query));
         }
 
         private <K, S extends HasMetaClassWithKey<K, S>, T> ObservableTransformer<T, T> applyOnQuery(QueryInfo<K, S, T> queryInfo) {
