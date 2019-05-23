@@ -10,6 +10,7 @@ import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
 import com.slimgears.rxrepo.query.provider.CollectionPropertyUpdateInfo;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
+import com.slimgears.rxrepo.query.provider.MandatoryPropertiesQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.PropertyUpdateInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
@@ -17,29 +18,21 @@ import com.slimgears.rxrepo.query.provider.SortingInfo;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.rx.Maybes;
 import com.slimgears.util.rx.Observables;
 import com.slimgears.util.rx.Singles;
-import com.slimgears.util.stream.Streams;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
     private final static int retryCount = 10;
@@ -49,7 +42,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
     private DefaultEntitySet(QueryProvider queryProvider,
                              MetaClassWithKey<K, S> metaClass) {
-        this.queryProvider = queryProvider;
+        this.queryProvider = MandatoryPropertiesQueryProviderDecorator.decorate(queryProvider);
         this.metaClass = metaClass;
     }
 
@@ -151,7 +144,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
             private <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> collectionOperation(CollectionPropertyExpression<S, T, V> property, ObjectExpression<S, V> item, CollectionPropertyUpdateInfo.Operation operation) {
                 builder.collectionPropertyUpdatesBuilder()
-                        .add(CollectionPropertyUpdateInfo.create(property, item, CollectionPropertyUpdateInfo.Operation.Add));
+                        .add(CollectionPropertyUpdateInfo.create(property, item, operation));
                 return this;
             }
         };
@@ -190,24 +183,17 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     @Override
                     public Maybe<T> first() {
                         QueryInfo<K, S, T> query = builder.limit(1L).build();
-                        return queryProvider
-                                .query(query)
-                                .singleElement();
+                        return queryProvider.query(query).singleElement();
                     }
 
                     @Override
                     public <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Single<R> aggregate(Aggregator<T, T, R, E> aggregator) {
-                        QueryInfo<K, S, T> query = builder.build();
-                        return queryProvider.aggregate(query, aggregator);
+                        return queryProvider.aggregate(builder.build(), aggregator);
                     }
 
                     @Override
                     protected Observable<T> retrieve(Collection<PropertyExpression<T, ?, ?>> properties) {
-                        QueryInfo<K, S, T> query = builder
-                                .apply(includeProperties(properties, expression.objectType().asClass()))
-                                .build();
-
-                        return queryProvider.query(query);
+                        return queryProvider.query(builder.propertiesAddAll(properties).build());
                     }
                 };
             }
@@ -254,7 +240,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     @Override
                     protected Observable<Notification<T>> observe(Collection<PropertyExpression<T, ?, ?>> properties) {
                         QueryInfo<K, S, T> query = builder
-                                .apply(includeProperties(properties, expression.objectType().asClass()))
+                                .propertiesAddAll(properties)
                                 .build();
                         return queryProvider.query(query)
                                 .map(Notification::ofCreated)
@@ -306,54 +292,5 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
     private static boolean isConcurrencyException(Throwable exception) {
         return exception instanceof ConcurrentModificationException;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <K, S extends HasMetaClassWithKey<K, S>, T> Consumer<QueryInfo.Builder<K, S, T>> includeProperties(Collection<PropertyExpression<T, ?, ?>> properties, Class<? extends T> cls) {
-        return builder -> {
-            if (properties.isEmpty()) {
-                return;
-            }
-
-            Stream<PropertyExpression<T, ?, ?>> includedProperties = properties.stream()
-                    .flatMap(DefaultEntitySet::parentProperties);
-
-            if (HasMetaClass.class.isAssignableFrom(cls)) {
-                MetaClass<T> metaClass = MetaClasses.forClass((Class)cls);
-                includedProperties = Stream.concat(includedProperties, mandatoryProperties(metaClass));
-            }
-
-            Collection<? extends PropertyExpression<T, ?, ?>> requiredProperties = includedProperties
-                    .collect(Collectors.toMap(PropertyExpression::property, p -> p, (a, b) -> a, LinkedHashMap::new))
-                    .values();
-
-            builder.propertiesAddAll(requiredProperties);
-        };
-    }
-
-    private static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(MetaClass<S> metaClass) {
-        return mandatoryProperties(ObjectExpression.arg(metaClass.objectClass()), metaClass);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <S, T> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(ObjectExpression<S, T> target, MetaClass<T> metaClass) {
-        return Streams.fromIterable(metaClass.properties())
-                .filter(p -> !p.hasAnnotation(Nullable.class))
-                .flatMap(p -> {
-                    PropertyExpression<S, T, ?> propertyExpression = PropertyExpression.ofObject(target, p);
-                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>)Optional.of(p.type().asClass())
-                            .filter(HasMetaClass.class::isAssignableFrom)
-                            .map(cls -> (Class) cls)
-                            .map(MetaClasses::forClass)
-                            .map(meta -> mandatoryProperties(propertyExpression, (MetaClass) meta))
-                            .orElseGet(Stream::empty);
-                    return Stream.concat(Stream.of(propertyExpression), stream);
-                });
-    }
-
-    private static <S, T, V> Stream<PropertyExpression<S, ?, ?>> parentProperties(PropertyExpression<S, T, V> property) {
-        return (property.target() instanceof PropertyExpression)
-                ? Stream.concat(Stream.of(property), parentProperties((PropertyExpression<S, ?, ?>)property.target()))
-                : Stream.of(property);
     }
 }

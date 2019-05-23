@@ -81,7 +81,7 @@ public class OrientDbQueryProviderDecorator implements QueryProvider {
     }
 
     private <T> boolean fieldsChanged(Notification<T> notification, List<java.util.function.Function<T, ?>> properties) {
-        if (!notification.isModify()) {
+        if (!notification.isModify() || properties.isEmpty()) {
             return true;
         }
 
