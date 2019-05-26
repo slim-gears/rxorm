@@ -1,0 +1,46 @@
+@startuml
+
+rectangle RxRepo {
+
+  interface Repository {
+    +entities(meta: MetaClassWithKey<K, T>): EntitySet<K, T>
+    +{static}fromProvider(provider: QueryProvider, decorators: UnaryOperator<QueryProvider>...): Repository
+  }
+  class DefaultRepository implements Repository {
+    -entitySetMap: Map<MetaClassWithKey<?, ?>, EntitySet<?, ?>>
+  }
+
+  interface EntitySet<K, S> {
+    +update()
+    +observe()
+    +query()
+    +find()
+    +findAll()
+    +findFirst()
+    +clear()
+    +delete()
+    +deleteAll()
+  }
+  class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet
+
+  interface QueryProvider {
+    +insertOrUpdate(entity: S): Single<S>
+    +insertOrUpdate(metaClass: MetaClassWithKey<K, S>, key: K, entityUpdater: Function): Maybe<S>
+    +query(query: QueryInfo<K, S, T>): Observable<T>
+    +liveQuery(query: QueryInfo<K, S, T>): Observable<Notification<T>>
+    +aggregate(query: QueryInfo<K, S, T>, aggregator: Aggregator<T, T, R, ?>): Single<R>
+    +update(update: UpdateInfo<K, S>): Observable<S>
+    +delete(delete: DeleteInfo<K, S>): Single<Integer>
+  }
+  interface QueryPublisher {
+    +subscribe(queryListener: QueryPublisher.QueryListener)
+  }
+  class SqlQueryProvider implements QueryProvider
+  class CacheQueryProviderDecorator implements QueryProvider
+  class InterceptingQueryProvider implements QueryProvider, QueryPublisher
+}
+
+DefaultRepository "1" o-- "*" DefaultEntitySet: <<contains>>
+DefaultEntitySet .> QueryProvider: <<contains>>
+
+@enduml
