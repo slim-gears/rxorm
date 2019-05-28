@@ -8,6 +8,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 
 import static com.slimgears.rxrepo.filters.ComparableFilter.fromGreaterOrEqual;
@@ -108,4 +109,16 @@ public class ExpressionsTest {
         Assert.assertTrue(TestEntity.metaClass.number.hasAnnotation(Indexable.class));
         Assert.assertFalse(TestEntity.metaClass.refEntity.hasAnnotation(Indexable.class));
     }
+
+    @Test
+    public void testValueInExpression() {
+        List<String> strings = Collections.singletonList("Entity 1");
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.text.in(strings));
+
+        Assert.assertTrue(exp.apply(testEntity1));
+        Assert.assertFalse(exp.apply(testEntity2));
+    }
+
+
 }
