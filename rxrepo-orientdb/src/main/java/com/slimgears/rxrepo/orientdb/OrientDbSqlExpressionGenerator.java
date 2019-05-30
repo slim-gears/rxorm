@@ -63,7 +63,9 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
             return visitedExpression.get();
         }
 
-        return concat(propertyExpression.property().name() + "AsString", "=", this.fromConstant(value.toString()));
+        String propertyName = visitor.apply(propertyExpression);
+        propertyName = propertyName.substring(0, propertyName.length() - 1) + "AsString`";
+        return concat( propertyName, "=", this.fromConstant(value.toString()));
     }
 
     private String searchTextToWildcard(String searchText) {

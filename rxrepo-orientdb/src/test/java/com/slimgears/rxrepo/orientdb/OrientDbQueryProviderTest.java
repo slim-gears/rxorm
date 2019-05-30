@@ -496,6 +496,17 @@ public class OrientDbQueryProviderTest {
                 .assertNoErrors();
     }
 
+    @Test
+    public void testFilterByNestedCompoundKey() throws InterruptedException {
+        repository.entities(Product.metaClass).update(createProducts(10)).test().await();
+        repository.entities(Product.metaClass).query()
+                .where(Product.$.inventory.id.eq(UniqueId.inventoryId(0)))
+                .retrieve()
+                .test()
+                .await()
+                .assertValueCount(10);
+    }
+
     @SuppressWarnings("ConstantConditions")
     @Test
     @UseLogLevel(UseLogLevel.Level.FINEST)
