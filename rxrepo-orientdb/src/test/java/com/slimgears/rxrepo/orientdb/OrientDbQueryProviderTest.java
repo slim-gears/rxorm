@@ -489,11 +489,18 @@ public class OrientDbQueryProviderTest {
                 .aliases(ImmutableList.of("p1", "p2"))
                 .build();
 
-        repository.entities(Product.metaClass)
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        products
                 .update(product)
                 .test()
                 .await()
                 .assertNoErrors();
+
+        products
+                .findAll()
+                .test()
+                .await()
+                .assertValue(p -> Objects.requireNonNull(p.aliases()).size() == 2);
     }
 
     @Test

@@ -160,9 +160,12 @@ class PropertyResolvers {
             return null;
         } else if (value instanceof Iterable) {
             TypeToken<?> elementType = typeParam(type, 0);
-            Stream<?> objects = Streams.fromIterable((Iterable<?>)value)
+            Stream<?> objects = elementType.is(HasMetaClass.class::isAssignableFrom)
+                    ? Streams.fromIterable((Iterable<?>)value)
                     .flatMap(Streams.ofType(PropertyResolver.class))
-                    .map(pr -> pr.toObject(elementType));
+                    .map(pr -> pr.toObject(elementType))
+                    : Streams.fromIterable((Iterable<?>)value);
+
             if (value instanceof List) {
                 return (V)objects.collect(ImmutableList.toImmutableList());
             } else if (value instanceof Set) {
