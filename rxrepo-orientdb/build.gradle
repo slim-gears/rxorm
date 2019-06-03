@@ -19,5 +19,5 @@ dependencies {
     testAnnotationProcessor libs.slimAutoValueUtils
     testImplementation libs.autoValueAnnotations
     testImplementation libs.jsr305
-    testImplementation libs.slimTestUtils
+    testImplementation libs.slimTestUtils, libs.slimTestUtilsLogback
 }

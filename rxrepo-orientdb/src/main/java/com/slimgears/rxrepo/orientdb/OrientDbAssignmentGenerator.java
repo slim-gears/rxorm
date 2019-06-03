@@ -35,7 +35,7 @@ class OrientDbAssignmentGenerator extends DefaultSqlAssignmentGenerator {
 
     private <K, T extends HasMetaClassWithKey<K, T>> Stream<String> enhanceAssignmentForAsStringIndex(MetaClassWithKey<K, T> metaClass, PropertyResolver propertyResolver, String propertyName) {
         PropertyMeta<T, ?> propertyMeta = metaClass.getProperty(propertyName);
-        if (propertyMeta != null && PropertyMetas.isIndexableByString(propertyMeta)) {
+        if (propertyMeta != null && PropertyMetas.isEmbedded(propertyMeta)) {
             Object val = propertyResolver.getProperty(propertyMeta);
             return val != null
                     ? Stream.of(concat(

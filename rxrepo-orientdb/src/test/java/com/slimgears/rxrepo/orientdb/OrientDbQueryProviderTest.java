@@ -26,7 +26,8 @@ import com.slimgears.rxrepo.sql.CacheSchemaProviderDecorator;
 import com.slimgears.rxrepo.sql.SchemaProvider;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
-import com.slimgears.util.test.UseLogLevel;
+import com.slimgears.util.test.logging.LogLevel;
+import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.schedulers.Schedulers;
@@ -153,7 +154,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    //@UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testAddAlreadyExistingObject() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Product product = Product.builder()
@@ -186,7 +187,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testAddSameInventory() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         EntitySet<UniqueId, Inventory> inventorySet = repository.entities(Inventory.metaClass);
@@ -301,7 +302,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testInsertThenRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(1000);
@@ -356,7 +357,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testInsertThenSearch() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(100);
@@ -408,7 +409,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testPartialRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = createProducts(10);
@@ -431,7 +432,7 @@ public class OrientDbQueryProviderTest {
 
     @SuppressWarnings("ConstantConditions")
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testEntityWithListOfReferenceField() throws InterruptedException {
         EntitySet<UniqueId, Storage> storages = repository.entities(Storage.metaClass);
         storages.update(Storage.builder()
@@ -452,7 +453,7 @@ public class OrientDbQueryProviderTest {
 
     @SuppressWarnings("ConstantConditions")
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testEntityWithStringByReferenceMapField() throws InterruptedException {
         EntitySet<UniqueId, Storage> storages = repository.entities(Storage.metaClass);
         storages.update(Storage.builder()
@@ -474,7 +475,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testEntityWithListOfStringField() throws InterruptedException {
         Product product = Product.builder()
                 .key(UniqueId.productId(1))
@@ -516,7 +517,7 @@ public class OrientDbQueryProviderTest {
 
     @SuppressWarnings("ConstantConditions")
     @Test
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testEntityWithListOfEmbeddedField() throws InterruptedException {
         Product product = Product.builder()
                 .key(UniqueId.productId(1))
@@ -545,6 +546,24 @@ public class OrientDbQueryProviderTest {
                 .await()
                 .assertValue(p -> p.relatedIds().size() == 3)
                 .assertValue(p -> p.relatedIds().get(0).id() == 3);
+    }
+
+    @Test
+    @UseLogLevel(LogLevel.TRACE)
+    public void testInsertThenQueryValueIn() throws InterruptedException {
+        repository.entities(Product.metaClass)
+                .update(createProducts(10))
+                .test()
+                .await();
+
+        repository.entities(Product.metaClass)
+                .query()
+                .where(Product.$.key.in(UniqueId.productId(2), UniqueId.productId(3)))
+                .retrieve()
+                .test()
+                .await()
+                .assertNoErrors()
+                .assertValueCount(2);
     }
 
     @Test @Ignore
@@ -610,7 +629,7 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test @Ignore
-    @UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testRawOrientDbLuceneIndex() throws InterruptedException {
         try (OrientDB dbClient = new OrientDB("embedded:testDb", OrientDBConfig.defaultConfig())) {
             dbClient.create(dbName, ODatabaseType.MEMORY);

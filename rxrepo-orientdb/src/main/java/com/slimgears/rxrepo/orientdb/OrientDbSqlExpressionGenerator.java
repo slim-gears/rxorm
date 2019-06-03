@@ -1,9 +1,9 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.google.common.collect.ImmutableList;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.rxrepo.sql.DefaultSqlExpressionGenerator;
 import com.slimgears.rxrepo.sql.PropertyMetas;
@@ -12,15 +12,16 @@ import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.slimgears.rxrepo.sql.StatementUtils.concat;
-
 public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerator {
     private final ExpressionTextGenerator.Interceptor searchTextInterceptor = ExpressionTextGenerator.Interceptor.builder()
-            .intercept(Expression.Type.Equals, ExpressionTextGenerator.Interceptor.ofType(BooleanBinaryOperationExpression.class, this::onVisitPropertyEquals))
+            .intercept(Expression.OperationType.Binary, ExpressionTextGenerator.Interceptor.ofType(BooleanBinaryOperationExpression.class, this::onVisitBinaryExpression))
             .intercept(Expression.Type.SearchText, ExpressionTextGenerator.Interceptor.ofType(BooleanBinaryOperationExpression.class, this::onVisitSearchTextExpression))
             .build();
 
@@ -43,29 +44,42 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
         return String.format("(search_index('" + OrientDbSchemaProvider.toClassName(argType) + ".textIndex', %s) = true)", visitor.apply(ConstantExpression.of(wildcard)));
     }
 
-    private String onVisitPropertyEquals(Function<? super ObjectExpression<?, ?>, String> visitor, BooleanBinaryOperationExpression<?, ?, ?> expression, Supplier<String> visitedExpression) {
-        if (expression.left() instanceof PropertyExpression && expression.right() instanceof ConstantExpression) {
-            return onVisitPropertyEquals(visitor, (PropertyExpression<?, ?, ?>)expression.left(), (ConstantExpression<?, ?>)expression.right(), visitedExpression);
-        } else if (expression.right() instanceof PropertyExpression && expression.left() instanceof ConstantExpression) {
-            return onVisitPropertyEquals(visitor, (PropertyExpression<?, ?, ?>)expression.right(), (ConstantExpression<?, ?>)expression.left(), visitedExpression);
-        } else {
+    private String onVisitBinaryExpression(Function<? super ObjectExpression<?, ?>, String> visitor, BooleanBinaryOperationExpression<?, ?, ?> expression, Supplier<String> visitedExpression) {
+        if (!requiresAsStringMapping(expression)) {
             return visitedExpression.get();
         }
+
+        String left = visitBinaryArgument(visitor, expression.left());
+        String right = visitBinaryArgument(visitor, expression.right());
+
+        return super.reduce(expression, left, right);
     }
 
-    private String onVisitPropertyEquals(Function<? super ObjectExpression<?, ?>, String> visitor, PropertyExpression<?, ?, ?> propertyExpression, ConstantExpression<?, ?> constExpression, Supplier<String> visitedExpression) {
-        if (!PropertyMetas.isIndexableByString(propertyExpression.property())) {
-            return visitedExpression.get();
+    private boolean requiresAsStringMapping(BooleanBinaryOperationExpression<?, ?, ?> expression) {
+        return (expression.left().type().operationType() == Expression.OperationType.Property ||
+                expression.right().type().operationType() == Expression.OperationType.Property) &&
+                PropertyMetas.isEmbedded(expression.left().objectType());
+    }
+
+    private String visitBinaryArgument(Function<? super ObjectExpression<?, ?>, String> visitor, ObjectExpression<?, ?> expression) {
+        if (expression.type().operationType() == Expression.OperationType.Property) {
+            return (visitor.apply(expression) + "`AsString`").replace("``", "");
+        } else if (expression.type().operationType() == Expression.OperationType.Constant) {
+            ConstantExpression<?, ?> constantExpression = (ConstantExpression<?, ?>)expression;
+            Object value = constantExpression.value();
+            TypeToken<?> valueType = constantExpression.objectType();
+            if (PropertyMetas.isEmbedded(valueType)) {
+                return visitor.apply(ConstantExpression.of(String.valueOf(value)));
+            } else if (valueType.is(Collection.class::isAssignableFrom)) {
+                value = ((Collection<?>)value)
+                        .stream()
+                        .map(val -> val instanceof HasMetaClass ? val.toString() : val)
+                        .collect(ImmutableList.toImmutableList());
+                return visitor.apply(ConstantExpression.of(value));
+            }
         }
 
-        Object value = constExpression.value();
-        if (!(value instanceof HasMetaClass)) {
-            return visitedExpression.get();
-        }
-
-        String propertyName = visitor.apply(propertyExpression);
-        propertyName = propertyName.substring(0, propertyName.length() - 1) + "AsString`";
-        return concat( propertyName, "=", this.fromConstant(value.toString()));
+        return visitor.apply(expression);
     }
 
     private String searchTextToWildcard(String searchText) {

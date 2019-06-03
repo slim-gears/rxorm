@@ -117,7 +117,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
     private static <T> void addIndex(OClass oClass, PropertyMeta<T, ?> propertyMeta, boolean unique) {
         log.trace(">> {}: Adding property {} index", oClass.getName(), propertyMeta.name());
         OClass.INDEX_TYPE indexType = unique ? OClass.INDEX_TYPE.UNIQUE_HASH_INDEX : OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX;
-        String propertyName = PropertyMetas.isIndexableByString(propertyMeta)
+        String propertyName = PropertyMetas.isEmbedded(propertyMeta)
                 ? propertyMeta.name() + "AsString"
                 : propertyMeta.name();
         addIndex(oClass, propertyName, indexType);
@@ -162,7 +162,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
                 }
             } else {
                 oClass.createProperty(propertyMeta.name(), propertyOType);
-                if (PropertyMetas.isIndexableByString(propertyMeta)) {
+                if (PropertyMetas.isEmbedded(propertyMeta)) {
                     oClass.createProperty(propertyMeta.name() + "AsString", OType.STRING);
                 }
             }

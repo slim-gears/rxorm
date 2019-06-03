@@ -4,6 +4,7 @@ import com.google.common.collect.Streams;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.rxrepo.util.ExpressionTextGenerator;
 import com.slimgears.util.stream.Lazy;
 
@@ -115,5 +116,9 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
             params.add(expression.value());
             return "?";
         });
+    }
+
+    protected String reduce(ObjectExpression<?, ?> expression, String... parts) {
+        return sqlGenerator.get().reduce(expression, parts);
     }
 }

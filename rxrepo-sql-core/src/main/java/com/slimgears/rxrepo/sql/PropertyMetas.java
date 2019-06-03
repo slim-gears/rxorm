@@ -1,32 +1,29 @@
 package com.slimgears.rxrepo.sql;
 
-import com.slimgears.rxrepo.annotations.Indexable;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClass;
-import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.reflect.TypeToken;
 
-import java.util.Optional;
-
+@SuppressWarnings("WeakerAccess")
 public class PropertyMetas {
-    static boolean isReference(PropertyMeta<?, ?> propertyMeta) {
-        return propertyMeta.type().is(HasMetaClassWithKey.class::isAssignableFrom);
+    public static boolean isReference(PropertyMeta<?, ?> propertyMeta) {
+        return isReference(propertyMeta.type());
     }
 
-    private static boolean hasMetaClass(PropertyMeta<?, ?> propertyMeta) {
-        return HasMetaClass.class.isAssignableFrom(propertyMeta.type().asClass());
+    public static boolean isEmbedded(PropertyMeta<?, ?> propertyMeta) {
+        return isEmbedded(propertyMeta.type());
     }
 
-    public static boolean isIndexableByString(PropertyMeta<?, ?> propertyMeta) {
-        return (isKey(propertyMeta) && hasMetaClass(propertyMeta)) ||
-                Optional.ofNullable(propertyMeta.getAnnotation(Indexable.class))
-                        .map(Indexable::asString)
-                        .orElse(false);
+    public static boolean isReference(TypeToken<?> typeToken) {
+        return typeToken.is(HasMetaClassWithKey.class::isAssignableFrom);
     }
 
-    private static boolean isKey(PropertyMeta<?, ?> propertyMeta) {
-        MetaClass metaClass = propertyMeta.declaringType();
-        return metaClass instanceof MetaClassWithKey && ((MetaClassWithKey)metaClass).keyProperty() == propertyMeta;
+    public static boolean isEmbedded(TypeToken<?> typeToken) {
+        return hasMetaClass(typeToken) && !isReference(typeToken);
+    }
+
+    public static boolean hasMetaClass(TypeToken<?> typeToken) {
+        return typeToken.is(HasMetaClass.class::isAssignableFrom);
     }
 }

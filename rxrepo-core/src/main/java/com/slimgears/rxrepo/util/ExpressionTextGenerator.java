@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 
 import static com.slimgears.util.stream.Optionals.ofType;
 
+@SuppressWarnings("WeakerAccess")
 public class ExpressionTextGenerator {
     private final ScopedInstance<Interceptor> scopedInterceptor = ScopedInstance.create(Interceptor.empty());
 
@@ -195,6 +196,10 @@ public class ExpressionTextGenerator {
     private String generate(ObjectExpression<?, ?> expression, String arg) {
         Visitor visitor = createVisitor();
         return visitor.visit(expression, arg);
+    }
+
+    public String reduce(ObjectExpression<?, ?> expression, String... parts) {
+        return toReducer(expression.type()).reduce(expression, parts);
     }
 
     protected Visitor createVisitor() {
