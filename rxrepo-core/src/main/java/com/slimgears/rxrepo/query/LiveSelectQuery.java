@@ -12,10 +12,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
-@SuppressWarnings("WeakerAccess")
 public abstract class LiveSelectQuery<T> {
     public abstract Observable<T> first();
-    public abstract Observable<List<? extends T>> toList();
+    public abstract Observable<List<T>> toList();
     public abstract <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Observable<R> aggregate(Aggregator<T, T, R, E> aggregator);
 
     public Observable<Long> count() {

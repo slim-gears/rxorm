@@ -220,7 +220,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     }
 
                     @Override
-                    public Observable<List<? extends T>> toList() {
+                    public Observable<List<T>> toList() {
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider
                                 .liveQuery(query)
