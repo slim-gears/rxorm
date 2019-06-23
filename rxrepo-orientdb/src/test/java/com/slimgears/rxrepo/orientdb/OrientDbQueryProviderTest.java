@@ -29,6 +29,7 @@ import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
+import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.CompletableSubject;
@@ -843,8 +844,8 @@ public class OrientDbQueryProviderTest {
                 .assertValue(p -> "Product 1 - new name".equals(p.name()))
                 .assertNoErrors();
 
-        productNameChanges.awaitCount(1).assertValueCount(1);
-        productNameAndTypeChanges.awaitCount(1).assertValueCount(1);
+        productNameChanges.awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_10MS, 10000).assertValueCount(1);
+        productNameAndTypeChanges.awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_10MS, 10000).assertValueCount(1);
         productTypeChanges.assertNoValues();
 
         productNameChanges
@@ -860,8 +861,8 @@ public class OrientDbQueryProviderTest {
                 .assertValue(p -> ProductPrototype.Type.ComputerSoftware.equals(p.type()))
                 .assertNoErrors();
 
-        productTypeChanges.awaitCount(1).assertValueCount(1);
-        productNameAndTypeChanges.awaitCount(2).assertValueCount(2);
+        productTypeChanges.awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_10MS, 10000).assertValueCount(1);
+        productNameAndTypeChanges.awaitCount(2, BaseTestConsumer.TestWaitStrategy.SLEEP_10MS, 10000).assertValueCount(2);
         productNameChanges.assertValueCount(1);
 
         productTypeChanges
