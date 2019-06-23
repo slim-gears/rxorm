@@ -1,10 +1,14 @@
 package com.slimgears.rxrepo.util;
 
+import com.google.common.collect.Iterables;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
+
+import java.util.Arrays;
+import java.util.Optional;
 
 public interface PropertyResolver {
     Iterable<String> propertyNames();
@@ -33,7 +37,14 @@ public interface PropertyResolver {
 
     @SuppressWarnings("unchecked")
     default <T> T toObject(TypeToken<? extends T> typeToken) {
-        return (T)toObject(MetaClasses.forToken((TypeToken)typeToken));
+        if (typeToken.is(HasMetaClass.class::isAssignableFrom)) {
+            return (T)toObject(MetaClasses.forToken((TypeToken)typeToken));
+        } else {
+            return Optional.ofNullable(propertyNames())
+                    .map(names -> Iterables.getFirst(names, null))
+                    .map(name -> (T)getProperty(name, Object.class))
+                    .orElse(null);
+        }
     }
 
     static <T extends HasMetaClass<T>> PropertyResolver fromObject(T obj) {

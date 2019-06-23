@@ -42,6 +42,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         this.queryProvider = Lazy.of(() -> new SqlQueryProvider(
                 statementProvider(),
                 statementExecutor(),
+                expressionGenerator(),
                 schemaProvider(),
                 referenceResolver()));
     }

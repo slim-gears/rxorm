@@ -139,10 +139,12 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                 .ofNullable(queryInfo.mapping())
                 .orElse(ObjectExpression.arg((TypeToken)queryInfo.metaClass().objectClass()));
 
+        String selectOperator = Optional.ofNullable(queryInfo.distinct()).orElse(false) ? "select distinct" : "select";
+
         return Optional.of(toMappingClause(expression, queryInfo.properties()))
                 .filter(exp -> !exp.isEmpty())
-                .map(exp -> "select " + exp)
-                .orElse("select");
+                .map(exp -> concat(selectOperator, exp))
+                .orElse(selectOperator);
     }
 
     private <K, S extends HasMetaClassWithKey<K, S>, T, R, Q extends HasMapping<S, T> & HasEntityMeta<K, S> & HasProperties<T>> String selectClause(Q statement, ObjectExpression<T, R> aggregation, String projectedName) {

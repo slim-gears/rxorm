@@ -54,6 +54,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+@SuppressWarnings({"ResultOfMethodCallIgnored", "ConstantConditions"})
 @RunWith(AnnotationRulesJUnit.class)
 //@UseLogLevel(UseLogLevel.Level.FINE)
 public class OrientDbQueryProviderTest {
@@ -106,7 +107,7 @@ public class OrientDbQueryProviderTest {
                 .query()
                 //.where(Product.$.price.greaterThan(110))
                 .liveSelect()
-                .observe()
+                .queryAndObserve()
                 .doOnNext(n -> System.out.println("Received notifications: " + counter.incrementAndGet()))
                 .doOnSubscribe(d -> System.out.println("Subscribed for live query"))
                 .test();
@@ -233,7 +234,7 @@ public class OrientDbQueryProviderTest {
 
         productSet.query()
                 .liveSelect()
-                .observe()
+                .queryAndObserve()
                 .test()
                 .awaitCount(1000)
                 .assertValueAt(10, NotificationPrototype::isCreate);
@@ -566,6 +567,110 @@ public class OrientDbQueryProviderTest {
                 .assertValueCount(2);
     }
 
+    @Test
+    public void testFilteredLiveQuery() {
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+
+        products.update(Product
+                .builder()
+                .key(UniqueId.productId(1))
+                .name("Product 1")
+                .price(101)
+                .build())
+                .blockingGet();
+
+        products.update(Product
+                .builder()
+                .key(UniqueId.productId(2))
+                .name("Product 2")
+                .price(99)
+                .build())
+                .blockingGet();
+
+
+        TestObserver<Notification<Product>> productObserver = products
+                .query()
+                .where(Product.$.price.greaterThan(100))
+                .queryAndObserve()
+                .doOnNext(System.out::println)
+                .test();
+
+        productObserver
+                .awaitCount(1)
+                .assertNoErrors()
+                .assertNoTimeout()
+                .assertValueAt(0, Notification::isCreate)
+                .assertValueAt(0, n -> n.newValue().price() == 101);
+
+        productObserver
+                .awaitCount(2)
+                .assertTimeout();
+
+        products.update(Product
+                .builder()
+                .key(UniqueId.productId(2))
+                .name("Product 2")
+                .price(102)
+                .build())
+                .blockingGet();
+
+        productObserver
+                .awaitCount(2)
+                .assertNoErrors()
+                .assertValueCount(2)
+                .assertValueAt(1, Notification::isCreate)
+                .assertValueAt(1, n -> n.newValue().price() == 102);
+
+        products.update(Product
+                .builder()
+                .key(UniqueId.productId(1))
+                .name("Product 1")
+                .price(95)
+                .build())
+                .blockingGet();
+
+        productObserver
+                .awaitCount(3)
+                .assertNoErrors()
+                .assertValueCount(3)
+                .assertValueAt(2, NotificationPrototype::isDelete)
+                .assertValueAt(2, n -> n.oldValue().price() == 101);
+
+        products.update(Product
+                .builder()
+                .key(UniqueId.productId(3))
+                .name("Product 3")
+                .price(92)
+                .build())
+                .blockingGet();
+
+        productObserver
+                .awaitCount(4)
+                .assertTimeout();
+    }
+
+    @Test @UseLogLevel(LogLevel.TRACE)
+    public void testDistinctSelect() {
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        products.update(createProducts(20)).blockingGet();
+        products.query()
+                .selectDistinct(Product.$.inventory.name)
+                .retrieve()
+                .toList()
+                .test()
+                .awaitCount(1)
+                .assertValue(l -> l.size() == 2)
+                .assertValue(l -> l.contains("Inventory 0"));
+
+        products.query()
+                .selectDistinct(Product.$.inventory)
+                .retrieve(Inventory.$.name)
+                .toList()
+                .test()
+                .awaitCount(1)
+                .assertValue(l -> l.size() == 2);
+    }
+
     @Test @Ignore
     public void testAddThenQueryRawOrientDb() {
         try (OrientDB dbClient = new OrientDB("embedded:testDbServer", OrientDBConfig.defaultConfig())) {
@@ -707,7 +812,7 @@ public class OrientDbQueryProviderTest {
                 .entities(Product.metaClass)
                 .query()
                 .liveSelect()
-                .observe(Product.$.name)
+                .queryAndObserve(Product.$.name)
                 .filter(NotificationPrototype::isModify)
                 .doOnNext(System.out::println)
                 .test();
@@ -716,7 +821,7 @@ public class OrientDbQueryProviderTest {
                 .entities(Product.metaClass)
                 .query()
                 .liveSelect()
-                .observe(Product.$.type)
+                .queryAndObserve(Product.$.type)
                 .filter(NotificationPrototype::isModify)
                 .doOnNext(System.out::println)
                 .test();
@@ -725,7 +830,7 @@ public class OrientDbQueryProviderTest {
                 .entities(Product.metaClass)
                 .query()
                 .liveSelect()
-                .observe(Product.$.name, Product.$.type)
+                .queryAndObserve(Product.$.name, Product.$.type)
                 .filter(NotificationPrototype::isModify)
                 .doOnNext(System.out::println)
                 .test();

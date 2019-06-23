@@ -11,14 +11,14 @@ import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.rxrepo.util.PropertyResolver;
+import com.slimgears.rxrepo.util.PropertyResolvers;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
-import io.reactivex.Completable;
-import io.reactivex.Maybe;
-import io.reactivex.Observable;
-import io.reactivex.Single;
+import io.reactivex.*;
 import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,15 +35,18 @@ public class SqlQueryProvider implements QueryProvider {
     private final static String aggregationField = "__aggregation";
     private final SqlStatementProvider statementProvider;
     private final SqlStatementExecutor statementExecutor;
+    private final SqlExpressionGenerator expressionGenerator;
     private final SchemaProvider schemaProvider;
     private final ReferenceResolver referenceResolver;
 
     SqlQueryProvider(SqlStatementProvider statementProvider,
                      SqlStatementExecutor statementExecutor,
+                     SqlExpressionGenerator expressionGenerator,
                      SchemaProvider schemaProvider,
                      ReferenceResolver referenceResolver) {
         this.statementProvider = statementProvider;
         this.statementExecutor = statementExecutor;
+        this.expressionGenerator = expressionGenerator;
         this.schemaProvider = schemaProvider;
         this.referenceResolver = referenceResolver;
     }
@@ -145,9 +148,35 @@ public class SqlQueryProvider implements QueryProvider {
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
-        return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
-                .executeQuery(statementProvider.forQuery(query))
-                .map(pr -> pr.toObject(objectType)));
+        return schemaProvider
+                .createOrUpdate(query.metaClass())
+                .andThen(statementExecutor
+                        .executeQuery(statementProvider.forQuery(query))
+                        .compose(toObjects(objectType, query.mapping())));
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> ObservableTransformer<PropertyResolver, T> toObjects(TypeToken<? extends T> objectType, ObjectExpression<?, T> mapping) {
+        Function<PropertyResolver, Maybe<T>> mapper = Optional
+                .ofNullable(mapping)
+                .flatMap(Optionals.ofType(PropertyExpression.class))
+                .map(e -> (PropertyExpression<?, ?, T>)e)
+                .map(this::toPropertyPath)
+                .<Function<PropertyResolver, Maybe<T>>>map(path -> pr -> Optional
+                        .ofNullable(pr.getProperty(path, objectType.asClass()))
+                        .map(obj -> obj instanceof PropertyResolver
+                                ? ((PropertyResolver) obj).toObject(objectType)
+                                : (T)obj)
+                        .map(Maybe::just)
+                        .orElseGet(Maybe::empty))
+                .orElse(pr -> Maybe.fromCallable(() -> pr.toObject(objectType)));
+        return src -> src.flatMapMaybe(mapper);
+    }
+
+    private String toPropertyPath(PropertyExpression<?, ?, ?> propertyExpression) {
+        return propertyExpression.target() instanceof PropertyExpression
+                ? toPropertyPath((PropertyExpression<?, ?, ?>)propertyExpression.target()) + "." + propertyExpression.property().name()
+                : propertyExpression.property().name();
     }
 
     @Override

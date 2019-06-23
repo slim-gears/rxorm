@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
     private final static int retryCount = 10;
-    private final static Duration retryInitialDuration = Duration.ofMillis(5);
+    private final static Duration retryInitialDuration = Duration.ofMillis(10);
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
 
@@ -170,7 +170,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public <T> SelectQuery<T> select(ObjectExpression<S, T> expression) {
+            public <T> SelectQuery<T> select(ObjectExpression<S, T> expression, boolean distinct) {
                 return new SelectQuery<T>() {
                     private final QueryInfo.Builder<K, S, T> builder = QueryInfo.<K, S, T>builder()
                             .metaClass(metaClass)
@@ -178,7 +178,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                             .limit(limit)
                             .skip(skip)
                             .sorting(sortingInfos.build())
-                            .mapping(expression);
+                            .mapping(expression)
+                            .distinct(distinct);
 
                     @Override
                     public Maybe<T> first() {
@@ -239,6 +240,14 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
                     @Override
                     protected Observable<Notification<T>> observe(Collection<PropertyExpression<T, ?, ?>> properties) {
+                        QueryInfo<K, S, T> query = builder
+                                .propertiesAddAll(properties)
+                                .build();
+                        return queryProvider.liveQuery(query);
+                    }
+
+                    @Override
+                    protected Observable<Notification<T>> queryAndObserve(Collection<PropertyExpression<T, ?, ?>> properties) {
                         QueryInfo<K, S, T> query = builder
                                 .propertiesAddAll(properties)
                                 .build();

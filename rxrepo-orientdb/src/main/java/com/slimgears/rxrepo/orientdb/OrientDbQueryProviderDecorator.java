@@ -1,7 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
-import com.google.common.collect.ImmutableList;
 import com.slimgears.rxrepo.expressions.Aggregator;
+import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
@@ -13,6 +13,7 @@ import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
+import io.reactivex.ObservableTransformer;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
@@ -51,10 +52,50 @@ public class OrientDbQueryProviderDecorator implements QueryProvider {
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-        return upstream.liveQuery(query.toBuilder()
-                .properties(ImmutableList.of())
-                .build())
+        return upstream.liveQuery(QueryInfo.<K, S, S>builder()
+                        .metaClass(query.metaClass())
+                        .skip(query.skip())
+                        .limit(query.limit())
+                        .build())
+                .compose(filterNotifications(query.predicate()))
+                .compose(mapNotifications(query.mapping()))
                 .filter(fieldsFilter(query.properties()));
+    }
+
+    private <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<Notification<S>, Notification<S>> filterNotifications(ObjectExpression<S, Boolean> predicate) {
+        if (predicate == null) {
+            return src -> src;
+        }
+
+        Predicate<S> compiledPredicate = Expressions.compileRxPredicate(predicate);
+        return src -> src
+                .flatMapMaybe(notification -> {
+                    if (notification.isCreate()) {
+                        if (compiledPredicate.test(notification.newValue())) {
+                            return Maybe.just(Notification.ofCreated(notification.newValue()));
+                        }
+                    } else if (notification.isDelete()) {
+                        if (compiledPredicate.test(notification.oldValue())) {
+                            return Maybe.just(Notification.ofDeleted(notification.newValue()));
+                        }
+                    } else {
+                        boolean oldMatch = compiledPredicate.test(notification.oldValue());
+                        boolean newMatch = compiledPredicate.test(notification.newValue());
+                        if (oldMatch && !newMatch) {
+                            return Maybe.just(Notification.ofDeleted(notification.oldValue()));
+                        } else if (!oldMatch && newMatch) {
+                            return Maybe.just(Notification.ofCreated(notification.newValue()));
+                        } else if (oldMatch) {
+                            return Maybe.just(notification);
+                        }
+                    }
+                    return Maybe.empty();
+                });
+    }
+
+    private <K, S extends HasMetaClassWithKey<K, S>, T> ObservableTransformer<Notification<S>, Notification<T>> mapNotifications(ObjectExpression<S, T> projection) {
+        java.util.function.Function<S, T> mapper = Expressions.compile(projection);
+        return src -> src.map(n -> n.map(mapper));
     }
 
     @Override

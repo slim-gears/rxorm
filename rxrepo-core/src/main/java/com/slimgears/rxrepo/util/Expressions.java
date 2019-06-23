@@ -4,21 +4,33 @@ import com.google.common.collect.ImmutableMap;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ExpressionVisitor;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Optionals;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
+@SuppressWarnings("WeakerAccess")
 public class Expressions {
     public static <S, T> Function<S, T> compile(ObjectExpression<S, T> exp) {
         //noinspection unchecked
         return (Function<S, T>)new InternalVisitor().visit(exp, null);
+    }
+
+    public static <S, V extends Comparable<V>> Comparator<S> compileComparator(PropertyExpression<S, ?, V> property, boolean ascending) {
+        return ascending ? Comparator.comparing(compile(property)) : Comparator.comparing(compile(property)).reversed();
+    }
+
+    public static <S, V extends Comparable<V>> Comparator<S> compileComparator(PropertyExpression<S, ?, V> property) {
+        return compileComparator(property, true);
     }
 
     public static <S> Predicate<S> compilePredicate(ObjectExpression<S, Boolean> predicateExp) {

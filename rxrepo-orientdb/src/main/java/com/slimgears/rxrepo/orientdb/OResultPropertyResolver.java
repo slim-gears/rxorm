@@ -51,6 +51,7 @@ class OResultPropertyResolver extends AbstractOrientPropertyResolver {
 
     @Override
     protected Object getPropertyInternal(String name, Class type) {
+        propertyNames.get();
         return Optional
                 .<Object>ofNullable(resolvers.get(fromCanonic(name)))
                 .orElseGet(() -> {
@@ -88,7 +89,7 @@ class OResultPropertyResolver extends AbstractOrientPropertyResolver {
         map.entrySet()
                 .stream()
                 .filter(e -> !e.getValue().isEmpty() && e.getValue().get(0).length() > e.getKey().length())
-                .forEach(e -> resolvers.put(e.getKey(), new OResultPropertyResolver(dbSessionProvider, oResult, e.getKey() + ".")));
+                .forEach(e -> resolvers.put(e.getKey(), new OResultPropertyResolver(dbSessionProvider, oResult, prefix + e.getKey() + ".")));
 
         return map.keySet().stream().map(this::toCanonic).collect(Collectors.toSet());
     }

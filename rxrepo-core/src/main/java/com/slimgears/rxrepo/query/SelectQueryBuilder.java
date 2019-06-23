@@ -7,6 +7,8 @@ import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 
+import java.util.List;
+
 @SuppressWarnings("WeakerAccess")
 public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
     implements QueryBuilder<SelectQueryBuilder<K, S>, K, S> {
@@ -16,7 +18,15 @@ public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
 
     public abstract SelectQuery<S> select();
 
-    public abstract <T> SelectQuery<T> select(ObjectExpression<S, T> expression);
+    public abstract <T> SelectQuery<T> select(ObjectExpression<S, T> expression, boolean distinct);
+
+    public final <T> SelectQuery<T> select(ObjectExpression<S, T> expression) {
+        return select(expression, false);
+    }
+
+    public final <T> SelectQuery<T> selectDistinct(ObjectExpression<S, T> expression) {
+        return select(expression, true);
+    }
 
     public abstract LiveSelectQuery<S> liveSelect();
 
@@ -52,8 +62,16 @@ public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
     }
 
     @SafeVarargs
-    public final Observable<Notification<S>> observe(PropertyExpression<S, ?, ?>... properties) {
-        return liveSelect().observe(properties);
+    public final Observable<Notification<S>> queryAndObserve(PropertyExpression<S, ?, ?>... properties) {
+        return liveSelect().queryAndObserve(properties);
+    }
+
+    public final Single<List<S>> retrieveAsList() {
+        return retrieve().toList();
+    }
+
+    public final Observable<List<S>> observeAsList() {
+        return queryAndObserve().compose(Notifications.toList());
     }
 
     public Observable<S> retrieve() {
@@ -61,8 +79,8 @@ public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
         return retrieve(new PropertyExpression[0]);
     }
 
-    public Observable<Notification<S>> observe() {
+    public Observable<Notification<S>> queryAndObserve() {
         //noinspection unchecked
-        return observe(new PropertyExpression[0]);
+        return queryAndObserve(new PropertyExpression[0]);
     }
 }

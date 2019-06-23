@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.util;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.slimgears.util.autovalue.annotations.BuilderPrototype;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaBuilder;
@@ -25,7 +26,7 @@ import java.util.stream.Stream;
 
 import static com.slimgears.util.stream.Optionals.ofType;
 
-class PropertyResolvers {
+public class PropertyResolvers {
     static <T extends HasMetaClass<T>> T toObject(PropertyResolver resolver, MetaClass<T> metaClass) {
         BuilderPrototype<T, ?> builder = metaClass.createBuilder();
         Streams.fromIterable(resolver.propertyNames())

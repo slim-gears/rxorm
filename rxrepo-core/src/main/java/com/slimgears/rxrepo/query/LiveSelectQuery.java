@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
+@SuppressWarnings("WeakerAccess")
 public abstract class LiveSelectQuery<T> {
     public abstract Observable<T> first();
     public abstract Observable<List<T>> toList();
@@ -30,13 +31,23 @@ public abstract class LiveSelectQuery<T> {
     }
 
     @SafeVarargs
+    public final Observable<Notification<T>> queryAndObserve(PropertyExpression<T, ?, ?>... properties) {
+        return queryAndObserve(Arrays.asList(properties));
+    }
+
+    @SafeVarargs
     public final Observable<Notification<T>> observe(PropertyExpression<T, ?, ?>... properties) {
         return observe(Arrays.asList(properties));
     }
 
+    public Observable<Notification<T>> queryAndObserve() {
+        return queryAndObserve(Collections.emptyList());
+    }
+
     public Observable<Notification<T>> observe() {
-        return observe(Collections.emptyList());
+        return queryAndObserve(Collections.emptyList());
     }
 
     protected abstract Observable<Notification<T>> observe(Collection<PropertyExpression<T, ?, ?>> properties);
+    protected abstract Observable<Notification<T>> queryAndObserve(Collection<PropertyExpression<T, ?, ?>> properties);
 }
