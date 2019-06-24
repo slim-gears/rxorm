@@ -32,10 +32,12 @@ import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
     private final static int retryCount = 10;
+    private final static int debounceTimeoutMillis = 100;
     private final static Duration retryInitialDuration = Duration.ofMillis(10);
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
@@ -225,6 +227,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider
                                 .liveQuery(query)
+                                .debounce(debounceTimeoutMillis, TimeUnit.MILLISECONDS)
                                 .concatMapSingle(n -> queryProvider
                                         .query(query)
                                         .toList());

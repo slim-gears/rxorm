@@ -8,6 +8,7 @@ import io.reactivex.Observable;
 import io.reactivex.Single;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("WeakerAccess")
 public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>

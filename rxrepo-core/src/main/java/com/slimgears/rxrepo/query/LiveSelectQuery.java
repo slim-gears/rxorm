@@ -45,7 +45,7 @@ public abstract class LiveSelectQuery<T> {
     }
 
     public Observable<Notification<T>> observe() {
-        return queryAndObserve(Collections.emptyList());
+        return observe(Collections.emptyList());
     }
 
     protected abstract Observable<Notification<T>> observe(Collection<PropertyExpression<T, ?, ?>> properties);

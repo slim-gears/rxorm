@@ -1,9 +1,9 @@
 package com.slimgears.rxrepo.sql;
 
-import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClass;
 import io.reactivex.Completable;
 
 public interface SchemaProvider {
-    <K, T> Completable createOrUpdate(MetaClassWithKey<K, T> metaClass);
-    <K, T> String tableName(MetaClassWithKey<K, T> metaClass);
+    <T> Completable createOrUpdate(MetaClass<T> metaClass);
+    <T> String tableName(MetaClass<T> metaClass);
 }

@@ -1,9 +1,6 @@
 package com.slimgears.rxrepo.sql;
 
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClasses;
-import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.reflect.TypeToken;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
@@ -24,19 +21,19 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
     }
 
     @Override
-    public <K, T> Completable createOrUpdate(MetaClassWithKey<K, T> metaClass) {
+    public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
         return cache.computeIfAbsent(
                 tableName(metaClass),
                 tn -> Completable.defer(() -> createOrUpdateWithReferences(metaClass)).cache());
     }
 
     @SuppressWarnings("unchecked")
-    private <K, T> Completable createOrUpdateWithReferences(MetaClassWithKey<K, T> metaClass) {
+    private <T> Completable createOrUpdateWithReferences(MetaClass<T> metaClass) {
         Completable references = Observable.fromIterable(metaClass.properties())
-                .filter(p -> p.type().is(HasMetaClassWithKey.class::isAssignableFrom))
+                .filter(p -> p.type().is(HasMetaClass.class::isAssignableFrom))
                 .map(PropertyMeta::type)
                 .concatMapCompletable(token -> {
-                    MetaClassWithKey<?, ?> meta = (MetaClassWithKey<?, ?>)MetaClasses.forTokenWithKey((TypeToken)token);
+                    MetaClass<?> meta = (MetaClass<?>)MetaClasses.forToken((TypeToken)token);
                     String tableName = tableName(meta);
                     return !cache.containsKey(tableName)
                             ? createOrUpdate(meta)
@@ -47,7 +44,7 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
     }
 
     @Override
-    public <K, T> String tableName(MetaClassWithKey<K, T> metaClass) {
+    public <T> String tableName(MetaClass<T> metaClass) {
         return underlyingProvider.tableName(metaClass);
     }
 }

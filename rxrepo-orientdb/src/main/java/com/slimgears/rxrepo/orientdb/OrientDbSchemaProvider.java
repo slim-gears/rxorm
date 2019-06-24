@@ -42,14 +42,14 @@ class OrientDbSchemaProvider implements SchemaProvider {
     }
 
     @Override
-    public <K, T> Completable createOrUpdate(MetaClassWithKey<K, T> metaClass) {
+    public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
         return Completable
                 .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass)))
                 .subscribeOn(scheduler);
     }
 
     @Override
-    public <K, T> String tableName(MetaClassWithKey<K, T> metaClass) {
+    public <T> String tableName(MetaClass<T> metaClass) {
         return toClassName(metaClass);
     }
 
