@@ -803,6 +803,53 @@ public class OrientDbQueryProviderTest {
     }
 
     @Test
+    @UseLogLevel(LogLevel.TRACE)
+    public void testObserveAsList() {
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        products.update(createProducts(10)).blockingGet();
+        TestObserver<List<Product>> productTestObserver = products.query()
+                .orderBy(Product.$.name)
+                .limit(3)
+                .skip(2)
+                .observeAsList()
+                .test()
+                .awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
+                .assertNoTimeout()
+                .assertValueAt(0, l -> l.size() == 3)
+                .assertValueAt(0, l -> l.get(0).name().equals("Product 2"))
+                .assertValueAt(0, l -> l.get(2).name().equals("Product 4"));
+
+        products.update(Arrays.asList(
+                Product.builder()
+                        .name("Product 3-1")
+                        .key(UniqueId.productId(11))
+                        .price(100)
+                        .type(ProductPrototype.Type.ComputeHardware)
+                        .build(),
+                Product.builder()
+                        .name("Product 1-1")
+                        .key(UniqueId.productId(13))
+                        .price(100)
+                        .type(ProductPrototype.Type.ComputeHardware)
+                        .build(),
+                Product.builder()
+                        .name("Product 5-1")
+                        .key(UniqueId.productId(12))
+                        .price(100)
+                        .type(ProductPrototype.Type.ComputeHardware)
+                        .build()))
+                .blockingGet();
+
+        productTestObserver
+                .awaitCount(2, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
+                .assertValueCount(2)
+                .assertValueAt(1, l -> l.size() == 3)
+                .assertValueAt(1, l -> l.get(0).name().equals("Product 2"))
+                .assertValueAt(1, l -> l.get(1).name().equals("Product 3"))
+                .assertValueAt(1, l -> l.get(2).name().equals("Product 3-1"));
+    }
+
+    @Test
     public void testOrientDbLiveQueryWithProjection() throws InterruptedException {
         repository.entities(Product.metaClass).update(createProducts(10))
                 .test()

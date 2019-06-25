@@ -24,6 +24,7 @@ import com.slimgears.util.rx.Observables;
 import com.slimgears.util.rx.Singles;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
+import io.reactivex.ObservableTransformer;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
@@ -254,11 +255,29 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         QueryInfo<K, S, T> query = builder
                                 .propertiesAddAll(properties)
                                 .build();
-                        return queryProvider.query(query)
+                        return queryProvider
+                                .query(query
+                                        .toBuilder()
+                                        .limit(limit)
+                                        .skip(skip)
+                                        .build())
                                 .map(Notification::ofCreated)
                                 .concatWith(queryProvider.liveQuery(query));
                     }
                 };
+            }
+
+            @Override
+            public Observable<List<S>> observeAsList() {
+                ObservableTransformer<List<Notification<S>>, List<S>> toListTransformer = Notifications.toList(sortingInfos.build(), limit);
+                return retrieve()
+                        .map(Notification::ofCreated)
+                        .toList()
+                        .toObservable()
+                        .compose(toListTransformer)
+                        .concatWith(observe()
+                                .compose(Observables.bufferUntilIdle(Duration.ofMillis(debounceTimeoutMillis)))
+                                .compose(toListTransformer));
             }
 
             @Override

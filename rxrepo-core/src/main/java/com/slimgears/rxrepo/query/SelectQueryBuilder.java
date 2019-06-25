@@ -71,9 +71,7 @@ public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
         return retrieve().toList();
     }
 
-    public final Observable<List<S>> observeAsList() {
-        return queryAndObserve().compose(Notifications.toList());
-    }
+    public abstract Observable<List<S>> observeAsList();
 
     public Observable<S> retrieve() {
         //noinspection unchecked
