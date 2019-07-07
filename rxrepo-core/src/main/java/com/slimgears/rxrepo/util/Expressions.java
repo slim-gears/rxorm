@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.util;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ExpressionVisitor;
@@ -9,14 +10,11 @@ import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Optionals;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
 public class Expressions {
@@ -60,6 +58,14 @@ public class Expressions {
         return funcs -> val -> func.apply((T1)funcs[0].apply(val), (T2)funcs[1].apply(val));
     }
 
+    private static <T1, T2> Function<Function[], Function> fromShortCircuitAnd() {
+        return funcs -> val -> (boolean)funcs[0].apply(val) && (boolean)funcs[1].apply(val);
+    }
+
+    private static <T1, T2> Function<Function[], Function> fromShortCircuitOr() {
+        return funcs -> val -> (boolean)funcs[0].apply(val) || (boolean)funcs[1].apply(val);
+    }
+
     @SuppressWarnings("unchecked")
     private static <T extends Number> Function<Function[], Function> fromNumericBinary(BiFunction<T, T, T> func) {
         return funcs -> val -> func.apply((T)funcs[0].apply(val), (T)funcs[1].apply(val));
@@ -81,35 +87,36 @@ public class Expressions {
     private static class InternalVisitor extends ExpressionVisitor<Void, Function> {
         @SuppressWarnings("unchecked")
         private final static ImmutableMap<Expression.Type, Function<Function[], Function>> expressionTypeReducersMap = ImmutableMap.<Expression.Type, Function<Function[], Function>>builder()
-                .put(Expression.Type.AsString, fromUnary(Object::toString))
-                .put(Expression.Type.Add, fromNumericBinary(GenericMath::add))
-                .put(Expression.Type.Sub, fromNumericBinary(GenericMath::subtract))
-                .put(Expression.Type.Mul, fromNumericBinary(GenericMath::multiply))
-                .put(Expression.Type.Div, fromNumericBinary(GenericMath::divide))
-                .put(Expression.Type.Negate, fromNumericUnary(GenericMath::negate))
-                .put(Expression.Type.And, fromBinary(Boolean::logicalAnd))
-                .put(Expression.Type.Or, fromBinary(Boolean::logicalOr))
+                .put(Expression.Type.AsString, fromUnary(o -> o != null ? o.toString() : null))
+                .put(Expression.Type.Add, fromNumericBinary(add()))
+                .put(Expression.Type.Sub, fromNumericBinary(subtract()))
+                .put(Expression.Type.Mul, fromNumericBinary(multiply()))
+                .put(Expression.Type.Div, fromNumericBinary(divide()))
+                .put(Expression.Type.Negate, fromNumericUnary(negate()))
+                .put(Expression.Type.And, fromShortCircuitAnd())
+                .put(Expression.Type.Or, fromShortCircuitOr())
                 .put(Expression.Type.Not, fromUnary(Boolean.FALSE::equals))
-                .put(Expression.Type.Equals, fromBinary(Object::equals))
-                .put(Expression.Type.GreaterThan, Expressions.<Comparable, Comparable, Boolean>fromBinary((a, b) -> a.compareTo(b) > 0))
-                .put(Expression.Type.LessThan, Expressions.<Comparable, Comparable, Boolean>fromBinary((a, b) -> a.compareTo(b) < 0))
-                .put(Expression.Type.IsEmpty, fromUnary(String::isEmpty))
-                .put(Expression.Type.Contains, fromBinary(String::contains))
-                .put(Expression.Type.StartsWith, Expressions.<String, String, Boolean>fromBinary(String::startsWith))
-                .put(Expression.Type.EndsWith, fromBinary(String::endsWith))
-                .put(Expression.Type.Matches, fromBinary(String::matches))
-                .put(Expression.Type.Length, fromUnary(String::length))
-                .put(Expression.Type.Concat, Expressions.<String, String, String>fromBinary((s1, s2) -> s1 + s2))
-                .put(Expression.Type.ToLower, Expressions.<String, String>fromUnary(String::toLowerCase))
-                .put(Expression.Type.ToUpper, Expressions.<String, String>fromUnary(String::toUpperCase))
-                .put(Expression.Type.Trim, fromUnary(String::trim))
-                .put(Expression.Type.Count, Expressions.<Collection, Integer>fromUnary(Collection::size))
+                .put(Expression.Type.Equals, fromBinary(Objects::equals))
+                .put(Expression.Type.GreaterThan, Expressions.<Comparable, Comparable, Boolean>fromBinary((a, b) -> a != null && b != null && a.compareTo(b) > 0))
+                .put(Expression.Type.LessThan, Expressions.<Comparable, Comparable, Boolean>fromBinary((a, b) -> a != null && b != null && a.compareTo(b) < 0))
+                .put(Expression.Type.IsEmpty, fromUnary(Strings::isNullOrEmpty))
+                .put(Expression.Type.Contains, Expressions.fromBinary(contains()))
+                .put(Expression.Type.StartsWith, Expressions.fromBinary(startsWith()))
+                .put(Expression.Type.EndsWith, Expressions.fromBinary(endsWith()))
+                .put(Expression.Type.Matches, Expressions.fromBinary(matches()))
+                .put(Expression.Type.Length, Expressions.fromUnary(length()))
+                .put(Expression.Type.Concat, Expressions.fromBinary(concat()))
+                .put(Expression.Type.ToLower, Expressions.<String, String>fromUnary(s -> s != null ? s.toLowerCase() : null))
+                .put(Expression.Type.ToUpper, Expressions.<String, String>fromUnary(s -> s != null ? s.toUpperCase() : null))
+                .put(Expression.Type.Trim, Expressions.<String, String>fromUnary(s -> s != null ? s.trim() : null))
+                .put(Expression.Type.Count, Expressions.<Collection, Integer>fromUnary(col -> Optional.ofNullable(col).map(Collection::size).orElse(0)))
                 .put(Expression.Type.Average, notSupported())
                 .put(Expression.Type.Min, notSupported())
                 .put(Expression.Type.Max, notSupported())
                 .put(Expression.Type.Sum, notSupported())
-                .put(Expression.Type.SearchText, Expressions.fromBinary((Object obj, String str) -> obj.toString().contains(str)))
-                .put(Expression.Type.ValueIn, Expressions.fromBinary((Object obj, Collection<Object> collection) -> collection.contains(obj)))
+                .put(Expression.Type.SearchText, Expressions.<Object, String, Boolean>fromBinary((obj, str) -> obj != null && obj.toString().contains(getStringOrEmpty(str)))) //obj != null and str == null returns true.
+                .put(Expression.Type.ValueIn, Expressions.fromBinary((Object obj, Collection<Object> collection) -> obj != null && collection != null && collection.contains(obj)))
+                .put(Expression.Type.IsNull, Expressions.fromUnary(Objects::isNull))
                 .build();
 
         private final static ImmutableMap<Expression.OperationType, Function<Function[], Function>> operationTypeReducersMap = ImmutableMap.<Expression.OperationType, Function<Function[], Function>>builder()
@@ -156,5 +163,61 @@ public class Expressions {
         protected <T> Function visitArgument(TypeToken<T> argType, Void arg) {
             return a -> a;
         }
+    }
+
+    private static BiFunction<String, String, String> concat() {
+        return (s1, s2) -> getStringOrEmpty(s1) + getStringOrEmpty(s2);
+    }
+
+    private static Function<String, Number> length() {
+        return s -> Optional.ofNullable(s).map(String::length).orElse(0);
+    }
+
+    private static Function<Number, Number> negate() {
+        return num -> num != null ? GenericMath.negate(num) : null;
+    }
+
+    private static BiFunction<Number, Number, Number> divide() {
+        return numbericBinariesWithDefaultNumbers(GenericMath::divide, 0, 1);
+    }
+
+    private static BiFunction<Number, Number, Number> multiply() {
+        return numbericBinariesWithDefaultNumbers(GenericMath::multiply, 0, 0);
+    }
+
+    private static BiFunction<Number, Number, Number> subtract() {
+        return numbericBinariesWithDefaultNumbers(GenericMath::subtract, 0, 0);
+    }
+
+    private static BiFunction<Number, Number, Number> add() {
+        return numbericBinariesWithDefaultNumbers(GenericMath::add, 0, 0);
+    }
+
+    private static BiFunction<String, String, Boolean> startsWith() {
+        return (s1, s2) -> s1 != null && (s2 == null || s1.startsWith(s2));
+    }
+
+    private static BiFunction<String, String, Boolean> endsWith() {
+        return (s1, s2) -> s1 != null && (s2 == null || s1.endsWith(s2));
+    }
+
+    private static BiFunction<String, String, Boolean> matches() {
+        return (s1, s2) -> (s1 == null && s2 == null) || (s1 != null && s2 != null && s1.matches(s2));
+    }
+
+    private static BiFunction<Number, Number, Number> numbericBinariesWithDefaultNumbers(BiFunction<Number, Number, Number> func, Number defaultValue1, Number defaultValue2) {
+        return (n1, n2) -> func.apply(getNumberOrDefault(n1, defaultValue1), getNumberOrDefault(n2, defaultValue2));
+    }
+
+    private static Number getNumberOrDefault(Number num, Number defaultValue){
+        return Optional.ofNullable(num).orElse(defaultValue);
+    }
+
+    private static String getStringOrEmpty(String s){
+        return Optional.ofNullable(s).orElse("");
+    }
+
+    private static BiFunction<String, String, Boolean> contains() {
+        return (s1, s2) -> s1 != null && (s2 == null || s1.contains(s2)); //if s1 == null returns false but then null does not contain null
     }
 }

@@ -7,6 +7,7 @@ import com.slimgears.rxrepo.util.Expressions;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
@@ -17,9 +18,11 @@ import static com.slimgears.rxrepo.filters.StringFilter.fromContains;
 
 
 public class ExpressionsTest {
+    private final String textEntity1 = "Entity 1";
+
     private final TestEntity testEntity1 = TestEntity.builder()
             .number(3)
-            .text("Entity 1")
+            .text(textEntity1)
             .refEntity(TestRefEntity
                     .builder()
                     .text("Description 1")
@@ -39,6 +42,8 @@ public class ExpressionsTest {
                     .build())
             .keyName("Key 2")
             .refEntities(Collections.emptyList())
+            .address("Address")
+            .col(Collections.singleton("Address"))
             .build();
 
     @Test
@@ -119,6 +124,344 @@ public class ExpressionsTest {
         Assert.assertTrue(exp.apply(testEntity1));
         Assert.assertFalse(exp.apply(testEntity2));
     }
+
+    @Test
+    public void testNullExpression() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.isNull());
+
+        Assert.assertTrue(exp.apply(testEntity1));
+        Assert.assertFalse(exp.apply(testEntity2));
+    }
+
+    @Test
+    public void testWhenEqGetNullPropertyValue() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.eq("Address"));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+        Assert.assertTrue(exp.apply(testEntity2));
+    }
+
+    @Test
+    public void testAndEvaluation() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.isNotNull().and(TestEntity.$.address.eq("Address")));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testOrEvaluation() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.isNull().or(TestEntity.$.address.eq("Address")));
+
+        Assert.assertTrue(exp.apply(testEntity1));
+        Assert.assertTrue(exp.apply(testEntity2));
+    }
+
+    //Null handling tests
+    @Test
+    public void testAsStringWithNull() {
+        Function<TestEntity, String> exp = Expressions
+                .compile(TestEntity.$.code.asString());
+
+        Assert.assertNull(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testAddWithNull1() {
+        Function<TestEntity, Integer> exp = Expressions
+                .compile(TestEntity.$.code.add(TestEntity.$.number));
+
+        Assert.assertEquals(Integer.valueOf(3), exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testAddWithNull2() {
+        Function<TestEntity, Integer> exp = Expressions
+                .compile(TestEntity.$.number.add(TestEntity.$.code));
+
+        Assert.assertEquals(Integer.valueOf(3), exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testSubtractWithNull1() {
+        Function<TestEntity, Integer> exp = Expressions
+                .compile(TestEntity.$.code.sub(TestEntity.$.number));
+
+        Assert.assertEquals(Integer.valueOf(-3), exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testSubtractWithNull2() {
+        Function<TestEntity, Integer> exp = Expressions
+                .compile(TestEntity.$.number.sub(TestEntity.$.code));
+
+        Assert.assertEquals(Integer.valueOf(3), exp.apply(testEntity1));
+    }
+
+
+    @Test
+    public void testMultiplyWithNull1() {
+        Function<TestEntity, Integer> exp = Expressions
+                .compile(TestEntity.$.code.mul(TestEntity.$.number));
+
+        Assert.assertEquals(Integer.valueOf(0), exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testMultiplyWithNull2() {
+        Function<TestEntity, Integer> exp = Expressions
+                .compile(TestEntity.$.number.mul(TestEntity.$.code));
+
+        Assert.assertEquals(Integer.valueOf(0), exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testDivideWithNull1() {
+        Function<TestEntity, Integer> exp = Expressions
+                .compile(TestEntity.$.code.div(TestEntity.$.number));
+
+        Assert.assertEquals(Integer.valueOf(0), exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testDivideWithNull2() {
+        Function<TestEntity, Integer> exp = Expressions
+                .compile(TestEntity.$.number.div(TestEntity.$.code));
+
+        Assert.assertEquals(Integer.valueOf(3), exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testNegateWithNull() {
+        Function<TestEntity, Integer> exp = Expressions
+                .compile(TestEntity.$.code.negate());
+
+        Assert.assertNull(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testEqualsWithNull1() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.code.eq(TestEntity.$.number));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testEqualsWithNull2() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.number.eq(TestEntity.$.code));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testEqualsWithNull3() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.code.eq(TestEntity.$.code));
+
+        Assert.assertTrue(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testGreaterThanWithNull1() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.code.greaterThan(TestEntity.$.number));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testGreaterThanWithNull2() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.number.greaterThan(TestEntity.$.code));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testGreaterThanWithNull3() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.code.greaterThan(TestEntity.$.code));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testLessThanWithNull1() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.code.lessThan(TestEntity.$.number));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testLessThanWithNull2() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.number.lessThan(TestEntity.$.code));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testLessThanWithNull3() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.code.lessThan(TestEntity.$.code));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testIsEmptyWithNull() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.isEmpty());
+
+        Assert.assertTrue(exp.apply(testEntity1));
+        Assert.assertFalse(exp.apply(testEntity2));
+    }
+
+    @Test
+    public void testContainsWithNull1() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.contains("A"));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+        Assert.assertTrue(exp.apply(testEntity2));
+    }
+
+    @Test
+    public void testContainsWithNull2() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.text.contains(TestEntity.$.address));
+
+        Assert.assertTrue(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testStartsWithWithNull1() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.startsWith("A"));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+        Assert.assertTrue(exp.apply(testEntity2));
+    }
+
+    @Test
+    public void testStartsWithWithNull2() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.text.startsWith(TestEntity.$.address));
+
+        Assert.assertTrue(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testEndsWithWithNull1() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.endsWith("ss"));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+        Assert.assertTrue(exp.apply(testEntity2));
+    }
+
+    @Test
+    public void testEndsWithWithNull2() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.text.endsWith(TestEntity.$.address));
+
+        Assert.assertTrue(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testMatchesWithNull1() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.matches("^[Aa]"));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testMatchesWithWithNull2() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.text.matches(TestEntity.$.address));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testLengthWithNull() {
+        Function<TestEntity, Integer> exp = Expressions
+                .compile(TestEntity.$.address.length());
+
+        Assert.assertEquals(Integer.valueOf(0),exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testConcatWithNull1() {
+        Function<TestEntity, String> exp = Expressions
+                .compile(TestEntity.$.address.concat(TestEntity.$.text));
+
+        Assert.assertEquals(textEntity1,exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testConcatWithNull2() {
+        Function<TestEntity, String> exp = Expressions
+                .compile(TestEntity.$.text.concat(TestEntity.$.address));
+
+        Assert.assertEquals(textEntity1,exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testToLowerWithNull() {
+        Function<TestEntity, String> exp = Expressions
+                .compile(TestEntity.$.address.toLower());
+
+        Assert.assertNull(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testToUpperWithNull() {
+        Function<TestEntity, String> exp = Expressions
+                .compile(TestEntity.$.address.toUpper());
+
+        Assert.assertNull(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testTrimWithNull() {
+        Function<TestEntity, String> exp = Expressions
+                .compile(TestEntity.$.address.trim());
+
+        Assert.assertNull(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testSearchTextWithNull1() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.searchText("Ad"));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testValueInTextWithNull1() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.address.in());
+
+        Assert.assertFalse(exp.apply(testEntity2));
+    }
+
+    @Test
+    public void testValueInTextWithNull2() {
+        Function<TestEntity, Boolean> exp = Expressions
+                .compile(TestEntity.$.text.in(TestEntity.$.col));
+
+        Assert.assertFalse(exp.apply(testEntity1));
+    }
+
 
 
 }

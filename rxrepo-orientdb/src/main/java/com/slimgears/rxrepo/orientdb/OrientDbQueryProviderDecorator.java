@@ -76,7 +76,7 @@ public class OrientDbQueryProviderDecorator implements QueryProvider {
                         }
                     } else if (notification.isDelete()) {
                         if (compiledPredicate.test(notification.oldValue())) {
-                            return Maybe.just(Notification.ofDeleted(notification.newValue()));
+                            return Maybe.just(Notification.ofDeleted(notification.oldValue()));
                         }
                     } else {
                         boolean oldMatch = compiledPredicate.test(notification.oldValue());
