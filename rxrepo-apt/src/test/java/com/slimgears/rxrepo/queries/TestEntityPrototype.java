@@ -8,6 +8,7 @@ import com.slimgears.util.autovalue.annotations.AutoValuePrototype;
 import com.slimgears.util.autovalue.annotations.Key;
 import com.slimgears.util.autovalue.annotations.UseCopyAnnotator;
 
+import javax.annotation.Nullable;
 import java.util.Collection;
 
 @AutoValuePrototype
@@ -19,4 +20,7 @@ public interface TestEntityPrototype {
     @Indexable @Filterable int number();
     @Filterable TestRefEntity refEntity();
     Collection<TestRefEntity> refEntities();
+    @Nullable String address();
+    @Nullable Integer code();
+    @Nullable Collection<String> col();
 }

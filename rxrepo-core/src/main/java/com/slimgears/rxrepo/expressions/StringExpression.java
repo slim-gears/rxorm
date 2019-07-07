@@ -1,9 +1,6 @@
 package com.slimgears.rxrepo.expressions;
 
-import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.NumericUnaryOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.StringBinaryOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.StringUnaryOperationExpression;
+import com.slimgears.rxrepo.expressions.internal.*;
 
 public interface StringExpression<S> extends ComparableExpression<S, String> {
     default BooleanExpression<S> contains(ObjectExpression<S, String> substr) {
@@ -12,6 +9,10 @@ public interface StringExpression<S> extends ComparableExpression<S, String> {
 
     default BooleanExpression<S> contains(String substr) {
         return contains(ConstantExpression.of(substr));
+    }
+
+    default BooleanExpression<S> isEmpty() {
+        return BooleanUnaryOperationExpression.create(Type.IsEmpty, this);
     }
 
     default BooleanExpression<S> startsWith(ObjectExpression<S, String> substr) {
