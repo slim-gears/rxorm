@@ -19,10 +19,7 @@ import com.orientechnologies.orient.server.OServer;
 import com.orientechnologies.orient.server.OServerMain;
 import com.orientechnologies.orient.server.config.OServerConfiguration;
 import com.slimgears.rxrepo.expressions.Aggregator;
-import com.slimgears.rxrepo.query.EntitySet;
-import com.slimgears.rxrepo.query.Notification;
-import com.slimgears.rxrepo.query.NotificationPrototype;
-import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.query.*;
 import com.slimgears.rxrepo.sql.CacheSchemaProviderDecorator;
 import com.slimgears.rxrepo.sql.SchemaProvider;
 import com.slimgears.util.stream.Streams;
@@ -56,6 +53,23 @@ import java.util.stream.Stream;
 //@UseLogLevel(UseLogLevel.Level.FINE)
 public class OrientDbQueryProviderTest {
     @Rule public final TestName testNameRule = new TestName();
+    private static final RepositoryConfiguration repositoryConfig = new RepositoryConfiguration() {
+        @Override
+        public int retryCount() {
+            return 10;
+        }
+
+        @Override
+        public int debounceTimeoutMillis() {
+            return 1000;
+        }
+
+        @Override
+        public int retryInitialDurationMillis() {
+            return 10;
+        }
+    };
+
     private static final String dbName = "testDb";
     private static OServer server;
     private Repository repository;
@@ -83,7 +97,7 @@ public class OrientDbQueryProviderTest {
         repository = OrientDbRepository
                 .builder(dbSessionSupplier)
                 .scheduler(Schedulers.io())
-                .buildRepository();
+                .buildRepository(repositoryConfig);
     }
 
     @After
@@ -783,7 +797,7 @@ public class OrientDbQueryProviderTest {
             Repository repository = OrientDbRepository
                     .builder(sessionSupplier)
                     .scheduler(Schedulers.io())
-                    .buildRepository();
+                    .buildRepository(repositoryConfig);
 
             repository.entities(Product.metaClass).findAll().test().await();
 
@@ -864,6 +878,10 @@ public class OrientDbQueryProviderTest {
                 .limit(3)
                 .skip(2)
                 .observeAsList()
+                .doOnNext(l -> {
+                    System.out.println("List received: ");
+                    l.forEach(System.out::println);
+                })
                 .test()
                 .awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
                 .assertNoTimeout()

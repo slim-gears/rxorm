@@ -37,20 +37,23 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
-    private final static int retryCount = 10;
-    private final static int debounceTimeoutMillis = 100;
-    private final static Duration retryInitialDuration = Duration.ofMillis(10);
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
+    private final RepositoryConfiguration config;
 
     private DefaultEntitySet(QueryProvider queryProvider,
-                             MetaClassWithKey<K, S> metaClass) {
+                             MetaClassWithKey<K, S> metaClass,
+                             RepositoryConfiguration config) {
         this.queryProvider = MandatoryPropertiesQueryProviderDecorator.decorate(queryProvider);
         this.metaClass = metaClass;
+        this.config = config;
     }
 
-    static <K, S extends HasMetaClassWithKey<K, S>> DefaultEntitySet<K, S> create(QueryProvider queryProvider, MetaClassWithKey<K, S> metaClass) {
-        return new DefaultEntitySet<>(queryProvider, metaClass);
+    static <K, S extends HasMetaClassWithKey<K, S>> DefaultEntitySet<K, S> create(
+            QueryProvider queryProvider,
+            MetaClassWithKey<K, S> metaClass,
+            RepositoryConfiguration config) {
+        return new DefaultEntitySet<>(queryProvider, metaClass, config);
     }
 
     @Override
@@ -122,7 +125,10 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         .defer(() -> queryProvider.update(builder
                                 .predicate(predicate.get())
                                 .build()))
-                        .compose(Observables.backOffDelayRetry(DefaultEntitySet::isConcurrencyException, retryInitialDuration, retryCount));
+                        .compose(Observables.backOffDelayRetry(
+                                DefaultEntitySet::isConcurrencyException,
+                                Duration.ofMillis(config.retryInitialDurationMillis()),
+                                config.retryCount()));
             }
 
             @Override
@@ -228,7 +234,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider
                                 .liveQuery(query)
-                                .debounce(debounceTimeoutMillis, TimeUnit.MILLISECONDS)
+                                .debounce(config.debounceTimeoutMillis(), TimeUnit.MILLISECONDS)
                                 .concatMapSingle(n -> queryProvider
                                         .query(query)
                                         .toList());
@@ -276,7 +282,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         .toObservable()
                         .compose(toListTransformer)
                         .concatWith(observe()
-                                .compose(Observables.bufferUntilIdle(Duration.ofMillis(debounceTimeoutMillis)))
+                                .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
                                 .compose(toListTransformer));
             }
 
@@ -312,13 +318,19 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     public Single<S> update(S entity) {
         return Single
                 .defer(() -> queryProvider.insertOrUpdate(entity))
-                .compose(Singles.backOffDelayRetry(DefaultEntitySet::isConcurrencyException, retryInitialDuration, retryCount));
+                .compose(Singles.backOffDelayRetry(
+                        DefaultEntitySet::isConcurrencyException,
+                        Duration.ofMillis(config.retryInitialDurationMillis()),
+                        config.retryCount()));
     }
 
     @Override
     public Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
         return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, updater))
-                .compose(Maybes.backOffDelayRetry(DefaultEntitySet::isConcurrencyException, retryInitialDuration, retryCount));
+                .compose(Maybes.backOffDelayRetry(
+                        DefaultEntitySet::isConcurrencyException,
+                        Duration.ofMillis(config.retryInitialDurationMillis()),
+                        config.retryCount()));
     }
 
     private static boolean isConcurrencyException(Throwable exception) {

@@ -12,11 +12,16 @@ public interface Repository {
 
     @SafeVarargs
     static Repository fromProvider(QueryProvider provider, UnaryOperator<QueryProvider>... decorators) {
+        return fromProvider(provider, null, decorators);
+    }
+
+    @SafeVarargs
+    static Repository fromProvider(QueryProvider provider, RepositoryConfiguration config, UnaryOperator<QueryProvider>... decorators) {
         UnaryOperator<QueryProvider> decorator = Arrays
                 .stream(decorators)
                 .reduce((a, b) -> qp -> b.apply(a.apply(qp)))
                 .orElse(UnaryOperator.identity());
 
-        return new DefaultRepository(decorator.apply(provider));
+        return new DefaultRepository(decorator.apply(provider), config);
     }
 }

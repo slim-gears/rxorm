@@ -6,13 +6,33 @@ import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class DefaultRepository implements Repository {
+    private final static RepositoryConfiguration defaultConfig = new RepositoryConfiguration() {
+        @Override
+        public int retryCount() {
+            return 10;
+        }
+
+        @Override
+        public int debounceTimeoutMillis() {
+            return 100;
+        }
+
+        @Override
+        public int retryInitialDurationMillis() {
+            return 10;
+        }
+    };
+
+    private final RepositoryConfiguration config;
     private final QueryProvider queryProvider;
     private final Map<MetaClassWithKey<?, ?>, EntitySet<?, ?>> entitySetMap = new HashMap<>();
 
-    public DefaultRepository(QueryProvider queryProvider) {
+    DefaultRepository(QueryProvider queryProvider, RepositoryConfiguration config) {
         this.queryProvider = queryProvider;
+        this.config = Optional.ofNullable(config).orElse(defaultConfig);
     }
 
     @SuppressWarnings("unchecked")
@@ -22,6 +42,6 @@ public class DefaultRepository implements Repository {
     }
 
     private <K, T extends HasMetaClassWithKey<K, T>> EntitySet<K, T> createEntitySet(MetaClassWithKey<K, T> metaClass) {
-        return DefaultEntitySet.create(queryProvider, metaClass);
+        return DefaultEntitySet.create(queryProvider, metaClass, config);
     }
 }

@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.sql;
 
 import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.query.RepositoryConfiguration;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import io.reactivex.Completable;
 import io.reactivex.Scheduler;
@@ -38,8 +39,8 @@ public interface SqlServiceFactory {
         public abstract SqlServiceFactory build();
 
         @SafeVarargs
-        public final Repository buildRepository(UnaryOperator<QueryProvider>... decorators) {
-            return Repository.fromProvider(this.decorator.apply(build().queryProvider()), decorators);
+        public final Repository buildRepository(RepositoryConfiguration config, UnaryOperator<QueryProvider>... decorators) {
+            return Repository.fromProvider(this.decorator.apply(build().queryProvider()), config, decorators);
         }
 
         public final SqlServiceFactory.Builder decorate(UnaryOperator<QueryProvider> decorator) {
