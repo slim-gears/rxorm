@@ -29,4 +29,8 @@ public interface UniqueIdPrototype extends Serializable {
     static UniqueIdPrototype inventoryId(int id) {
         return UniqueId.create(id, 0, Inventory.class);
     }
+
+    static UniqueIdPrototype vendorId(int id) {
+        return UniqueId.create(id, 0, Vendor.class);
+    }
 }

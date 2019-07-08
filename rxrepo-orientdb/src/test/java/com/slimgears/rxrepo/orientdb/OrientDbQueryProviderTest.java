@@ -12,6 +12,7 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OType;
+import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.orientechnologies.orient.server.OServer;
@@ -29,18 +30,12 @@ import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
+import io.reactivex.functions.Consumer;
 import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.CompletableSubject;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 
@@ -54,6 +49,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 @SuppressWarnings({"ResultOfMethodCallIgnored", "ConstantConditions"})
 @RunWith(AnnotationRulesJUnit.class)
@@ -672,11 +668,59 @@ public class OrientDbQueryProviderTest {
                 .assertValue(l -> l.size() == 2);
     }
 
-    @Test @Ignore
-    public void testAddThenQueryRawOrientDb() {
+    @Test
+    public void testQueryByNestedEmbeddedObject() throws InterruptedException {
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        products.update(createProducts(20)).blockingGet();
+        UniqueId vendorId = UniqueId.vendorId(2);
+        products.query()
+                .where(Product.$.vendor.id.eq(vendorId))
+                .retrieve()
+                .test()
+                .await()
+                .assertValueCount(5)
+                .assertValueAt(0, p -> p.vendor().id().equals(vendorId));
+
+        products.query()
+                .where(Product.$.vendor.id.in(vendorId))
+                .retrieve()
+                .test()
+                .await()
+                .assertValueCount(5)
+                .assertValueAt(0, p -> p.vendor().id().equals(vendorId));
+    }
+
+    private void rawDbTest(Consumer<ODatabaseSession> test) throws Exception {
         try (OrientDB dbClient = new OrientDB("embedded:testDbServer", OrientDBConfig.defaultConfig())) {
             dbClient.create(dbName, ODatabaseType.MEMORY);
             try (ODatabaseSession dbSession = dbClient.open(dbName, "admin", "admin")) {
+                test.accept(dbSession);
+            }
+        }
+    }
+
+    @Test @Ignore
+    public void testQueryByObject() throws Exception {
+        rawDbTest(dbSession -> {
+            OClass oClass = dbSession.createClass("MyClass");
+            oClass.createProperty("myField", OType.EMBEDDED);
+            OElement element = dbSession.newElement();
+            element.setProperty("id", 1);
+            element.setProperty("test", "testVal");
+            dbSession.command("insert into MyClass set myField = ?", element)
+                    .stream()
+                    .map(OResult::toJSON)
+                    .forEach(el -> System.out.println("Inserted element: " + el));
+            dbSession.query("select from MyClass where myField like " + element.toJSON())
+                    .stream()
+                    .map(OResult::toJSON)
+                    .forEach(el -> System.out.println("Received element: " + el));
+        });
+    }
+
+    @Test @Ignore
+    public void testAddThenQueryRawOrientDb() throws Exception {
+        rawDbTest(dbSession -> {
                 OClass oClass = dbSession.createClass("MyClass");
                 oClass.createProperty("myField", OType.EMBEDDED);
 
@@ -701,15 +745,12 @@ public class OrientDbQueryProviderTest {
                         .stream()
                         .map(OResult::toJSON)
                         .forEach(el -> System.out.println("Retrieved element (with filter): " + el));
-            }
-        }
+        });
     }
 
     @Test @Ignore
-    public void testCustomIndex() {
-        try (OrientDB dbClient = new OrientDB("embedded:testDb", OrientDBConfig.defaultConfig())) {
-            dbClient.create(dbName, ODatabaseType.MEMORY);
-            try (ODatabaseSession session = dbClient.open(dbName, "admin", "admin")) {
+    public void testCustomIndex() throws Exception {
+        rawDbTest(session -> {
                 OClass oClass = session.createClass("MyClass");
                 oClass.createProperty("key", OType.STRING);
                 session.getMetadata().getIndexManager().createIndex(
@@ -730,8 +771,7 @@ public class OrientDbQueryProviderTest {
                         .stream()
                         .map(OResult::toJSON)
                         .forEach(System.out::println);
-            }
-        }
+        });
     }
 
     @Test @Ignore
@@ -780,12 +820,24 @@ public class OrientDbQueryProviderTest {
                         .build())
                 .collect(Collectors.toList());
 
+        List<Vendor> vendors = Stream
+                .concat(
+                        IntStream.range(0, 3)
+                                .mapToObj(i -> Vendor
+                                        .builder()
+                                        .id(UniqueId.vendorId(i))
+                                        .name("Vendor " + i)
+                                        .build()),
+                        Stream.of((Vendor)null))
+                .collect(Collectors.toList());
+
         return IntStream.range(0, count)
                 .mapToObj(i -> Product.builder()
                         .key(UniqueId.productId(i))
                         .name("Product " + i)
                         .type(productTypes[i % productTypes.length])
                         .inventory(inventories.get(i % inventories.size()))
+                        .vendor(vendors.get(i % vendors.size()))
                         .price(100 + (i % 7)*(i % 11) + i % 13)
                         .build())
                 .collect(Collectors.toList());

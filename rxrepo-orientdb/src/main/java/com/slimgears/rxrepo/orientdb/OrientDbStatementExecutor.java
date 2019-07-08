@@ -3,8 +3,6 @@ package com.slimgears.rxrepo.orientdb;
 import com.orientechnologies.orient.core.db.OLiveQueryMonitor;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
-import com.orientechnologies.orient.core.record.OElement;
-import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
@@ -12,9 +10,6 @@ import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.util.PropertyResolver;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.autovalue.annotations.MetaClass;
-import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Scheduler;
@@ -23,17 +18,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.ConcurrentModificationException;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.slimgears.rxrepo.orientdb.OrientDbObjectConverter.toOrientDbObjects;
 import static com.slimgears.util.generic.LazyToString.lazy;
 
 class OrientDbStatementExecutor implements SqlStatementExecutor {
@@ -54,7 +46,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
         return toObservable(
                 session -> {
                     logStatement("Querying", statement);
-                    return session.query(statement.statement(), convertArgs(statement.args()));
+                    return session.query(statement.statement(), toOrientDbObjects(statement.args()));
                 });
     }
 
@@ -64,7 +56,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                 session -> {
                     try {
                         logStatement("Executing command", statement);
-                        return session.command(statement.statement(), convertArgs(statement.args()));
+                        return session.command(statement.statement(), toOrientDbObjects(statement.args()));
                     } catch (OConcurrentModificationException | ORecordDuplicatedException e) {
                         throw new ConcurrentModificationException(e.getMessage(), e);
                     } catch (Throwable e) {
@@ -97,7 +89,10 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                 emitter -> {
                     logStatement("Live querying", statement);
                     sessionProvider.withSession(dbSession -> {
-                        OLiveQueryMonitor monitor = dbSession.live(statement.statement(), new OrientDbLiveQueryListener(emitter), convertArgs(statement.args()));
+                        OLiveQueryMonitor monitor = dbSession.live(
+                                statement.statement(),
+                                new OrientDbLiveQueryListener(emitter),
+                                toOrientDbObjects(statement.args()));
                         emitter.setCancellable(monitor::unSubscribe);
                     });
                 })
@@ -124,47 +119,6 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                 .map(res -> OResultPropertyResolver.create(sessionProvider, res))
                 .subscribeOn(scheduler)
                 .timeout(timeoutMillis, TimeUnit.MILLISECONDS);
-    }
-
-    private Object[] convertArgs(Object[] args) {
-        Object[] newArgs = Arrays.copyOf(args, args.length);
-        for (int i = 0; i < args.length; ++i) {
-            newArgs[i] = convertArg(newArgs[i]);
-        }
-        return newArgs;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Object convertArg(Object obj) {
-        if (obj instanceof Collection) {
-            return convertCollection((Collection<?>)obj);
-        } else if (obj instanceof Map) {
-            return convertMap((Map<?, ?>)obj);
-        } else if (!(obj instanceof HasMetaClass)) {
-            return obj;
-        }
-
-        HasMetaClass<?> hasMetaClass = (HasMetaClass)obj;
-        MetaClass<?> metaClass = hasMetaClass.metaClass();
-        OElement oElement = new ODocument(OrientDbSchemaProvider.toClassName(metaClass));
-        metaClass.properties().forEach(p -> oElement.setProperty(p.name(), convertArg(((PropertyMeta)p).getValue(obj))));
-
-        return oElement;
-    }
-
-    private Map<?, ?> convertMap(Map<?, ?> map) {
-        return map.entrySet()
-                .stream()
-                .collect(Collectors.toMap(e -> convertArg(e.getKey()), e -> convertArg(e.getValue())));
-    }
-
-    private Collection<?> convertCollection(Collection<?> collection) {
-        if (collection instanceof List) {
-            return collection.stream().map(this::convertArg).collect(Collectors.toList());
-        } else if (collection instanceof Set) {
-            return collection.stream().map(this::convertArg).collect(Collectors.toSet());
-        }
-        return collection;
     }
 
     private void logStatement(String title, SqlStatement statement) {

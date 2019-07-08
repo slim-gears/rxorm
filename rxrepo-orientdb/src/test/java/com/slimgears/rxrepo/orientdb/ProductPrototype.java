@@ -27,4 +27,5 @@ public interface ProductPrototype {
     @Searchable int price();
     @Nullable List<String> aliases();
     @Nullable List<UniqueId> relatedIds();
+    @Nullable Vendor vendor();
 }
