@@ -30,7 +30,7 @@ public class DefaultRepository implements Repository {
     private final QueryProvider queryProvider;
     private final Map<MetaClassWithKey<?, ?>, EntitySet<?, ?>> entitySetMap = new HashMap<>();
 
-    DefaultRepository(QueryProvider queryProvider, RepositoryConfiguration config) {
+    public DefaultRepository(QueryProvider queryProvider, RepositoryConfiguration config) {
         this.queryProvider = queryProvider;
         this.config = Optional.ofNullable(config).orElse(defaultConfig);
     }

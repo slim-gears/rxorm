@@ -16,7 +16,7 @@ public class RepositoryTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        repository = new DefaultRepository(mockQueryProvider);
+        repository = new DefaultRepository(mockQueryProvider, null);
     }
 
     @Test
