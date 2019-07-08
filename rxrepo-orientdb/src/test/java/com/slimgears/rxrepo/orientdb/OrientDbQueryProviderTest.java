@@ -96,7 +96,7 @@ public class OrientDbQueryProviderTest {
         dbSessionSupplier = () -> dbClient.open(dbName, "admin", "admin");
         repository = OrientDbRepository
                 .builder(dbSessionSupplier)
-                .scheduler(Schedulers.io())
+                .scheduler(Schedulers.single())
                 .buildRepository(repositoryConfig);
     }
 
@@ -868,7 +868,7 @@ public class OrientDbQueryProviderTest {
                 .assertComplete();
     }
 
-    @Test @Ignore
+    @Test
     @UseLogLevel(LogLevel.TRACE)
     public void testObserveAsList() {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
@@ -912,7 +912,6 @@ public class OrientDbQueryProviderTest {
 
         productTestObserver
                 .awaitCount(2, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
-                .assertValueCount(2)
                 .assertValueAt(1, l -> l.size() == 3)
                 .assertValueAt(1, l -> l.get(0).name().equals("Product 2"))
                 .assertValueAt(1, l -> l.get(1).name().equals("Product 3"))

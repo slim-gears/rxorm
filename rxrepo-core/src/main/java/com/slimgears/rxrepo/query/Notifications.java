@@ -57,8 +57,8 @@ public class Notifications {
                             .forEach(map::remove);
                     map.values()
                             .stream()
-                            .limit(1)
-                            .forEach(min::set);
+                            .min(comparator)
+                            .ifPresent(min::set);
                 })
                 .map(n -> map.values()
                         .stream()
