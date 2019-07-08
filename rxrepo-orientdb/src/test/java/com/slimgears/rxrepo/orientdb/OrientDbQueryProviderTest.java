@@ -416,7 +416,7 @@ public class OrientDbQueryProviderTest {
                 .assertValueAt(15, pr -> {
                     System.out.println(pr);
                     Matcher matcher = Pattern.compile("Product 1([0-9]+) - Inventory ([0-9]+)").matcher(Objects.requireNonNull(pr.name()));
-                    return matcher.matches() && matcher.group(1).equals(matcher.group(2));
+                    return matcher.matches() && Integer.valueOf(matcher.group(1)).equals(Integer.valueOf(matcher.group(2)));
                 });
     }
 
