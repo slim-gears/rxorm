@@ -868,7 +868,7 @@ public class OrientDbQueryProviderTest {
                 .assertComplete();
     }
 
-    @Test
+    @Test @Ignore
     @UseLogLevel(LogLevel.TRACE)
     public void testObserveAsList() {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
