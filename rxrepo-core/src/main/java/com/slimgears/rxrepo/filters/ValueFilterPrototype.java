@@ -11,6 +11,7 @@ import java.util.Optional;
 @FilterPrototype
 public interface ValueFilterPrototype<T> extends ObjectFilterPrototype<T> {
     @Nullable T equalsTo();
+    @Nullable T notEqualsTo();
     @Nullable ImmutableList<T> equalsToAny();
 
     @Override
@@ -18,6 +19,7 @@ public interface ValueFilterPrototype<T> extends ObjectFilterPrototype<T> {
         return Filters.combineExpressions(
                 ObjectFilterPrototype.super.toExpression(arg),
                 Optional.ofNullable(equalsTo()).map(arg::eq),
+                Optional.ofNullable(notEqualsTo()).map(arg::notEq),
                 Optional.ofNullable(equalsToAny()).map(arg::in));
     }
 }

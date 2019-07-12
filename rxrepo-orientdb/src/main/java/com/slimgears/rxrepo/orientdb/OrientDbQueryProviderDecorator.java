@@ -1,28 +1,20 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
-import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.query.Notifications;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
-import com.slimgears.rxrepo.util.Expressions;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
-import io.reactivex.ObservableTransformer;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
-import io.reactivex.functions.Predicate;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
 import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
 
 public class OrientDbQueryProviderDecorator implements QueryProvider {
     private final QueryProvider upstream;
@@ -57,49 +49,11 @@ public class OrientDbQueryProviderDecorator implements QueryProvider {
                         .skip(query.skip())
                         .limit(query.limit())
                         .build())
-                .compose(filterNotifications(query.predicate()))
-                .compose(mapNotifications(query.mapping()))
-                .filter(fieldsFilter(query.properties()));
-    }
-
-    private <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<Notification<S>, Notification<S>> filterNotifications(ObjectExpression<S, Boolean> predicate) {
-        if (predicate == null) {
-            return src -> src;
-        }
-
-        Predicate<S> compiledPredicate = Expressions.compileRxPredicate(predicate);
-        return src -> src
-                .flatMapMaybe(notification -> {
-                    if (notification.isCreate()) {
-                        if (compiledPredicate.test(notification.newValue())) {
-                            return Maybe.just(Notification.ofCreated(notification.newValue()));
-                        }
-                    } else if (notification.isDelete()) {
-                        if (compiledPredicate.test(notification.oldValue())) {
-                            return Maybe.just(Notification.ofDeleted(notification.oldValue()));
-                        }
-                    } else {
-                        boolean oldMatch = compiledPredicate.test(notification.oldValue());
-                        boolean newMatch = compiledPredicate.test(notification.newValue());
-                        if (oldMatch && !newMatch) {
-                            return Maybe.just(Notification.ofDeleted(notification.oldValue()));
-                        } else if (!oldMatch && newMatch) {
-                            return Maybe.just(Notification.ofCreated(notification.newValue()));
-                        } else if (oldMatch) {
-                            return Maybe.just(notification);
-                        }
-                    }
-                    return Maybe.empty();
-                });
-    }
-
-    private <K, S extends HasMetaClassWithKey<K, S>, T> ObservableTransformer<Notification<S>, Notification<T>> mapNotifications(ObjectExpression<S, T> projection) {
-        java.util.function.Function<S, T> mapper = Expressions.compile(projection);
-        return src -> src.map(n -> n.map(mapper));
+                .compose(Notifications.applyQuery(query));
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Single<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R, ?> aggregator) {
+    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R, ?> aggregator) {
         return upstream.aggregate(query, aggregator);
     }
 
@@ -113,23 +67,4 @@ public class OrientDbQueryProviderDecorator implements QueryProvider {
         return upstream.delete(delete);
     }
 
-    private <T> Predicate<Notification<T>> fieldsFilter(Collection<PropertyExpression<T, ?, ?>> properties) {
-        List<java.util.function.Function<T, ?>> propertyMetas = properties.stream()
-                .map(Expressions::compile)
-                .collect(Collectors.toList());
-
-        return n -> fieldsChanged(n, propertyMetas);
-    }
-
-    private <T> boolean fieldsChanged(Notification<T> notification, List<java.util.function.Function<T, ?>> properties) {
-        if (!notification.isModify() || properties.isEmpty()) {
-            return true;
-        }
-
-        return properties
-                .stream()
-                .anyMatch(p -> !Objects.equals(
-                        p.apply(notification.oldValue()),
-                        p.apply(notification.newValue())));
-    }
 }

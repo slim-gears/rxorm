@@ -188,7 +188,7 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Single<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R, ?> aggregator) {
+    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R, ?> aggregator) {
         TypeToken<? extends T> elementType = HasMapping.objectType(query);
         ObjectExpression<T, R> aggregation = aggregator.apply(CollectionExpression.indirectArg(elementType));
         TypeToken<? extends R> resultType = aggregation.objectType();
@@ -201,7 +201,7 @@ public class SqlQueryProvider implements QueryProvider {
                             ? ((PropertyResolver)obj).toObject(resultType)
                             : (R)obj;
                 })
-                .singleOrError());
+                .firstElement());
     }
 
     @Override

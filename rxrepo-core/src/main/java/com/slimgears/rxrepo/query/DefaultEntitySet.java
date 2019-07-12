@@ -197,7 +197,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     }
 
                     @Override
-                    public <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Single<R> aggregate(Aggregator<T, T, R, E> aggregator) {
+                    public <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Maybe<R> aggregate(Aggregator<T, T, R, E> aggregator) {
                         return queryProvider.aggregate(builder.build(), aggregator);
                     }
 

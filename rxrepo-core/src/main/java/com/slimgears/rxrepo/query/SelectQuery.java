@@ -13,7 +13,7 @@ import java.util.function.Function;
 
 public abstract class SelectQuery<T> {
     public abstract Maybe<T> first();
-    public abstract <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Single<R> aggregate(Aggregator<T, T, R, E> aggregator);
+    public abstract <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Maybe<R> aggregate(Aggregator<T, T, R, E> aggregator);
 
     @SafeVarargs
     public final Observable<T> retrieve(PropertyExpression<T, ?, ?>... properties) {
@@ -30,7 +30,7 @@ public abstract class SelectQuery<T> {
     }
 
     public Single<Long> count() {
-        return aggregate(Aggregator.count());
+        return aggregate(Aggregator.count()).toSingle(0L);
     }
 
     protected abstract Observable<T> retrieve(Collection<PropertyExpression<T, ?, ?>> properties);

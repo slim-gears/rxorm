@@ -38,7 +38,7 @@ public abstract class AbstractQueryProviderDecorator implements QueryProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Single<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R, ?> aggregator) {
+    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R, ?> aggregator) {
         return underlyingProvider.aggregate(query, aggregator);
     }
 
