@@ -8,7 +8,6 @@ import io.reactivex.Observable;
 import io.reactivex.Single;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("WeakerAccess")
 public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
@@ -29,9 +28,9 @@ public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
         return select(expression, true);
     }
 
-    public abstract LiveSelectQuery<S> liveSelect();
+    public abstract LiveSelectQuery<K, S, S> liveSelect();
 
-    public abstract <T> LiveSelectQuery<T> liveSelect(ObjectExpression<S, T> expression);
+    public abstract <T> LiveSelectQuery<K, S, T> liveSelect(ObjectExpression<S, T> expression);
 
     public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, ?, V> field) {
         return orderBy(field, true);
@@ -71,7 +70,13 @@ public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
         return retrieve().toList();
     }
 
-    public abstract Observable<List<S>> observeAsList();
+    public final Observable<List<S>> observeAsList() {
+        return observeAs(Notifications.toList());
+    }
+
+    public final <R> Observable<R> observeAs(QueryTransformer<K, S, S, R> transformer) {
+        return liveSelect().observeAs(transformer);
+    }
 
     public Observable<S> retrieve() {
         //noinspection unchecked

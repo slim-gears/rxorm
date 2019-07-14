@@ -7,11 +7,11 @@ import java.util.Comparator;
 
 @SuppressWarnings("WeakerAccess")
 public class SortingInfos {
-    public static <T> Comparator<T> toComparator(SortingInfo<T, ?, ?> sortingInfo) {
+    public static <T> Comparator<T> toComparator(SortingInfo<T, ?, ? extends Comparable<?>> sortingInfo) {
         return Expressions.compileComparator(sortingInfo.property(), sortingInfo.ascending());
     }
 
-    public static <T> Comparator<T> toComparator(Iterable<SortingInfo<T, ?, ?>> sortingInfos) {
+    public static <T> Comparator<T> toComparator(Iterable<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos) {
         return Streams
                 .fromIterable(sortingInfos)
                 .map(SortingInfos::toComparator)

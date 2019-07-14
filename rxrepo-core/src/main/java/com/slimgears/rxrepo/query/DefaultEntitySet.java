@@ -162,7 +162,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     @Override
     public SelectQueryBuilder<K, S> query() {
         return new SelectQueryBuilder<K, S>() {
-            private final ImmutableList.Builder<SortingInfo<S, ?, ?>> sortingInfos = ImmutableList.builder();
+            private final ImmutableList.Builder<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos = ImmutableList.builder();
             private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
             private Long limit;
             private Long skip;
@@ -202,20 +202,26 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     }
 
                     @Override
-                    protected Observable<T> retrieve(Collection<PropertyExpression<T, ?, ?>> properties) {
-                        return queryProvider.query(builder.propertiesAddAll(properties).build());
+                    public SelectQuery<T> properties(Iterable<PropertyExpression<T, ?, ?>> properties) {
+                        builder.propertiesAddAll(properties);
+                        return this;
+                    }
+
+                    @Override
+                    public Observable<T> retrieve() {
+                        return queryProvider.query(builder.build());
                     }
                 };
             }
 
             @Override
-            public LiveSelectQuery<S> liveSelect() {
+            public LiveSelectQuery<K, S, S> liveSelect() {
                 return liveSelect(ObjectExpression.arg(metaClass.objectClass()));
             }
 
             @Override
-            public <T> LiveSelectQuery<T> liveSelect(ObjectExpression<S, T> expression) {
-                return new LiveSelectQuery<T>() {
+            public <T> LiveSelectQuery<K, S, T> liveSelect(ObjectExpression<S, T> expression) {
+                return new LiveSelectQuery<K, S, T>() {
                     private final QueryInfo.Builder<K, S, T> builder = QueryInfo.<K, S, T>builder()
                             .metaClass(metaClass)
                             .predicate(predicate.get())
@@ -241,6 +247,12 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     }
 
                     @Override
+                    public LiveSelectQuery<K, S, T> properties(Iterable<PropertyExpression<T, ?, ?>> properties) {
+                        builder.propertiesAddAll(properties);
+                        return this;
+                    }
+
+                    @Override
                     public <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Observable<R> aggregate(Aggregator<T, T, R, E> aggregator) {
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider.aggregate(query, aggregator)
@@ -249,18 +261,30 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     }
 
                     @Override
-                    protected Observable<Notification<T>> observe(Collection<PropertyExpression<T, ?, ?>> properties) {
-                        QueryInfo<K, S, T> query = builder
-                                .propertiesAddAll(properties)
+                    public <R> Observable<R> observeAs(QueryTransformer<K, S, T, R> queryTransformer) {
+                        QueryInfo<K, S, T> observeQuery = builder.build();
+                        QueryInfo<K, S, T> retrieveQuery = observeQuery
+                                .toBuilder()
+                                .limit(limit)
+                                .skip(skip)
+                                .sortingAddAll(sortingInfos.build())
                                 .build();
-                        return queryProvider.liveQuery(query);
+
+                        ObservableTransformer<List<Notification<T>>, R> transformer = queryTransformer.transformer(retrieveQuery);
+
+                        return queryProvider.query(retrieveQuery)
+                                .map(Notification::ofCreated)
+                                .toList()
+                                .toObservable()
+                                .compose(transformer)
+                                .concatWith(queryProvider.liveQuery(observeQuery)
+                                        .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
+                                        .compose(transformer));
                     }
 
                     @Override
-                    protected Observable<Notification<T>> queryAndObserve(Collection<PropertyExpression<T, ?, ?>> properties) {
-                        QueryInfo<K, S, T> query = builder
-                                .propertiesAddAll(properties)
-                                .build();
+                    public Observable<Notification<T>> queryAndObserve() {
+                        QueryInfo<K, S, T> query = builder.build();
                         return queryProvider
                                 .query(query
                                         .toBuilder()
@@ -270,20 +294,12 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                                 .map(Notification::ofCreated)
                                 .concatWith(queryProvider.liveQuery(query));
                     }
-                };
-            }
 
-            @Override
-            public Observable<List<S>> observeAsList() {
-                ObservableTransformer<List<Notification<S>>, List<S>> toListTransformer = Notifications.toList(sortingInfos.build(), limit);
-                return retrieve()
-                        .map(Notification::ofCreated)
-                        .toList()
-                        .toObservable()
-                        .compose(toListTransformer)
-                        .concatWith(observe()
-                                .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
-                                .compose(toListTransformer));
+                    @Override
+                    public Observable<Notification<T>> observe() {
+                        return queryProvider.liveQuery(builder.build());
+                    }
+                };
             }
 
             @Override

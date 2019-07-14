@@ -14,24 +14,25 @@ import java.util.function.Function;
 public abstract class SelectQuery<T> {
     public abstract Maybe<T> first();
     public abstract <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Maybe<R> aggregate(Aggregator<T, T, R, E> aggregator);
+    public abstract SelectQuery<T> properties(Iterable<PropertyExpression<T, ?, ?>> properties);
 
     @SafeVarargs
     public final Observable<T> retrieve(PropertyExpression<T, ?, ?>... properties) {
-        return retrieve(Arrays.asList(properties));
+        return properties(properties).retrieve();
+    }
+
+    @SafeVarargs
+    public final SelectQuery<T> properties(PropertyExpression<T, ?, ?>... properties) {
+        return properties(Arrays.asList(properties));
     }
 
     public <R> R apply(Function<SelectQuery<T>, R> mapper) {
         return mapper.apply(this);
     }
 
-    public Observable<T> retrieve() {
-        //noinspection unchecked
-        return retrieve(new PropertyExpression[0]);
-    }
+    public abstract Observable<T> retrieve();
 
     public Single<Long> count() {
         return aggregate(Aggregator.count()).toSingle(0L);
     }
-
-    protected abstract Observable<T> retrieve(Collection<PropertyExpression<T, ?, ?>> properties);
 }

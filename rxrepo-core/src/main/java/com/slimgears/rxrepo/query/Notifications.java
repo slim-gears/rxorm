@@ -18,10 +18,18 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class Notifications {
-    public static <K, T extends HasMetaClassWithKey<K, T>> ObservableTransformer<List<Notification<T>>, List<T>> toList(
-            ImmutableList<SortingInfo<T, ?, ?>> sortingInfos,
+    public static <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<List<Notification<S>>, List<S>> toList(
+            ImmutableList<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos,
             @Nullable Long limit) {
         return NotificationsToListTransformer.create(sortingInfos, limit);
+    }
+
+    public static <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<List<Notification<S>>, List<S>> toList(QueryInfo<K, S, S> queryInfo) {
+        return toList(queryInfo.sorting(), queryInfo.limit());
+    }
+
+    public static <K, S extends HasMetaClassWithKey<K, S>> QueryTransformer<K, S, S, List<S>> toList() {
+        return queryInfo -> toList(queryInfo.sorting(), queryInfo.limit());
     }
 
     public static <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<Notification<S>, Notification<S>> filter(ObjectExpression<S, Boolean> predicate) {
