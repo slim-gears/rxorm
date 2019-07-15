@@ -10,12 +10,19 @@ import java.util.function.Supplier;
 class OrientDbSessionProvider {
     private final RecurrentThreadLocal<ODatabaseDocument> databaseSessionProvider;
 
-    private OrientDbSessionProvider(Supplier<ODatabaseDocument> databaseSessionProvider) {
-        this.databaseSessionProvider = new RecurrentThreadLocal<>(databaseSessionProvider);
+    private OrientDbSessionProvider(Supplier<ODatabaseDocument> databaseSessionProvider,
+                                    Consumer<ODatabaseDocument> onRelease) {
+        this.databaseSessionProvider = RecurrentThreadLocal
+                .of(databaseSessionProvider)
+                .onRelease(onRelease);
     }
 
     static OrientDbSessionProvider create(Supplier<ODatabaseDocument> dbSessionSupplier) {
-        return new OrientDbSessionProvider(dbSessionSupplier);
+        return new OrientDbSessionProvider(dbSessionSupplier, ODatabaseDocument::close);
+    }
+
+    static OrientDbSessionProvider create(ODatabaseDocument dbSessionSupplier) {
+        return new OrientDbSessionProvider(() -> dbSessionSupplier, db -> {});
     }
 
     <T> T withSession(Function<ODatabaseDocument, T> func) {

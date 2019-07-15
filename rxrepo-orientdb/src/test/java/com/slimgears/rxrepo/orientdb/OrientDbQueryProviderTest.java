@@ -71,22 +71,22 @@ public class OrientDbQueryProviderTest {
     };
 
     private static final String dbName = "testDb";
-    private static OServer server;
+//    private static OServer server;
     private Repository repository;
     private OrientDB dbClient;
     private Supplier<ODatabaseDocument> dbSessionSupplier;
 
-    @BeforeClass
-    public static void setUpClass() throws Exception {
-        server = OServerMain.create(true);
-        server.startup(new OServerConfiguration());
-        //((Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.ALL);
-    }
+//    @BeforeClass
+//    public static void setUpClass() throws Exception {
+//        server = OServerMain.create(true);
+//        server.startup(new OServerConfiguration());
+//        //((Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.ALL);
+//    }
 
-    @AfterClass
-    public static void tearDownClass() {
-        server.shutdown();
-    }
+//    @AfterClass
+//    public static void tearDownClass() {
+//        server.shutdown();
+//    }
 
     @Before
     public void setUp() {
@@ -819,7 +819,7 @@ public class OrientDbQueryProviderTest {
         }
     }
 
-    private Iterable<Product> createProducts(int count) {
+    private static Iterable<Product> createProducts(int count) {
         final Product.Type[] productTypes = {
                 ProductPrototype.Type.ConsumerElectronics,
                 ProductPrototype.Type.ComputeHardware,
@@ -916,6 +916,11 @@ public class OrientDbQueryProviderTest {
                 .assertValueAt(1, l -> l.get(0).name().equals("Product 2"))
                 .assertValueAt(1, l -> l.get(1).name().equals("Product 3"))
                 .assertValueAt(1, l -> l.get(2).name().equals("Product 3-1"));
+    }
+
+    @Test
+    public void testOrientDbSessionIsClosedAutomatically() {
+        repository.entities(Product.metaClass).update(createProducts(10));
     }
 
     @Test
