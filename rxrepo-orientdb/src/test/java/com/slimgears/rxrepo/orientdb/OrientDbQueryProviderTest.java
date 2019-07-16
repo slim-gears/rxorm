@@ -79,7 +79,7 @@ public class OrientDbQueryProviderTest {
                 .debounceTimeoutMillis(1000)
                 .type(dbType)
                 .name(dbName)
-                //.scheduler(Schedulers.single())
+                .scheduler(Schedulers.single())
                 .build();
     }
 
