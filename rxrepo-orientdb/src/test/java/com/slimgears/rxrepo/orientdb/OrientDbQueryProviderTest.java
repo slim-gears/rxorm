@@ -846,7 +846,7 @@ public class OrientDbQueryProviderTest {
         dbClient.createIfNotExists(dbName, ODatabaseType.MEMORY);
         try {
             Supplier<ODatabaseDocument> dbSessionSupplier = () -> dbClient.open(dbName, "admin", "admin");
-            SchemaProvider schemaProvider = new OrientDbSchemaProvider(OrientDbSessionProvider.create(dbSessionSupplier), Schedulers.single());
+            SchemaProvider schemaProvider = new OrientDbSchemaProvider(OrientDbSessionProvider.create(dbSessionSupplier));
             SchemaProvider cachedSchemaProvider = CacheSchemaProviderDecorator.decorate(schemaProvider);
             cachedSchemaProvider.createOrUpdate(Inventory.metaClass)
                     .test()
