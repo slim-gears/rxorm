@@ -22,6 +22,8 @@ public interface SqlStatementProvider {
                                                                             PropertyResolver propertyResolver,
                                                                             ReferenceResolver referenceResolver);
 
+    SqlStatement forDrop();
+
     default <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forInsertOrUpdate(S entity, ReferenceResolver referenceResolver) {
         return forInsertOrUpdate(entity.metaClass(), PropertyResolver.fromObject(entity), referenceResolver);
     }

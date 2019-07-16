@@ -1,14 +1,13 @@
 package com.slimgears.rxrepo.sql;
 
 import com.slimgears.rxrepo.query.Repository;
-import com.slimgears.rxrepo.query.RepositoryConfiguration;
+import com.slimgears.rxrepo.query.RepositoryConfigModel;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import io.reactivex.Completable;
 import io.reactivex.Scheduler;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
 
 public interface SqlServiceFactory {
     SqlStatementProvider statementProvider();
@@ -26,7 +25,7 @@ public interface SqlServiceFactory {
     }
 
     abstract class Builder {
-        private UnaryOperator<QueryProvider> decorator = UnaryOperator.identity();
+        private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
 
         public abstract Builder statementProvider(Function<SqlServiceFactory, SqlStatementProvider> statementProvider);
         public abstract Builder statementExecutor(Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor);
@@ -38,14 +37,12 @@ public interface SqlServiceFactory {
         public abstract Builder shutdownSignal(Completable shutdown);
         public abstract SqlServiceFactory build();
 
-        @SafeVarargs
-        public final Repository buildRepository(RepositoryConfiguration config, UnaryOperator<QueryProvider>... decorators) {
+        public final Repository buildRepository(RepositoryConfigModel config, QueryProvider.Decorator... decorators) {
             return Repository.fromProvider(this.decorator.apply(build().queryProvider()), config, decorators);
         }
 
-        public final SqlServiceFactory.Builder decorate(UnaryOperator<QueryProvider> decorator) {
-            UnaryOperator<QueryProvider> oldDecorator = this.decorator;
-            this.decorator = qp -> decorator.apply(oldDecorator.apply(qp));
+        public final SqlServiceFactory.Builder decorate(QueryProvider.Decorator decorator) {
+            this.decorator = this.decorator.andThen(decorator);
             return this;
         }
 

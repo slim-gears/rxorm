@@ -4,6 +4,7 @@ import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.util.PropertyResolver;
+import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 
@@ -27,16 +28,25 @@ public class JdbcSqlStatementExecutor implements SqlStatementExecutor {
 
     @Override
     public Observable<PropertyResolver> executeCommandReturnEntries(SqlStatement statement) {
-        return null;
+        return notImplemented();
     }
 
     @Override
     public Single<Integer> executeCommandReturnCount(SqlStatement statement) {
-        return null;
+        return notImplemented();
+    }
+
+    @Override
+    public Completable executeCommand(SqlStatement statement) {
+        return notImplemented();
     }
 
     @Override
     public Observable<Notification<PropertyResolver>> executeLiveQuery(SqlStatement statement) {
-        return null;
+        return notImplemented();
+    }
+
+    private static <T> T notImplemented() {
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 }

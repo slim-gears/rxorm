@@ -5,16 +5,10 @@ import com.slimgears.rxrepo.expressions.CollectionExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.Notification;
-import com.slimgears.rxrepo.query.provider.DeleteInfo;
-import com.slimgears.rxrepo.query.provider.HasMapping;
-import com.slimgears.rxrepo.query.provider.QueryInfo;
-import com.slimgears.rxrepo.query.provider.QueryProvider;
-import com.slimgears.rxrepo.query.provider.UpdateInfo;
+import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.rxrepo.util.PropertyResolver;
-import com.slimgears.rxrepo.util.PropertyResolvers;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
@@ -215,5 +209,13 @@ public class SqlQueryProvider implements QueryProvider {
     public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> deleteInfo) {
         return schemaProvider.createOrUpdate(deleteInfo.metaClass()).andThen(statementExecutor
                .executeCommandReturnCount(statementProvider.forDelete(deleteInfo)));
+    }
+
+    @Override
+    public Completable drop() {
+        return Completable.defer(() -> {
+            SqlStatement statement = statementProvider.forDrop();
+            return statementExecutor.executeCommand(statement);
+        });
     }
 }

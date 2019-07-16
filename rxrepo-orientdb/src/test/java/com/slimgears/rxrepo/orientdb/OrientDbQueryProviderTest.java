@@ -15,11 +15,11 @@ import com.orientechnologies.orient.core.metadata.schema.OType;
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
-import com.orientechnologies.orient.server.OServer;
-import com.orientechnologies.orient.server.OServerMain;
-import com.orientechnologies.orient.server.config.OServerConfiguration;
 import com.slimgears.rxrepo.expressions.Aggregator;
-import com.slimgears.rxrepo.query.*;
+import com.slimgears.rxrepo.query.EntitySet;
+import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.query.NotificationPrototype;
+import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.sql.CacheSchemaProviderDecorator;
 import com.slimgears.rxrepo.sql.SchemaProvider;
 import com.slimgears.util.stream.Streams;
@@ -33,8 +33,10 @@ import io.reactivex.observers.TestObserver;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.CompletableSubject;
 import org.junit.*;
+import org.junit.rules.MethodRule;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.List;
@@ -49,62 +51,42 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 @SuppressWarnings({"ResultOfMethodCallIgnored", "ConstantConditions"})
-@RunWith(AnnotationRulesJUnit.class)
+@RunWith(Parameterized.class)
 //@UseLogLevel(UseLogLevel.Level.FINE)
 public class OrientDbQueryProviderTest {
     @Rule public final TestName testNameRule = new TestName();
-    private static final RepositoryConfiguration repositoryConfig = new RepositoryConfiguration() {
-        @Override
-        public int retryCount() {
-            return 10;
-        }
+    @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
 
-        @Override
-        public int debounceTimeoutMillis() {
-            return 1000;
-        }
 
-        @Override
-        public int retryInitialDurationMillis() {
-            return 10;
-        }
-    };
-
+    private static final String dbUrl = "embedded:testDb";
     private static final String dbName = "testDb";
-//    private static OServer server;
+
+    @Parameterized.Parameter public OrientDbRepository.Type dbType;
+
     private Repository repository;
-    private OrientDB dbClient;
-    private Supplier<ODatabaseDocument> dbSessionSupplier;
 
-//    @BeforeClass
-//    public static void setUpClass() throws Exception {
-//        server = OServerMain.create(true);
-//        server.startup(new OServerConfiguration());
-//        //((Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.ALL);
-//    }
-
-//    @AfterClass
-//    public static void tearDownClass() {
-//        server.shutdown();
-//    }
+    @Parameterized.Parameters
+    public static OrientDbRepository.Type[] params() {
+        return new OrientDbRepository.Type[] {OrientDbRepository.Type.Memory, OrientDbRepository.Type.Persistent};
+    }
 
     @Before
     public void setUp() {
         System.err.println("Starting test: " + testNameRule.getMethodName());
-        dbClient = new OrientDB("embedded:testDbServer", OrientDBConfig.defaultConfig());
-        dbClient.create(dbName, ODatabaseType.MEMORY);
-        dbSessionSupplier = () -> dbClient.open(dbName, "admin", "admin");
         repository = OrientDbRepository
-                .builder(dbSessionSupplier)
-                .scheduler(Schedulers.single())
-                .buildRepository(repositoryConfig);
+                .builder()
+                .url(dbUrl)
+                .debounceTimeoutMillis(1000)
+                .type(dbType)
+                .name(dbName)
+                //.scheduler(Schedulers.single())
+                .build();
     }
 
     @After
     public void tearDown() {
-        dbClient.drop(dbName);
-        dbClient.close();
         System.err.println("Test finished: " + testNameRule.getMethodName());
+        repository.clearAndClose();
     }
 
     @Test
@@ -795,9 +777,9 @@ public class OrientDbQueryProviderTest {
             dbClient.create(dbName, ODatabaseType.MEMORY);
             Supplier<ODatabaseDocument> sessionSupplier = () -> dbClient.open(dbName, "admin", "admin");
             Repository repository = OrientDbRepository
-                    .builder(sessionSupplier)
+                    .serviceFactoryBuilder(sessionSupplier, session -> {})
                     .scheduler(Schedulers.io())
-                    .buildRepository(repositoryConfig);
+                    .buildRepository(null);
 
             repository.entities(Product.metaClass).findAll().test().await();
 
@@ -819,7 +801,8 @@ public class OrientDbQueryProviderTest {
         }
     }
 
-    private static Iterable<Product> createProducts(int count) {
+    @SuppressWarnings("WeakerAccess")
+    static Iterable<Product> createProducts(int count) {
         final Product.Type[] productTypes = {
                 ProductPrototype.Type.ConsumerElectronics,
                 ProductPrototype.Type.ComputeHardware,
@@ -859,13 +842,20 @@ public class OrientDbQueryProviderTest {
 
     @Test
     public void testOrientDbSchemeProvider() throws InterruptedException {
-        SchemaProvider schemaProvider = new OrientDbSchemaProvider(OrientDbSessionProvider.create(dbSessionSupplier), Schedulers.single());
-        SchemaProvider cachedSchemaProvider = CacheSchemaProviderDecorator.decorate(schemaProvider);
-        cachedSchemaProvider.createOrUpdate(Inventory.metaClass)
-                .test()
-                .await()
-                .assertNoErrors()
-                .assertComplete();
+        OrientDB dbClient = new OrientDB(dbUrl, OrientDBConfig.defaultConfig());
+        dbClient.createIfNotExists(dbName, ODatabaseType.MEMORY);
+        try {
+            Supplier<ODatabaseDocument> dbSessionSupplier = () -> dbClient.open(dbName, "admin", "admin");
+            SchemaProvider schemaProvider = new OrientDbSchemaProvider(OrientDbSessionProvider.create(dbSessionSupplier), Schedulers.single());
+            SchemaProvider cachedSchemaProvider = CacheSchemaProviderDecorator.decorate(schemaProvider);
+            cachedSchemaProvider.createOrUpdate(Inventory.metaClass)
+                    .test()
+                    .await()
+                    .assertNoErrors()
+                    .assertComplete();
+        } finally {
+            dbClient.drop(dbName);
+        }
     }
 
     @Test
@@ -916,11 +906,6 @@ public class OrientDbQueryProviderTest {
                 .assertValueAt(1, l -> l.get(0).name().equals("Product 2"))
                 .assertValueAt(1, l -> l.get(1).name().equals("Product 3"))
                 .assertValueAt(1, l -> l.get(2).name().equals("Product 3-1"));
-    }
-
-    @Test
-    public void testOrientDbSessionIsClosedAutomatically() {
-        repository.entities(Product.metaClass).update(createProducts(10));
     }
 
     @Test

@@ -4,14 +4,14 @@ import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
-@SuppressWarnings("WeakerAccess")
-public abstract class AbstractQueryProviderDecorator implements QueryProvider {
-    private final QueryProvider underlyingProvider;
+public class AbstractQueryProviderDecorator implements QueryProvider {
+    protected final QueryProvider underlyingProvider;
 
     protected AbstractQueryProviderDecorator(QueryProvider underlyingProvider) {
         this.underlyingProvider = underlyingProvider;
@@ -50,5 +50,15 @@ public abstract class AbstractQueryProviderDecorator implements QueryProvider {
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> delete) {
         return underlyingProvider.delete(delete);
+    }
+
+    @Override
+    public Completable drop() {
+        return underlyingProvider.drop();
+    }
+
+    @Override
+    public void close() {
+        underlyingProvider.close();
     }
 }

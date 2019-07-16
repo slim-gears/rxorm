@@ -6,15 +6,15 @@ import io.reactivex.Observable;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.UnaryOperator;
 
-public class CacheQueryProviderDecorator implements UnaryOperator<QueryProvider> {
+@SuppressWarnings("unused")
+public class CacheQueryProviderDecorator implements QueryProvider.Decorator {
     @Override
     public QueryProvider apply(QueryProvider queryProvider) {
         return new DecoratedProvider(queryProvider);
     }
 
-    public static UnaryOperator<QueryProvider> create() {
+    public static QueryProvider.Decorator create() {
         return new CacheQueryProviderDecorator();
     }
 

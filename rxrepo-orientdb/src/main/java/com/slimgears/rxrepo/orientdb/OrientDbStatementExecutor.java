@@ -84,6 +84,12 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
     }
 
     @Override
+    public Completable executeCommand(SqlStatement statement) {
+        return toObservable(session -> session.command(statement.statement(), toOrientDbObjects(statement.args())))
+                .ignoreElements();
+    }
+
+    @Override
     public Observable<Notification<PropertyResolver>> executeLiveQuery(SqlStatement statement) {
         return Observable.<OrientDbLiveQueryListener.LiveQueryNotification>create(
                 emitter -> {

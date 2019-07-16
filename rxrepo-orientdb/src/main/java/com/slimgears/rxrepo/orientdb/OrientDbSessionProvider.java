@@ -21,6 +21,13 @@ class OrientDbSessionProvider {
         return new OrientDbSessionProvider(dbSessionSupplier, ODatabaseDocument::close);
     }
 
+    static OrientDbSessionProvider create(Supplier<ODatabaseDocument> dbSessionSupplier, Consumer<ODatabaseDocument> onClose) {
+        return new OrientDbSessionProvider(dbSessionSupplier, session -> {
+            onClose.accept(session);
+            session.close();
+        });
+    }
+
     static OrientDbSessionProvider create(ODatabaseDocument dbSessionSupplier) {
         return new OrientDbSessionProvider(() -> dbSessionSupplier, db -> {});
     }

@@ -2,17 +2,7 @@ package com.slimgears.rxrepo.sql;
 
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
-import com.slimgears.rxrepo.query.provider.DeleteInfo;
-import com.slimgears.rxrepo.query.provider.HasEntityMeta;
-import com.slimgears.rxrepo.query.provider.HasLimit;
-import com.slimgears.rxrepo.query.provider.HasMapping;
-import com.slimgears.rxrepo.query.provider.HasPagination;
-import com.slimgears.rxrepo.query.provider.HasPredicate;
-import com.slimgears.rxrepo.query.provider.HasProperties;
-import com.slimgears.rxrepo.query.provider.HasSortingInfo;
-import com.slimgears.rxrepo.query.provider.QueryInfo;
-import com.slimgears.rxrepo.query.provider.SortingInfo;
-import com.slimgears.rxrepo.query.provider.UpdateInfo;
+import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -23,12 +13,7 @@ import com.slimgears.util.stream.Streams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -111,6 +96,11 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                         "where",
                         toConditionClause(PropertyExpression.ofObject(keyProperty).eq(propertyResolver.getProperty(keyProperty)))
                 ));
+    }
+
+    @Override
+    public SqlStatement forDrop() {
+        return statement(() -> of("drop", "database", schemaProvider.databaseName()));
     }
 
     @Override

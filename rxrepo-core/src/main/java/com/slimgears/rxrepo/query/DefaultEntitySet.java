@@ -1,21 +1,10 @@
 package com.slimgears.rxrepo.query;
 
 import com.google.common.collect.ImmutableList;
-import com.slimgears.rxrepo.expressions.Aggregator;
-import com.slimgears.rxrepo.expressions.BooleanExpression;
-import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.expressions.PropertyExpression;
-import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
+import com.slimgears.rxrepo.expressions.*;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
-import com.slimgears.rxrepo.query.provider.CollectionPropertyUpdateInfo;
-import com.slimgears.rxrepo.query.provider.DeleteInfo;
-import com.slimgears.rxrepo.query.provider.MandatoryPropertiesQueryProviderDecorator;
-import com.slimgears.rxrepo.query.provider.PropertyUpdateInfo;
-import com.slimgears.rxrepo.query.provider.QueryInfo;
-import com.slimgears.rxrepo.query.provider.QueryProvider;
-import com.slimgears.rxrepo.query.provider.SortingInfo;
-import com.slimgears.rxrepo.query.provider.UpdateInfo;
+import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -39,11 +28,11 @@ import java.util.concurrent.atomic.AtomicReference;
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
-    private final RepositoryConfiguration config;
+    private final RepositoryConfigModel config;
 
     private DefaultEntitySet(QueryProvider queryProvider,
                              MetaClassWithKey<K, S> metaClass,
-                             RepositoryConfiguration config) {
+                             RepositoryConfigModel config) {
         this.queryProvider = MandatoryPropertiesQueryProviderDecorator.decorate(queryProvider);
         this.metaClass = metaClass;
         this.config = config;
@@ -52,7 +41,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     static <K, S extends HasMetaClassWithKey<K, S>> DefaultEntitySet<K, S> create(
             QueryProvider queryProvider,
             MetaClassWithKey<K, S> metaClass,
-            RepositoryConfiguration config) {
+            RepositoryConfigModel config) {
         return new DefaultEntitySet<>(queryProvider, metaClass, config);
     }
 

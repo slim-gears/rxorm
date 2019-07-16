@@ -10,9 +10,8 @@ import io.reactivex.disposables.Disposables;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.UnaryOperator;
 
-public class InterceptingQueryProvider implements UnaryOperator<QueryProvider>, QueryPublisher {
+public class InterceptingQueryProvider implements QueryProvider.Decorator, QueryPublisher {
     private final List<QueryPublisher.QueryListener> queryListeners = new CopyOnWriteArrayList<>();
 
     @Override

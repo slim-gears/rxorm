@@ -31,6 +31,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             @Nonnull Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator,
             @Nonnull Scheduler scheduler,
             @Nonnull Completable shutdownSignal) {
+
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
         this.statementExecutor = Lazy.of(() -> statementExecutor.apply(this));
         this.referenceResolver = Lazy.of(() -> referenceResolver.apply(this));

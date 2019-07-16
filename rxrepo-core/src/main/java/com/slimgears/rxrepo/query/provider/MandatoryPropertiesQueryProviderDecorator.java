@@ -14,11 +14,10 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class MandatoryPropertiesQueryProviderDecorator implements UnaryOperator<QueryProvider> {
+public class MandatoryPropertiesQueryProviderDecorator implements QueryProvider.Decorator {
     @Override
     public QueryProvider apply(QueryProvider queryProvider) {
         return decorate(queryProvider);

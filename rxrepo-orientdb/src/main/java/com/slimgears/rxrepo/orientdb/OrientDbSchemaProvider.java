@@ -11,25 +11,16 @@ import com.slimgears.rxrepo.annotations.Indexable;
 import com.slimgears.rxrepo.annotations.Searchable;
 import com.slimgears.rxrepo.sql.PropertyMetas;
 import com.slimgears.rxrepo.sql.SchemaProvider;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.Key;
-import com.slimgears.util.autovalue.annotations.MetaClass;
-import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClasses;
-import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
 import io.reactivex.Scheduler;
-import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 import java.util.Optional;
-
-import static com.slimgears.util.generic.LazyToString.lazy;
 
 class OrientDbSchemaProvider implements SchemaProvider {
     private final static Logger log = LoggerFactory.getLogger(OrientDbSchemaProvider.class);
@@ -38,7 +29,12 @@ class OrientDbSchemaProvider implements SchemaProvider {
 
     OrientDbSchemaProvider(OrientDbSessionProvider sessionProvider, Scheduler scheduler) {
         this.dbSessionProvider = sessionProvider;
-        this.scheduler = Schedulers.single();
+        this.scheduler = scheduler;
+    }
+
+    @Override
+    public String databaseName() {
+        return dbSessionProvider.withSession(ODatabaseDocument::getName);
     }
 
     @Override
@@ -102,9 +98,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
 
         if (textFields.length > 0) {
             try {
-                log.trace(">> {}: creating full text index for {}", className, lazy(() -> String.join(", ", textFields)));
                 oClass.createIndex(className + ".textIndex", "FULLTEXT", null, null, "LUCENE", textFields);
-                log.trace("<< {}: creating full text index for {}", className, lazy(() -> String.join(", ", textFields)));
             } catch (OIndexException e) {
                 log.warn("Full text creation index failed", e);
             }

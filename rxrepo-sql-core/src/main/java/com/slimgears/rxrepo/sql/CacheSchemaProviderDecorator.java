@@ -1,7 +1,11 @@
 package com.slimgears.rxrepo.sql;
 
-import com.slimgears.util.autovalue.annotations.*;
+import com.slimgears.util.autovalue.annotations.HasMetaClass;
+import com.slimgears.util.autovalue.annotations.MetaClass;
+import com.slimgears.util.autovalue.annotations.MetaClasses;
+import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.stream.Lazy;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 
@@ -10,14 +14,21 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class CacheSchemaProviderDecorator implements SchemaProvider {
     private final SchemaProvider underlyingProvider;
+    private final Lazy<String> dbName;
     private final Map<String, Completable> cache = new ConcurrentHashMap<>();
 
     private CacheSchemaProviderDecorator(SchemaProvider underlyingProvider) {
         this.underlyingProvider = underlyingProvider;
+        this.dbName = Lazy.of(underlyingProvider::databaseName);
     }
 
     public static SchemaProvider decorate(SchemaProvider schemaProvider) {
         return new CacheSchemaProviderDecorator(schemaProvider);
+    }
+
+    @Override
+    public String databaseName() {
+        return dbName.get();
     }
 
     @Override

@@ -9,28 +9,18 @@ import java.util.Map;
 import java.util.Optional;
 
 public class DefaultRepository implements Repository {
-    private final static RepositoryConfiguration defaultConfig = new RepositoryConfiguration() {
-        @Override
-        public int retryCount() {
-            return 10;
-        }
+    private final static RepositoryConfigModel defaultConfig = RepositoryConfig
+            .builder()
+            .retryCount(10)
+            .debounceTimeoutMillis(100)
+            .retryInitialDurationMillis(10)
+            .build();
 
-        @Override
-        public int debounceTimeoutMillis() {
-            return 100;
-        }
-
-        @Override
-        public int retryInitialDurationMillis() {
-            return 10;
-        }
-    };
-
-    private final RepositoryConfiguration config;
+    private final RepositoryConfigModel config;
     private final QueryProvider queryProvider;
     private final Map<MetaClassWithKey<?, ?>, EntitySet<?, ?>> entitySetMap = new HashMap<>();
 
-    public DefaultRepository(QueryProvider queryProvider, RepositoryConfiguration config) {
+    public DefaultRepository(QueryProvider queryProvider, RepositoryConfigModel config) {
         this.queryProvider = queryProvider;
         this.config = Optional.ofNullable(config).orElse(defaultConfig);
     }
@@ -41,7 +31,18 @@ public class DefaultRepository implements Repository {
         return (EntitySet<K, T>)entitySetMap.computeIfAbsent(meta, m -> createEntitySet(meta));
     }
 
+    @Override
+    public void clearAndClose() {
+        queryProvider.drop().blockingAwait();
+        close();
+    }
+
     private <K, T extends HasMetaClassWithKey<K, T>> EntitySet<K, T> createEntitySet(MetaClassWithKey<K, T> metaClass) {
         return DefaultEntitySet.create(queryProvider, metaClass, config);
+    }
+
+    @Override
+    public void close() {
+        this.queryProvider.close();
     }
 }
