@@ -15,7 +15,7 @@ import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
-import io.reactivex.Scheduler;
+import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,11 +25,9 @@ import java.util.Optional;
 class OrientDbSchemaProvider implements SchemaProvider {
     private final static Logger log = LoggerFactory.getLogger(OrientDbSchemaProvider.class);
     private final OrientDbSessionProvider dbSessionProvider;
-    private final Scheduler scheduler;
 
-    OrientDbSchemaProvider(OrientDbSessionProvider sessionProvider, Scheduler scheduler) {
+    OrientDbSchemaProvider(OrientDbSessionProvider sessionProvider) {
         this.dbSessionProvider = sessionProvider;
-        this.scheduler = scheduler;
     }
 
     @Override
@@ -41,7 +39,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
     public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
         return Completable
                 .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass)))
-                .subscribeOn(scheduler);
+                .subscribeOn(Schedulers.single());
     }
 
     @Override
