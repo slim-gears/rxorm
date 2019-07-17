@@ -23,6 +23,7 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
@@ -259,16 +260,29 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                                 .sortingAddAll(sortingInfos.build())
                                 .build();
 
-                        ObservableTransformer<List<Notification<T>>, R> transformer = queryTransformer.transformer(retrieveQuery);
+                        return queryProvider.aggregate(observeQuery, Aggregator.count())
+                                .map(AtomicLong::new)
+                                .flatMapObservable(count -> {
+                                    ObservableTransformer<List<Notification<T>>, R> transformer = queryTransformer.transformer(retrieveQuery, count);
+                                    return queryProvider
+                                            .query(retrieveQuery)
+                                            .map(Notification::ofCreated)
+                                            .toList()
+                                            .toObservable()
+                                            .compose(transformer)
+                                            .concatWith(queryProvider.liveQuery(observeQuery)
+                                                    .doOnNext(n -> updateCount(n, count))
+                                                    .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
+                                                    .compose(transformer));
+                                });
+                    }
 
-                        return queryProvider.query(retrieveQuery)
-                                .map(Notification::ofCreated)
-                                .toList()
-                                .toObservable()
-                                .compose(transformer)
-                                .concatWith(queryProvider.liveQuery(observeQuery)
-                                        .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
-                                        .compose(transformer));
+                    private void updateCount(Notification<T> notification, AtomicLong count) {
+                        if (notification.isDelete()) {
+                            count.decrementAndGet();
+                        } else if (notification.isCreate()) {
+                            count.incrementAndGet();
+                        }
                     }
 
                     @Override

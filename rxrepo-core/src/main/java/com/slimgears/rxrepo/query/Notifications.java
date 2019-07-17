@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 public class Notifications {
@@ -24,12 +25,12 @@ public class Notifications {
         return NotificationsToListTransformer.create(sortingInfos, limit);
     }
 
-    public static <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<List<Notification<S>>, List<S>> toList(QueryInfo<K, S, S> queryInfo) {
+    public static <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<List<Notification<S>>, List<S>> toList(QueryInfo<K, S, S> queryInfo, AtomicLong count) {
         return toList(queryInfo.sorting(), queryInfo.limit());
     }
 
     public static <K, S extends HasMetaClassWithKey<K, S>> QueryTransformer<K, S, S, List<S>> toList() {
-        return queryInfo -> toList(queryInfo.sorting(), queryInfo.limit());
+        return (queryInfo, count) -> toList(queryInfo.sorting(), queryInfo.limit());
     }
 
     public static <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<Notification<S>, Notification<S>> filter(ObjectExpression<S, Boolean> predicate) {

@@ -17,7 +17,6 @@ import java.util.stream.Stream;
 
 public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, T>> implements ObservableTransformer<List<Notification<T>>, List<T>> {
     private final @Nullable Long limit;
-    private final AtomicLong totalCount;
     private final AtomicLong firstItemIndex;
     private final AtomicReference<T> firstItem = new AtomicReference<>();
     private final Comparator<T> comparator;
@@ -26,10 +25,8 @@ public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, 
 
     private NotificationsToListTransformer(ImmutableList<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos,
                                            @Nullable Long limit,
-                                           AtomicLong totalCount,
                                            AtomicLong firstItemIndex) {
         this.limit = limit;
-        this.totalCount = totalCount;
         this.firstItemIndex = firstItemIndex;
         this.comparator = Optional
                 .ofNullable(SortingInfos.toComparator(sortingInfos))
@@ -39,15 +36,14 @@ public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, 
     public static <K, T extends HasMetaClassWithKey<K, T>> NotificationsToListTransformer<K, T> create(
             ImmutableList<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos,
             @Nullable Long limit,
-            AtomicLong totalCount,
             AtomicLong firstItemIndex) {
-        return new NotificationsToListTransformer<>(sortingInfos, limit, totalCount, firstItemIndex);
+        return new NotificationsToListTransformer<>(sortingInfos, limit, firstItemIndex);
     }
 
     public static <K, S extends HasMetaClassWithKey<K, S>> NotificationsToListTransformer<K, S> create(
             ImmutableList<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos,
             @Nullable Long limit) {
-        return create(sortingInfos, limit, new AtomicLong(), new AtomicLong());
+        return create(sortingInfos, limit, new AtomicLong());
     }
 
     @Override
@@ -68,7 +64,6 @@ public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, 
         notifications
                 .stream()
                 .peek(this::updateStartIndex)
-                .peek(this::updateTotalCount)
                 .forEach(this::onNotification);
 
         removeBeforeFirst();
@@ -104,14 +99,6 @@ public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, 
                 .map(val -> val.metaClass().keyProperty().getValue(val))
                 .collect(Collectors.toList())
                 .forEach(map::remove);
-    }
-
-    private void updateTotalCount(Notification<T> notification) {
-        if (notification.isDelete()) {
-            totalCount.decrementAndGet();
-        } else if (notification.isCreate()) {
-            totalCount.incrementAndGet();
-        }
     }
 
     private void updateStartIndex(Notification<T> notification) {
