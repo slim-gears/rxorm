@@ -12,7 +12,6 @@ import com.slimgears.util.stream.Optionals;
 
 import java.util.*;
 import java.util.function.BiFunction;
-import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -58,10 +57,12 @@ public class Expressions {
         return funcs -> val -> func.apply((T1)funcs[0].apply(val), (T2)funcs[1].apply(val));
     }
 
+    @SuppressWarnings("unchecked")
     private static <T1, T2> Function<Function[], Function> fromShortCircuitAnd() {
         return funcs -> val -> (boolean)funcs[0].apply(val) && (boolean)funcs[1].apply(val);
     }
 
+    @SuppressWarnings("unchecked")
     private static <T1, T2> Function<Function[], Function> fromShortCircuitOr() {
         return funcs -> val -> (boolean)funcs[0].apply(val) || (boolean)funcs[1].apply(val);
     }
@@ -150,8 +151,11 @@ public class Expressions {
 
         @Override
         protected <T, V> Function visitProperty(PropertyMeta<T, V> propertyMeta, Void arg) {
-            //noinspection unchecked
-            return target -> propertyMeta.getValue((T)target);
+            return target -> Optional
+                    .ofNullable(target)
+                    .flatMap(Optionals.ofType(propertyMeta.declaringType().asClass()))
+                    .map(propertyMeta::getValue)
+                    .orElse(null);
         }
 
         @Override

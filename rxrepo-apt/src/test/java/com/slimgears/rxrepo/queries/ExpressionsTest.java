@@ -7,7 +7,6 @@ import com.slimgears.rxrepo.util.Expressions;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
@@ -462,6 +461,11 @@ public class ExpressionsTest {
         Assert.assertFalse(exp.apply(testEntity1));
     }
 
+    @Test
+    public void testExpressionWithReferenceToNestedNullableField() {
+        Function<TestEntity, String> exp = Expressions
+                .compile(TestEntity.$.optionalRefEntity.text);
 
-
+        Assert.assertNull(exp.apply(testEntity1));
+    }
 }

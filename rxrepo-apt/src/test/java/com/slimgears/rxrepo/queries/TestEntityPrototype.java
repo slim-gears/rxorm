@@ -23,4 +23,5 @@ public interface TestEntityPrototype {
     @Nullable String address();
     @Nullable Integer code();
     @Nullable Collection<String> col();
+    @Nullable TestRefEntity optionalRefEntity();
 }
