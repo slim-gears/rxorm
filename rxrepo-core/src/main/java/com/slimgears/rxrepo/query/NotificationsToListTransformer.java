@@ -30,7 +30,7 @@ public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, 
         this.firstItemIndex = firstItemIndex;
         this.comparator = Optional
                 .ofNullable(SortingInfos.toComparator(sortingInfos))
-                .orElseGet(() -> Comparator.<T, String>comparing((item -> item.metaClass().keyProperty().getValue(item).toString())));
+                .orElseGet(() -> Comparator.<T, String>comparing((item -> item.metaClass().keyOf(item).toString())));
     }
 
     public static <K, T extends HasMetaClassWithKey<K, T>> NotificationsToListTransformer<K, T> create(

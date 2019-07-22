@@ -14,37 +14,10 @@ import java.util.function.Function;
 import static com.slimgears.rxrepo.filters.ComparableFilter.fromGreaterOrEqual;
 import static com.slimgears.rxrepo.filters.ComparableFilter.fromLessThan;
 import static com.slimgears.rxrepo.filters.StringFilter.fromContains;
+import static com.slimgears.rxrepo.queries.TestEntities.*;
 
 
 public class ExpressionsTest {
-    private final String textEntity1 = "Entity 1";
-
-    private final TestEntity testEntity1 = TestEntity.builder()
-            .number(3)
-            .text(textEntity1)
-            .refEntity(TestRefEntity
-                    .builder()
-                    .text("Description 1")
-                    .id(10)
-                    .build())
-            .keyName("Key 1")
-            .refEntities(Collections.emptyList())
-            .build();
-
-    private final TestEntity testEntity2 = TestEntity.builder()
-            .number(8)
-            .text("Entity 2")
-            .refEntity(TestRefEntity
-                    .builder()
-                    .text("Description 2")
-                    .id(10)
-                    .build())
-            .keyName("Key 2")
-            .refEntities(Collections.emptyList())
-            .address("Address")
-            .col(Collections.singleton("Address"))
-            .build();
-
     @Test
     public void testPropertyExpressionCompile() {
         String description = Expressions.compile(TestEntity.$.text).apply(testEntity1);
@@ -402,7 +375,7 @@ public class ExpressionsTest {
         Function<TestEntity, String> exp = Expressions
                 .compile(TestEntity.$.address.concat(TestEntity.$.text));
 
-        Assert.assertEquals(textEntity1,exp.apply(testEntity1));
+        Assert.assertEquals(textEntity1, exp.apply(testEntity1));
     }
 
     @Test
@@ -410,7 +383,7 @@ public class ExpressionsTest {
         Function<TestEntity, String> exp = Expressions
                 .compile(TestEntity.$.text.concat(TestEntity.$.address));
 
-        Assert.assertEquals(textEntity1,exp.apply(testEntity1));
+        Assert.assertEquals(textEntity1, exp.apply(testEntity1));
     }
 
     @Test
