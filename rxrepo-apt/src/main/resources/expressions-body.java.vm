@@ -13,7 +13,7 @@
 #end
     }
 
-    public static class Expressions<__S#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> implements $[com.slimgears.rxrepo.expressions.ObjectExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass)> {
+    public static class Expressions<__S#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> implements $[com.slimgears.rxrepo.expressions.DelegateExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass)> {
         private final $[com.slimgears.rxrepo.expressions.ObjectExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass)> self;
         private final Meta#typeParams($sourceClass) meta = #if ($sourceClass.typeParams().isEmpty())new Meta()#{else}new Meta<>()#end;
 
@@ -51,7 +51,12 @@
         }
 
         @Override
-        public $[com.slimgears.util.reflect.TypeToken]<? extends $targetClass.simpleName()#typeParams($sourceClass)> objectType() {
+        public ObjectExpression<__S, $targetClass.simpleName()#typeParams($sourceClass)> delegate() {
+            return this.self;
+        }
+
+        @Override
+        public $[com.slimgears.util.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)> objectType() {
             return this.self.objectType();
         }
 
@@ -72,7 +77,7 @@
     #elseif ($p.isBooleanProperty())##
         $[com.slimgears.rxrepo.expressions.internal.BooleanPropertyExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass)>##
     #elseif ($p.isCollectionProperty())##
-        $[com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass), $[$p.collectionElementType()]>##
+        $[com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass), $[$p.collectionElementType()], $[$p.type()]>##
     #else##
         $[com.slimgears.rxrepo.expressions.internal.ObjectPropertyExpression]<__S, $targetClass.simpleName()#typeParams($sourceClass), $[$p.type().asBoxed()]>##
     #end ##
@@ -111,7 +116,7 @@
         }
 
         @Override
-        public $[com.slimgears.util.reflect.TypeToken]<? extends $targetClass.simpleName()#typeParams($sourceClass)> objectType() {
+        public $[com.slimgears.util.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)> objectType() {
             return property.type();
         }
     }

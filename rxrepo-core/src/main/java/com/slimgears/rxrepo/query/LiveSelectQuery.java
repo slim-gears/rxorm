@@ -2,14 +2,11 @@ package com.slimgears.rxrepo.query;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
-import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Observable;
 import io.reactivex.functions.IntFunction;
 
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
@@ -17,7 +14,7 @@ public abstract class LiveSelectQuery<K, S extends HasMetaClassWithKey<K, S>, T>
     public abstract Observable<T> first();
     public abstract Observable<List<T>> toList();
     public abstract LiveSelectQuery<K, S, T> properties(Iterable<PropertyExpression<T, ?, ?>> properties);
-    public abstract <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Observable<R> aggregate(Aggregator<T, T, R, E> aggregator);
+    public abstract <R> Observable<R> aggregate(Aggregator<T, T, R> aggregator);
     public abstract <R> Observable<R> observeAs(QueryTransformer<K, S, T, R> transformer);
     public abstract Observable<Notification<T>> queryAndObserve();
     public abstract Observable<Notification<T>> observe();

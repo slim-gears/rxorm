@@ -2,7 +2,6 @@ package com.slimgears.rxrepo.query.provider;
 
 import com.slimgears.rxrepo.annotations.PrototypeWithBuilder;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.util.autovalue.annotations.AutoValuePrototype;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.reflect.TypeToken;
 
@@ -16,11 +15,11 @@ public interface QueryInfoPrototype<K, S extends HasMetaClassWithKey<K, S>, T> e
         HasMapping<S, T>,
         HasSortingInfo<S>,
         HasPagination {
-    default TypeToken<? extends T> objectType() {
-        //noinspection unchecked
+    @SuppressWarnings("unchecked")
+    default TypeToken<T> objectType() {
         return Optional
                 .ofNullable(mapping())
                 .map(ObjectExpression::objectType)
-                .orElseGet(() -> (TypeToken)metaClass().objectClass());
+                .orElseGet(() -> (TypeToken<T>)metaClass().objectClass());
     }
 }

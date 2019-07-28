@@ -1,20 +1,19 @@
-package com.slimgears.rxrepo.orientdb;
+package com.slimgears.rxrepo.query.decorator;
 
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.Notifications;
-import com.slimgears.rxrepo.query.provider.AbstractQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Observable;
 
-public class OrientDbQueryProviderDecorator extends AbstractQueryProviderDecorator {
-    private OrientDbQueryProviderDecorator(QueryProvider upstream) {
+public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
+    private LiveQueryProviderDecorator(QueryProvider upstream) {
         super(upstream);
     }
 
-    static QueryProvider.Decorator decorator() {
-        return OrientDbQueryProviderDecorator::new;
+    public static QueryProvider.Decorator decorator() {
+        return LiveQueryProviderDecorator::new;
     }
 
     @Override

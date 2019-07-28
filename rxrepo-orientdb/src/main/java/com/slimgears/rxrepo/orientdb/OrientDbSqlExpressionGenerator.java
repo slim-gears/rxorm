@@ -6,15 +6,13 @@ import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.rxrepo.sql.DefaultSqlExpressionGenerator;
-import com.slimgears.rxrepo.sql.PropertyMetas;
 import com.slimgears.rxrepo.util.ExpressionTextGenerator;
+import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;

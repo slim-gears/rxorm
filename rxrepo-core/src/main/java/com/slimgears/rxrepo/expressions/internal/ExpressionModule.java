@@ -2,19 +2,14 @@ package com.slimgears.rxrepo.expressions.internal;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.Version;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.deser.Deserializers;
 import com.fasterxml.jackson.databind.module.SimpleDeserializers;
 import com.fasterxml.jackson.databind.module.SimpleSerializers;
 import com.fasterxml.jackson.databind.ser.Serializers;
 import com.google.auto.service.AutoService;
+import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 
@@ -48,12 +43,12 @@ public class ExpressionModule extends Module {
         });
         simpleDeserializers.addDeserializer(PropertyMeta.class, new JsonDeserializer<PropertyMeta>() {
             @Override
-            public PropertyMeta deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+            public PropertyMeta deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
                 JsonNode treeNode = p.readValueAsTree();
                 TypeToken declaredType = TypeToken.valueOf(treeNode.get("type").asText());
                 String name = treeNode.get("name").asText();
                 //noinspection unchecked
-                return PropertyMeta.create(declaredType, name);
+                return MetaClasses.forToken(declaredType).getProperty(name);
             }
         });
         return simpleDeserializers;

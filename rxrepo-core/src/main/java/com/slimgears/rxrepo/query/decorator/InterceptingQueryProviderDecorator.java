@@ -1,6 +1,9 @@
-package com.slimgears.rxrepo.query.provider;
+package com.slimgears.rxrepo.query.decorator;
 
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.query.provider.QueryInfo;
+import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.query.provider.QueryPublisher;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
@@ -11,7 +14,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class InterceptingQueryProvider implements QueryProvider.Decorator, QueryPublisher {
+public class InterceptingQueryProviderDecorator implements QueryProvider.Decorator, QueryPublisher {
     private final List<QueryPublisher.QueryListener> queryListeners = new CopyOnWriteArrayList<>();
 
     @Override

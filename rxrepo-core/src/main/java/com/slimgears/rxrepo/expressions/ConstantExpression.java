@@ -1,23 +1,19 @@
 package com.slimgears.rxrepo.expressions;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.slimgears.rxrepo.expressions.internal.BooleanConstantExpression;
-import com.slimgears.rxrepo.expressions.internal.CollectionConstantExpression;
-import com.slimgears.rxrepo.expressions.internal.NullConstantExpression;
-import com.slimgears.rxrepo.expressions.internal.NumericConstantExpression;
-import com.slimgears.rxrepo.expressions.internal.ObjectConstantExpression;
-import com.slimgears.rxrepo.expressions.internal.StringConstantExpression;
+import com.slimgears.rxrepo.expressions.internal.*;
 import com.slimgears.util.reflect.TypeToken;
 
 import javax.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 public interface ConstantExpression<S, T> extends ObjectExpression<S, T> {
     @JsonProperty T value();
 
+    @SuppressWarnings("unchecked")
     default TypeToken<T> objectType() {
-        //noinspection unchecked
         return TypeToken.of((Class<T>)value().getClass());
     }
 
@@ -41,12 +37,12 @@ public interface ConstantExpression<S, T> extends ObjectExpression<S, T> {
         return BooleanConstantExpression.create(Type.BooleanConstant, value);
     }
 
-    static <S, E> CollectionConstantExpression<S, E> of(@Nonnull Collection<E> collection) {
+    static <S, E, C extends Collection<E>> CollectionConstantExpression<S, E, C> of(@Nonnull C collection) {
         return CollectionConstantExpression.create(Type.CollectionConstant, collection);
     }
 
     @SafeVarargs
-    static <S, E> CollectionConstantExpression<S, E> of(E... items) {
+    static <S, E> CollectionConstantExpression<S, E, List<E>> of(E... items) {
         return of(Arrays.asList(items));
     }
 }

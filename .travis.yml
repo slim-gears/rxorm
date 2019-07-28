@@ -6,11 +6,12 @@ env:
   - secure: Z7/MsnPyFaTjxJ4/N4FubDoORNwNja0cbKYdPrxMbj8/ptp9bYSLCiZKj29cgd0sNXQDmcvfaTN8SyJud65SyF9VD+T2V+2a3bf1cUtI29H/OMTzBKbYIPmh0oSWlIy1Piiy75BUVfQvGG9iDJHrt7kBwTx4QBeOas338Ve+E9BJqZoTG8PptyRaHqb515c+HTTGsl2Xc5U87wQeJTzw/FyblFx87uCDCYviuI8qndFX+wLIMAFlnx5+Mm7ofWg2PG5TAXuEFM46mWuoeHyG0tlP3f0O4mNW/wY3uvgF6wVuYUOi6AdRQgl4v4/zSsP6NOLdT+hw2kWCfbSqI+L/QqU6jIlIkFRBueIIsQ2PapusrKHAA/eZcea5FIvUbv+wVpFzsl/RBw5NIVDzSZ7cKbZtMdzDnxFWSSNEcPNssBw0n+quxcdrmonFOER3sngm19TNm7Mn/teq4bWpwBklGK1VgLNQk/CWb50TSpdtNtyV2nT6PrRlF/G3x9pCAg5C17cxWTA68SVTMKKwLI8CkQbytj1kRMlQCp/p60AS8s/KYrfi993FoPTPqbGwKfhb+7mNR228jsj6eY8UjgDmolfhpmpQReK0kSc3AcmNwHGqgUhfrNuYNLXPjnjJJbQ6F/U1zi3GTiRByQlvd6FYlEw/3lXSLlf+W7gH/6AcNxs=
 before_cache:
 - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
-- rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+- rm -rf $HOME/.gradle/caches/*/plugin-resolution/
 cache:
   directories:
   - "$HOME/.gradle/caches/"
   - "$HOME/.gradle/wrapper/"
+  - "$HOME/.gradle/mongo"
 deploy:
   provider: script
   script: "./gradlew bintrayPublish"

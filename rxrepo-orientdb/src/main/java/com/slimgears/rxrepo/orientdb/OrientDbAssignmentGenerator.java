@@ -1,9 +1,9 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.slimgears.rxrepo.sql.DefaultSqlAssignmentGenerator;
-import com.slimgears.rxrepo.sql.PropertyMetas;
 import com.slimgears.rxrepo.sql.ReferenceResolver;
 import com.slimgears.rxrepo.sql.SqlExpressionGenerator;
+import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;

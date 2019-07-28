@@ -17,9 +17,11 @@ import java.util.function.Predicate;
 
 @SuppressWarnings("WeakerAccess")
 public class Expressions {
+    @SuppressWarnings("unchecked")
     public static <S, T> Function<S, T> compile(ObjectExpression<S, T> exp) {
-        //noinspection unchecked
-        return (Function<S, T>)new InternalVisitor().visit(exp, null);
+        return exp != null
+                ? (Function<S, T>)new InternalVisitor().visit(exp, null)
+                : (Function<S, T>)Function.identity();
     }
 
     public static <S, V extends Comparable<V>> Comparator<S> compileComparator(PropertyExpression<S, ?, V> property, boolean ascending) {
@@ -31,11 +33,13 @@ public class Expressions {
     }
 
     public static <S> Predicate<S> compilePredicate(ObjectExpression<S, Boolean> predicateExp) {
-        return compile(predicateExp)::apply;
+        return predicateExp != null
+                ? compile(predicateExp)::apply
+                : e -> true;
     }
 
     public static <S> io.reactivex.functions.Predicate<S> compileRxPredicate(ObjectExpression<S, Boolean> predicateExp) {
-        return compile(predicateExp)::apply;
+        return compilePredicate(predicateExp)::test;
     }
 
     public static <S, T> io.reactivex.functions.Function<S, T> compileRx(ObjectExpression<S, T> exp) {

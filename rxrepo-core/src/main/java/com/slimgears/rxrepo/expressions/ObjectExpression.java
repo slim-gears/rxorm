@@ -1,29 +1,13 @@
 package com.slimgears.rxrepo.expressions;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.slimgears.rxrepo.expressions.internal.BooleanArgumentExpression;
-import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.BooleanPropertyExpression;
-import com.slimgears.rxrepo.expressions.internal.BooleanUnaryOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
-import com.slimgears.rxrepo.expressions.internal.ComparableArgumentExpression;
-import com.slimgears.rxrepo.expressions.internal.ComparablePropertyExpression;
-import com.slimgears.rxrepo.expressions.internal.ComparableUnaryOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.FilterCollectionOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.NumericArgumentExpression;
-import com.slimgears.rxrepo.expressions.internal.NumericPropertyExpression;
-import com.slimgears.rxrepo.expressions.internal.NumericUnaryOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.ObjectArgumentExpression;
-import com.slimgears.rxrepo.expressions.internal.ObjectPropertyExpression;
-import com.slimgears.rxrepo.expressions.internal.StringArgumentExpression;
-import com.slimgears.rxrepo.expressions.internal.StringPropertyExpression;
-import com.slimgears.rxrepo.expressions.internal.StringUnaryOperationExpression;
+import com.slimgears.rxrepo.expressions.internal.*;
 import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Collection;
 
 public interface ObjectExpression<S, T> extends Expression {
-    default @JsonIgnore TypeToken<? extends T> objectType() {
+    default @JsonIgnore TypeToken<T> objectType() {
         return type().resolveType(this);
     }
 
@@ -61,7 +45,7 @@ public interface ObjectExpression<S, T> extends Expression {
         return in(ConstantExpression.of(values));
     }
 
-    default BooleanExpression<S> in(ObjectExpression<S, Collection<T>> values) {
+    default BooleanExpression<S> in(ObjectExpression<S, ? extends Collection<T>> values) {
         return BooleanBinaryOperationExpression.create(Type.ValueIn, this, values);
     }
 
@@ -73,7 +57,7 @@ public interface ObjectExpression<S, T> extends Expression {
         return ComposedExpression.ofObject(this, expression);
     }
 
-    default <R> CollectionExpression<S, R> compose(CollectionExpression<T, R> expression) {
+    default <R, C extends Collection<R>> CollectionExpression<S, R, C> compose(CollectionExpression<T, R, C> expression) {
         return ComposedExpression.ofCollection(this, expression);
     }
 
@@ -113,7 +97,7 @@ public interface ObjectExpression<S, T> extends Expression {
         return PropertyExpression.ofString(this, expression.property());
     }
 
-    default <E> CollectionExpression<S, E> ref(CollectionPropertyExpression<?, T, E> expression) {
+    default <E, C extends Collection<E>> CollectionExpression<S, E, C> ref(CollectionPropertyExpression<?, T, E, C> expression) {
         return PropertyExpression.ofCollection(this, expression.property());
     }
 
@@ -179,10 +163,9 @@ public interface ObjectExpression<S, T> extends Expression {
                 : BooleanUnaryOperationExpression.create(Type.AsBoolean, expression);
     }
 
-    @SuppressWarnings("unchecked")
-    static <S, T> CollectionExpression<S, T> asCollection(ObjectExpression<S, ? extends Collection<T>> expression) {
+    static <S, T, C extends Collection<T>> CollectionExpression<S, T, C> asCollection(ObjectExpression<S, C> expression) {
         return expression instanceof CollectionExpression
-                ? (CollectionExpression<S, T>)expression
+                ? (CollectionExpression<S, T, C>)expression
                 : FilterCollectionOperationExpression.create(Type.CollectionFilter, expression, BooleanExpression.ofTrue());
     }
 

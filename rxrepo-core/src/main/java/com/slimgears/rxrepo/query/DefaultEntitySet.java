@@ -1,9 +1,13 @@
 package com.slimgears.rxrepo.query;
 
 import com.google.common.collect.ImmutableList;
-import com.slimgears.rxrepo.expressions.*;
+import com.slimgears.rxrepo.expressions.Aggregator;
+import com.slimgears.rxrepo.expressions.BooleanExpression;
+import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
+import com.slimgears.rxrepo.query.decorator.MandatoryPropertiesQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
@@ -100,12 +104,12 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> add(CollectionPropertyExpression<S, T, V> property, ObjectExpression<S, V> item) {
+            public <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<K, S> add(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item) {
                 return collectionOperation(property, item, CollectionPropertyUpdateInfo.Operation.Add);
             }
 
             @Override
-            public <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> remove(CollectionPropertyExpression<S, T, V> property, ObjectExpression<S, V> item) {
+            public <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<K, S> remove(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item) {
                 return collectionOperation(property, item, CollectionPropertyUpdateInfo.Operation.Remove);
             }
 
@@ -141,7 +145,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         .orElse(this);
             }
 
-            private <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> collectionOperation(CollectionPropertyExpression<S, T, V> property, ObjectExpression<S, V> item, CollectionPropertyUpdateInfo.Operation operation) {
+            private <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<K, S> collectionOperation(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item, CollectionPropertyUpdateInfo.Operation operation) {
                 builder.collectionPropertyUpdatesBuilder()
                         .add(CollectionPropertyUpdateInfo.create(property, item, operation));
                 return this;
@@ -187,7 +191,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     }
 
                     @Override
-                    public <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Maybe<R> aggregate(Aggregator<T, T, R, E> aggregator) {
+                    public <R> Maybe<R> aggregate(Aggregator<T, T, R> aggregator) {
                         return queryProvider.aggregate(builder.build(), aggregator);
                     }
 
@@ -243,7 +247,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                     }
 
                     @Override
-                    public <R, E extends UnaryOperationExpression<T, Collection<T>, R>> Observable<R> aggregate(Aggregator<T, T, R, E> aggregator) {
+                    public <R> Observable<R> aggregate(Aggregator<T, T, R> aggregator) {
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider.aggregate(query, aggregator)
                                 .toObservable()

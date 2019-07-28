@@ -11,7 +11,7 @@ public interface HasMapping<S, T> {
     @Nullable ObjectExpression<S, T> mapping();
     @Nullable Boolean distinct();
 
-    static <K, S extends HasMetaClassWithKey<K, S>, T, Q extends HasMapping<S, T> & HasEntityMeta<K, S>> TypeToken<? extends T> objectType(Q query) {
+    static <K, S extends HasMetaClassWithKey<K, S>, T, Q extends HasMapping<S, T> & HasEntityMeta<K, S>> TypeToken<T> objectType(Q query) {
         //noinspection unchecked
         return Optional
                 .ofNullable(query.mapping())

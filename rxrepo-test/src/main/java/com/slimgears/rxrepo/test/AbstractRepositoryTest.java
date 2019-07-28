@@ -21,15 +21,13 @@ import org.junit.rules.MethodRule;
 import org.junit.rules.TestName;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
@@ -77,7 +75,7 @@ public abstract class AbstractRepositoryTest {
                 .doOnNext(c -> System.out.println("Count: " + c))
                 .test();
 
-        productSet.update(createProducts(1000))
+        productSet.update(Products.createMany(1000))
                 .test()
                 .await()
                 .assertNoErrors();
@@ -133,19 +131,46 @@ public abstract class AbstractRepositoryTest {
     @Test
     //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testAddRecursiveInventory() throws InterruptedException {
+        Inventory inventory = Inventory.builder()
+                .id(UniqueId.inventoryId(1))
+                .name("Inventory 1")
+                .inventory(Inventory.builder()
+                        .id(UniqueId.inventoryId(2))
+                        .name("Inventory 2")
+                        .build())
+                .build();
+
         EntitySet<UniqueId, Inventory> inventorySet = repository.entities(Inventory.metaClass);
         inventorySet
-                .update(Inventory.builder()
-                        .id(UniqueId.inventoryId(1))
-                        .name("Inventory 1")
-                        .inventory(Inventory.builder()
-                                .id(UniqueId.inventoryId(2))
-                                .name("Inventory 2")
-                                .build())
-                        .build())
+                .update(inventory)
                 .test()
                 .await()
                 .assertNoErrors();
+
+        inventorySet.findAll()
+                .sorted(Comparator.comparing(c -> c.id().id()))
+                .test()
+                .awaitCount(2)
+                .assertNoTimeout()
+                .assertNoErrors()
+                .assertValueAt(0, inventory);
+    }
+
+    @Test
+    @UseLogLevel(LogLevel.DEBUG)
+    public void testAddAndRetrieveSingleEntity() {
+        Product product = Products.createOne();
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+        productSet.update(product)
+                .ignoreElement()
+                .blockingAwait();
+
+        productSet.findAll()
+                .test()
+                .awaitCount(1)
+                .assertNoErrors()
+                .assertNoTimeout()
+                .assertValue(product);
     }
 
     @Test
@@ -153,29 +178,30 @@ public abstract class AbstractRepositoryTest {
     public void testAddSameInventory() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         EntitySet<UniqueId, Inventory> inventorySet = repository.entities(Inventory.metaClass);
+        List<Product> products = Arrays.asList(
+                Product.builder()
+                        .name("Product 1")
+                        .key(UniqueId.productId(1))
+                        .price(1001)
+                        .inventory(Inventory
+                                .builder()
+                                .id(UniqueId.inventoryId(2))
+                                .name("Inventory 2")
+                                .build())
+                        .build(),
+                Product.builder()
+                        .name("Product 2")
+                        .key(UniqueId.productId(2))
+                        .price(1002)
+                        .inventory(Inventory
+                                .builder()
+                                .id(UniqueId.inventoryId(2))
+                                .name("Inventory 2")
+                                .build())
+                        .build());
+
         productSet
-                .update(Arrays.asList(
-                        Product.builder()
-                                .name("Product 1")
-                                .key(UniqueId.productId(1))
-                                .price(1001)
-                                .inventory(Inventory
-                                        .builder()
-                                        .id(UniqueId.inventoryId(2))
-                                        .name("Inventory 2")
-                                        .build())
-                                .build(),
-                        Product.builder()
-                                .name("Product 2")
-                                .key(UniqueId.productId(2))
-                                .price(1002)
-                                .inventory(Inventory
-                                        .builder()
-                                        .id(UniqueId.inventoryId(2))
-                                        .name("Inventory 2")
-                                        .build())
-                                .build()
-                ))
+                .update(products)
                 .test()
                 .await()
                 .assertNoErrors()
@@ -190,7 +216,7 @@ public abstract class AbstractRepositoryTest {
     @Test
     public void testInsertThenLiveSelectShouldReturnAdded() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
-        Iterable<Product> products = createProducts(1000);
+        Iterable<Product> products = Products.createMany(1000);
         productSet.update(products).test().await();
 
         productSet.query()
@@ -205,7 +231,7 @@ public abstract class AbstractRepositoryTest {
     //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testInsertThenLiveSelectCountShouldReturnCount() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
-        Iterable<Product> products = createProducts(1000);
+        Iterable<Product> products = Products.createMany(1000);
         productSet.update(products).test().await();
 
         TestObserver<Long> countObserver = productSet.query()
@@ -236,7 +262,7 @@ public abstract class AbstractRepositoryTest {
         CompletableSubject trigger1 = CompletableSubject.create();
         CompletableSubject trigger2 = CompletableSubject.create();
 
-        productSet.update(createProducts(1)).test().await().assertNoErrors();
+        productSet.update(Products.createMany(1)).test().await().assertNoErrors();
 
         TestObserver<Product> prodUpdateTester1 = productSet
                 .update(UniqueId.productId(0), prod -> prod
@@ -267,7 +293,7 @@ public abstract class AbstractRepositoryTest {
     @UseLogLevel(LogLevel.TRACE)
     public void testInsertThenRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
-        Iterable<Product> products = createProducts(1000);
+        Iterable<Product> products = Products.createMany(1000);
         Stopwatch stopwatch = Stopwatch.createUnstarted();
         productSet
                 .update(products)
@@ -322,7 +348,7 @@ public abstract class AbstractRepositoryTest {
     @UseLogLevel(LogLevel.TRACE)
     public void testInsertThenSearch() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
-        Iterable<Product> products = createProducts(100);
+        Iterable<Product> products = Products.createMany(100);
         Stopwatch stopwatch = Stopwatch.createUnstarted();
         productSet
                 .update(products)
@@ -346,7 +372,7 @@ public abstract class AbstractRepositoryTest {
     @Test
     public void testInsertThenUpdate() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
-        Iterable<Product> products = createProducts(1000);
+        Iterable<Product> products = Products.createMany(1000);
         productSet
                 .update(products)
                 .test()
@@ -374,7 +400,7 @@ public abstract class AbstractRepositoryTest {
     @UseLogLevel(LogLevel.TRACE)
     public void testPartialRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
-        Iterable<Product> products = createProducts(10);
+        Iterable<Product> products = Products.createMany(10);
         productSet
                 .update(products)
                 .test()
@@ -399,7 +425,7 @@ public abstract class AbstractRepositoryTest {
         EntitySet<UniqueId, Storage> storages = repository.entities(Storage.metaClass);
         storages.update(Storage.builder()
                 .key(UniqueId.storageId(1))
-                .productList(ImmutableList.copyOf(createProducts(10)))
+                .productList(ImmutableList.copyOf(Products.createMany(10)))
                 .build())
                 .test()
                 .await()
@@ -421,7 +447,7 @@ public abstract class AbstractRepositoryTest {
         storages.update(Storage.builder()
                 .key(UniqueId.storageId(1))
                 .productMapByName(Streams
-                        .fromIterable(createProducts(10))
+                        .fromIterable(Products.createMany(10))
                         .collect(ImmutableMap.toImmutableMap(Product::name, p -> p)))
                 .build())
                 .test()
@@ -468,7 +494,7 @@ public abstract class AbstractRepositoryTest {
 
     @Test
     public void testFilterByNestedCompoundKey() throws InterruptedException {
-        repository.entities(Product.metaClass).update(createProducts(10)).test().await();
+        repository.entities(Product.metaClass).update(Products.createMany(10)).test().await();
         repository.entities(Product.metaClass).query()
                 .where(Product.$.inventory.id.eq(UniqueId.inventoryId(0)))
                 .retrieve()
@@ -514,7 +540,7 @@ public abstract class AbstractRepositoryTest {
     @UseLogLevel(LogLevel.TRACE)
     public void testInsertThenQueryValueIn() throws InterruptedException {
         repository.entities(Product.metaClass)
-                .update(createProducts(10))
+                .update(Products.createMany(10))
                 .test()
                 .await();
 
@@ -615,7 +641,7 @@ public abstract class AbstractRepositoryTest {
     @Test @UseLogLevel(LogLevel.TRACE)
     public void testDistinctSelect() {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
-        products.update(createProducts(20)).ignoreElement().blockingAwait();
+        products.update(Products.createMany(20)).ignoreElement().blockingAwait();
         products.query()
                 .selectDistinct(Product.$.inventory.name)
                 .retrieve()
@@ -637,7 +663,7 @@ public abstract class AbstractRepositoryTest {
     @Test
     public void testQueryByNestedEmbeddedObject() throws InterruptedException {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
-        products.update(createProducts(20)).ignoreElement().blockingAwait();
+        products.update(Products.createMany(20)).ignoreElement().blockingAwait();
         UniqueId vendorId = UniqueId.vendorId(2);
         products.query()
                 .where(Product.$.vendor.id.eq(vendorId))
@@ -656,50 +682,11 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(0, p -> requireNonNull(p.vendor()).id().equals(vendorId));
     }
 
-    @SuppressWarnings("WeakerAccess")
-    public static Iterable<Product> createProducts(int count) {
-        final Product.Type[] productTypes = {
-                ProductPrototype.Type.ConsumerElectronics,
-                ProductPrototype.Type.ComputeHardware,
-                ProductPrototype.Type.ComputerSoftware
-        };
-
-        List<Inventory> inventories = IntStream.range(0, Math.max(1, count / 10))
-                .mapToObj(i -> Inventory
-                        .builder()
-                        .id(UniqueId.inventoryId(i))
-                        .name("Inventory " + i)
-                        .build())
-                .collect(Collectors.toList());
-
-        List<Vendor> vendors = Stream
-                .concat(
-                        IntStream.range(0, 3)
-                                .mapToObj(i -> Vendor
-                                        .builder()
-                                        .id(UniqueId.vendorId(i))
-                                        .name("Vendor " + i)
-                                        .build()),
-                        Stream.of((Vendor)null))
-                .collect(Collectors.toList());
-
-        return IntStream.range(0, count)
-                .mapToObj(i -> Product.builder()
-                        .key(UniqueId.productId(i))
-                        .name("Product " + i)
-                        .type(productTypes[i % productTypes.length])
-                        .inventory(inventories.get(i % inventories.size()))
-                        .vendor(vendors.get(i % vendors.size()))
-                        .price(100 + (i % 7)*(i % 11) + i % 13)
-                        .build())
-                .collect(Collectors.toList());
-    }
-
     @Test
     @UseLogLevel(LogLevel.TRACE)
     public void testObserveAsList() {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
-        products.update(createProducts(10)).ignoreElement().blockingAwait();
+        products.update(Products.createMany(10)).ignoreElement().blockingAwait();
         TestObserver<List<Product>> productTestObserver = products.query()
                 .orderBy(Product.$.name)
                 .limit(3)
@@ -747,7 +734,7 @@ public abstract class AbstractRepositoryTest {
 
     @Test
     public void testLiveQueryWithProjection() throws InterruptedException {
-        repository.entities(Product.metaClass).update(createProducts(10))
+        repository.entities(Product.metaClass).update(Products.createMany(10))
                 .test()
                 .await()
                 .assertNoErrors();

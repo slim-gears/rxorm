@@ -5,7 +5,7 @@ import com.slimgears.util.reflect.TypeToken;
 
 public interface ArgumentExpression<S, T> extends ObjectExpression<S, T> {
     @Override
-    default TypeToken<? extends T> objectType() {
+    default TypeToken<T> objectType() {
         return argType();
     }
 

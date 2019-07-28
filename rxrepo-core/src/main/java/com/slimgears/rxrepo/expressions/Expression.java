@@ -165,41 +165,41 @@ public interface Expression {
             return exp -> typeToken;
         }
 
-        private static <S, T> TypeToken<? extends T> fromArgument(ObjectExpression<S, T> exp) {
+        private static <S, T> TypeToken<T> fromArgument(ObjectExpression<S, T> exp) {
             return requireInstanceOf(exp, new TypeToken<UnaryOperationExpression<S, T, T>>(){})
                     .operand()
                     .objectType();
         }
 
-        private static <S, T> TypeToken<? extends T> fromFirstArgument(ObjectExpression<S, T> exp) {
+        private static <S, T> TypeToken<T> fromFirstArgument(ObjectExpression<S, T> exp) {
             return requireInstanceOf(exp, new TypeToken<BinaryOperationExpression<S, T, T, T>>(){})
                     .left()
                     .objectType();
         }
 
-        private static <S, T> TypeToken<? extends T> fromProperty(ObjectExpression<S, T> exp) {
+        private static <S, T> TypeToken<T> fromProperty(ObjectExpression<S, T> exp) {
             return requireInstanceOf(exp, new TypeToken<PropertyExpression<S, ?, T>>(){})
                     .property()
                     .type();
         }
 
-        private static <S, T> TypeToken<? extends T> fromConstant(ObjectExpression<S, T> exp) {
-            //noinspection unchecked
+        @SuppressWarnings("unchecked")
+        private static <S, T> TypeToken<T> fromConstant(ObjectExpression<S, T> exp) {
             return Optional.of(requireInstanceOf(exp, new TypeToken<ConstantExpression<S, T>>(){}))
                     .map(ConstantExpression::value)
                     .map(Object::getClass)
-                    .map(cls -> (Class<? extends T>)cls)
+                    .map(cls -> (Class<T>)cls)
                     .map(TypeToken::of)
                     .orElse(null);
         }
 
-        private static <S, T> TypeToken<? extends T> fromComposition(ObjectExpression<S, T> exp) {
+        private static <S, T> TypeToken<T> fromComposition(ObjectExpression<S, T> exp) {
             return requireInstanceOf(exp, new TypeToken<ComposedExpression<S, ?, T>>(){})
                 .expression()
                 .objectType();
         }
 
-        private static <S, T> TypeToken<? extends T> overridden(ObjectExpression<S, T> exp) {
+        private static <S, T> TypeToken<T> overridden(ObjectExpression<S, T> exp) {
             return exp.objectType();
         }
 

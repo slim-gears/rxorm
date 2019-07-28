@@ -7,7 +7,6 @@ import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 
-import java.util.Arrays;
 import java.util.Optional;
 
 public interface PropertyResolver {
@@ -36,7 +35,7 @@ public interface PropertyResolver {
     }
 
     @SuppressWarnings("unchecked")
-    default <T> T toObject(TypeToken<? extends T> typeToken) {
+    default <T> T toObject(TypeToken<T> typeToken) {
         if (typeToken.is(HasMetaClass.class::isAssignableFrom)) {
             return (T)toObject(MetaClasses.forToken((TypeToken)typeToken));
         } else {

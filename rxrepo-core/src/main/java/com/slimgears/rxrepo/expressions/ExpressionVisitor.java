@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.expressions;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 
+@SuppressWarnings("WeakerAccess")
 public abstract class ExpressionVisitor<_T, _R> {
     public _R visit(Expression expression, _T arg) {
         if (expression instanceof PropertyExpression) {
@@ -17,6 +18,8 @@ public abstract class ExpressionVisitor<_T, _R> {
             return visitComposition((ComposedExpression<?, ?, ?>)expression, arg);
         } else if (expression instanceof ArgumentExpression) {
             return visitArgument((ArgumentExpression<?, ?>)expression, arg);
+        } else if (expression instanceof DelegateExpression) {
+            return visit(((DelegateExpression<?, ?>)expression).delegate(), arg);
         } else {
             return visitOther((ObjectExpression<?, ?>)expression, arg);
         }
@@ -25,7 +28,9 @@ public abstract class ExpressionVisitor<_T, _R> {
     protected abstract _R reduceBinary(ObjectExpression<?, ?> expression, Expression.Type type, _R first, _R second);
     protected abstract _R reduceUnary(ObjectExpression<?, ?> expression, Expression.Type type, _R first);
 
-    protected abstract <S, T> _R visitOther(ObjectExpression<S, T> expression, _T arg);
+    protected <S, T> _R visitOther(ObjectExpression<S, T> expression, _T arg) {
+        throw new IllegalArgumentException("Not supported expression type: " + expression.toString());
+    }
 
     protected <S, T, R> _R visitComposition(ComposedExpression<S, T, R> expression, _T arg) {
         _R resSrc = this.visit(expression.source(), arg);

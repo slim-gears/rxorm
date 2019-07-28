@@ -18,6 +18,10 @@ public interface UniqueIdPrototype extends Serializable {
     @Filterable @JsonProperty int areaId();
     @Filterable @JsonProperty Class<?> type();
 
+    static UniqueIdPrototype productDescriptionId(int id) {
+        return UniqueId.create(id, 0, ProductDescription.class);
+    }
+
     static UniqueIdPrototype storageId(int id) {
         return UniqueId.create(id, 0, Storage.class);
     }

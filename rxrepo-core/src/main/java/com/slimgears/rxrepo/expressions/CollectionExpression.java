@@ -1,18 +1,11 @@
 package com.slimgears.rxrepo.expressions;
 
-import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.BooleanUnaryOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.CollectionArgumentExpression;
-import com.slimgears.rxrepo.expressions.internal.FilterCollectionOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.FlatMapCollectionOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.MapCollectionOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.NumericUnaryOperationExpression;
-import com.slimgears.rxrepo.expressions.internal.TypeTokens;
+import com.slimgears.rxrepo.expressions.internal.*;
 import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Collection;
 
-public interface CollectionExpression<S, E> extends ObjectExpression<S, Collection<E>> {
+public interface CollectionExpression<S, E, C extends Collection<E>> extends ObjectExpression<S, C> {
     default BooleanExpression<S> contains(ObjectExpression<S, E> item) {
         return BooleanBinaryOperationExpression.create(Expression.Type.Contains, this, item);
     }
@@ -37,17 +30,17 @@ public interface CollectionExpression<S, E> extends ObjectExpression<S, Collecti
         return NumericUnaryOperationExpression.create(Type.CollectionSize, this);
     }
 
-    default <R> CollectionExpression<S, R> map(ObjectExpression<E, R> mapper) {
+    default <R> CollectionExpression<S, R, Collection<R>> map(ObjectExpression<E, R> mapper) {
         return MapCollectionOperationExpression
                 .create(Type.CollectionMap, this, mapper);
     }
 
-    default <R> CollectionExpression<S, R> flatMap(ObjectExpression<E, Collection<R>> mapper) {
+    default <R> CollectionExpression<S, R, Collection<R>> flatMap(ObjectExpression<E, Collection<R>> mapper) {
         return FlatMapCollectionOperationExpression
                 .create(Type.CollectionFlatMap, this, mapper);
     }
 
-    default CollectionExpression<S, E> filter(ObjectExpression<E, Boolean> filter) {
+    default CollectionExpression<S, E, C> filter(ObjectExpression<E, Boolean> filter) {
         return FilterCollectionOperationExpression
                 .create(Type.CollectionFilter, this, filter);
     }
@@ -60,15 +53,15 @@ public interface CollectionExpression<S, E> extends ObjectExpression<S, Collecti
         return filter(BooleanExpression.not(condition)).isEmpty();
     }
 
-    default <R, OE extends UnaryOperationExpression<S, Collection<E>, R>> OE aggregate(Aggregator<S, E, R, OE> aggregator) {
+    default <R> UnaryOperationExpression<S, C, R> aggregate(Aggregator<S, E, R> aggregator) {
         return aggregator.apply(this);
     }
 
-    static <S> CollectionExpression<Collection<S>, S> arg(TypeToken<S> argType) {
+    static <S, C extends Collection<S>> CollectionExpression<C, S, C> arg(TypeToken<S> argType) {
         return CollectionArgumentExpression.create(Type.CollectionArgument, TypeToken.ofParameterized(Collection.class, argType));
     }
 
-    static <S, T> CollectionExpression<S, T> indirectArg(TypeToken<? extends T> argType) {
+    static <S, T, C extends Collection<T>> CollectionExpression<S, T, C> indirectArg(TypeToken<T> argType) {
         return CollectionArgumentExpression.create(Type.CollectionArgument, TypeToken.ofParameterized(Collection.class, argType));
     }
 }

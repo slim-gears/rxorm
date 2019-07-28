@@ -6,6 +6,7 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
+import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -182,10 +183,10 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R, ?> aggregator) {
-        TypeToken<? extends T> elementType = HasMapping.objectType(query);
+    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
+        TypeToken<T> elementType = HasMapping.objectType(query);
         ObjectExpression<T, R> aggregation = aggregator.apply(CollectionExpression.indirectArg(elementType));
-        TypeToken<? extends R> resultType = aggregation.objectType();
+        TypeToken<R> resultType = aggregation.objectType();
         return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
                 .executeQuery(statementProvider.forAggregation(query, aggregation, aggregationField))
                 .map(pr -> {

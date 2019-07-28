@@ -11,14 +11,14 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 @FilterPrototype
-public interface CollectionFilterPrototype<T> extends ObjectFilterPrototype<Collection<T>> {
+public interface CollectionFilterPrototype<T, C extends Collection<T>> extends ObjectFilterPrototype<C> {
     @Nullable Boolean isEmpty();
     @Nullable T contains();
     @Nullable ComparableFilter<Integer> size();
 
     @Override
-    default <S> Optional<BooleanExpression<S>> toExpression(ObjectExpression<S, Collection<T>> arg) {
-        Supplier<CollectionExpression<S, T>> collectionExpression = () -> ObjectExpression.asCollection(arg);
+    default <S> Optional<BooleanExpression<S>> toExpression(ObjectExpression<S, C> arg) {
+        Supplier<CollectionExpression<S, T, C>> collectionExpression = () -> ObjectExpression.asCollection(arg);
         return Filters.combineExpressions(
                 ObjectFilterPrototype.super.toExpression(arg),
                 Optional.ofNullable(size()).flatMap(s -> s.toExpression(collectionExpression.get().size())),

@@ -1,19 +1,14 @@
 package com.slimgears.rxrepo.expressions;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.slimgears.rxrepo.expressions.internal.BooleanComposedExpression;
-import com.slimgears.rxrepo.expressions.internal.CollectionComposedExpression;
-import com.slimgears.rxrepo.expressions.internal.ComparableComposedExpression;
-import com.slimgears.rxrepo.expressions.internal.NumericComposedExpression;
-import com.slimgears.rxrepo.expressions.internal.ObjectComposedExpression;
-import com.slimgears.rxrepo.expressions.internal.StringComposedExpression;
+import com.slimgears.rxrepo.expressions.internal.*;
 import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Collection;
 
 public interface ComposedExpression<S, T, R> extends ObjectExpression<S, R> {
     @Override
-    default TypeToken<? extends R> objectType() {
+    default TypeToken<R> objectType() {
         return expression().objectType();
     }
 
@@ -24,7 +19,7 @@ public interface ComposedExpression<S, T, R> extends ObjectExpression<S, R> {
         return ObjectComposedExpression.create(Type.Composition, source, expression);
     }
 
-    static <S, T, R> CollectionExpression<S, R> ofCollection(ObjectExpression<S, T> source, ObjectExpression<T, Collection<R>> expression) {
+    static <S, T, R, C extends Collection<R>> CollectionExpression<S, R, C> ofCollection(ObjectExpression<S, T> source, ObjectExpression<T, C> expression) {
         return CollectionComposedExpression.create(Type.CollectionComposition, source, expression);
     }
 

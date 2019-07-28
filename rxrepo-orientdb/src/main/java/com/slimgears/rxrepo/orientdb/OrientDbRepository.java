@@ -8,6 +8,7 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.RepositoryConfigModelBuilder;
+import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
 import com.slimgears.rxrepo.sql.SqlServiceFactory;
@@ -159,9 +160,9 @@ public class OrientDbRepository {
             configBuilder.retryInitialDurationMillis(value);
             return this;
         }
-
     }
-    static SqlServiceFactory.Builder serviceFactoryBuilder(Supplier<ODatabaseDocument> sessionProvider, Consumer<ODatabaseDocument> sessionCloser) {
+
+    private static SqlServiceFactory.Builder serviceFactoryBuilder(Supplier<ODatabaseDocument> sessionProvider, Consumer<ODatabaseDocument> sessionCloser) {
         OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(sessionProvider, sessionCloser);
         return SqlServiceFactory.builder()
                 .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
@@ -170,6 +171,6 @@ public class OrientDbRepository {
                 .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                 .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
                 .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
-                .decorate(OrientDbQueryProviderDecorator.decorator());
+                .decorate(LiveQueryProviderDecorator.decorator());
     }
 }

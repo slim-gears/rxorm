@@ -1,7 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.orientechnologies.orient.core.db.OrientDB;
-import com.slimgears.rxrepo.query.provider.AbstractQueryProviderDecorator;
+import com.slimgears.rxrepo.query.decorator.AbstractQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import io.reactivex.Completable;
 

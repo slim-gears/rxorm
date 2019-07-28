@@ -1,7 +1,11 @@
-package com.slimgears.rxrepo.query.provider;
+package com.slimgears.rxrepo.query.decorator;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.query.provider.DeleteInfo;
+import com.slimgears.rxrepo.query.provider.QueryInfo;
+import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Completable;
@@ -11,7 +15,7 @@ import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
 public class AbstractQueryProviderDecorator implements QueryProvider {
-    protected final QueryProvider underlyingProvider;
+    @SuppressWarnings("WeakerAccess") protected final QueryProvider underlyingProvider;
 
     protected AbstractQueryProviderDecorator(QueryProvider underlyingProvider) {
         this.underlyingProvider = underlyingProvider;
@@ -38,7 +42,7 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R, ?> aggregator) {
+    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return underlyingProvider.aggregate(query, aggregator);
     }
 

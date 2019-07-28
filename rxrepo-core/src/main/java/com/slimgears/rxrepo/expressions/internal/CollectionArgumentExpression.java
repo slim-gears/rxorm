@@ -4,17 +4,17 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import com.slimgears.rxrepo.expressions.ArgumentExpression;
-import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.CollectionExpression;
+import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Collection;
 
 @AutoValue
-public abstract class CollectionArgumentExpression<S, T> implements ArgumentExpression<S, Collection<T>>, CollectionExpression<S, T> {
+public abstract class CollectionArgumentExpression<S, T, C extends Collection<T>> implements ArgumentExpression<S, C>, CollectionExpression<S, T, C> {
     @JsonCreator
-    public static <S, T> CollectionArgumentExpression<S, T> create(
+    public static <S, T, C extends Collection<T>> CollectionArgumentExpression<S, T, C> create(
             @JsonProperty("type") Type type,
-            @JsonProperty("argType") TypeToken<Collection<T>> argType) {
+            @JsonProperty("argType") TypeToken<C> argType) {
         return new AutoValue_CollectionArgumentExpression<>(type, argType);
     }
 }
