@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.slimgears.rxrepo.mongodb.codecs.MetaClassCodec.fieldName;
+import static com.slimgears.util.generic.LazyString.lazy;
 
 public class MongoQueries {
     private final static Logger log = LoggerFactory.getLogger(MongoQueries.class);
@@ -77,7 +78,7 @@ public class MongoQueries {
                 .ifPresent(builder::add);
 
         List<Document> pipeline = builder.build();
-        pipeline.forEach(d -> log.debug("Pipeline element: {}", d.toJson()));
+        pipeline.forEach(d -> log.debug("Pipeline element: {}", lazy(d::toJson)));
         return pipeline;
     }
 
