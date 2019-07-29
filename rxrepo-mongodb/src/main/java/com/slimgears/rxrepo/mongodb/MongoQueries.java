@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.mongodb;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.slimgears.rxrepo.expressions.*;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.SortingInfo;
@@ -9,15 +10,16 @@ import com.slimgears.rxrepo.util.PropertyReferences;
 import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.generic.MoreStrings;
 import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.stream.Streams;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.slimgears.rxrepo.mongodb.codecs.MetaClassCodec.fieldName;
 
 public class MongoQueries {
     private final static Logger log = LoggerFactory.getLogger(MongoQueries.class);
@@ -38,7 +40,7 @@ public class MongoQueries {
         return aggregationPipeline(queryInfo, null);
     }
 
-    private static <K, S extends HasMetaClassWithKey<K, S>, T> List<Document> aggregationPipeline(QueryInfo<K, S, T> queryInfo, Aggregator<T, T, ?> aggregator) {
+    static <K, S extends HasMetaClassWithKey<K, S>, T> List<Document> aggregationPipeline(QueryInfo<K, S, T> queryInfo, Aggregator<T, T, ?> aggregator) {
         ImmutableList.Builder<Document> builder = ImmutableList.builder();
         builder.addAll(MongoQueries.lookupAndUnwindReferences(queryInfo.metaClass()));
 
@@ -52,12 +54,10 @@ public class MongoQueries {
                 .map(sorting -> new Document("$sort", sorting))
                 .ifPresent(builder::add);
 
-        Optional.ofNullable(queryInfo.skip())
-                .map(skip -> new Document("$skip", skip))
+        Optional.ofNullable(skip(queryInfo.skip()))
                 .ifPresent(builder::add);
 
-        Optional.ofNullable(queryInfo.limit())
-                .map(limit -> new Document("$limit", limit))
+        Optional.ofNullable(limit(queryInfo.limit()))
                 .ifPresent(builder::add);
 
         Optional.ofNullable(queryInfo.mapping())
@@ -77,7 +77,7 @@ public class MongoQueries {
                 .ifPresent(builder::add);
 
         List<Document> pipeline = builder.build();
-        pipeline.forEach(d -> log.debug("Pipeline element: {}", d));
+        pipeline.forEach(d -> log.debug("Pipeline element: {}", d.toJson()));
         return pipeline;
     }
 
@@ -90,8 +90,25 @@ public class MongoQueries {
         return new Document("$expr", obj);
     }
 
+    private static Document skip(Long skip) {
+        return Optional.ofNullable(skip)
+                .map(s -> new Document("$skip", s))
+                .orElse(null);
+    }
+
+    static Document limit(Long limit) {
+        return Optional
+                .ofNullable(limit)
+                .map(l -> new Document("$limit", l))
+                .orElse(null);
+    }
+
     private static Document match(ObjectExpression<?, ?> expression) {
         return new Document("$match", expr(expression));
+    }
+
+    static Document match(Document filter) {
+        return new Document("$match", filter);
     }
 
     public static <T> Document aggregation(TypeToken<T> type, Aggregator<T, T, ?> aggregator) {
@@ -117,27 +134,47 @@ public class MongoQueries {
     private static Document lookup(String prefixPath, PropertyMeta<?, ?> propertyMeta) {
         MetaClassWithKey<?, ?> targetMeta = MetaClasses.forTokenWithKeyUnchecked(propertyMeta.type());
         if (targetMeta == null) {
-            throw new RuntimeException(MoreStrings.format("Property {}.{} is not reference property", propertyMeta.declaringType().simpleName(), propertyMeta.name()));
+            throw new RuntimeException(MoreStrings.format("Property {}.{} is not reference property",
+                    propertyMeta.declaringType().simpleName(),
+                    propertyMeta.name()));
         }
         return new Document("$lookup",
                 new Document()
                         .append("from", targetMeta.simpleName())
-                        .append("localField", prefixPath + propertyMeta.name())
+                        .append("localField", prefixPath + fieldName(propertyMeta))
                         .append("foreignField", "_id")
-                        .append("as", prefixPath + propertyMeta.name()));
+                        .append("as", prefixPath + fieldName(propertyMeta)));
     }
 
     private static Document unwind(String prefixPath, PropertyMeta<?, ?> propertyMeta) {
         return new Document("$unwind",
                 new Document()
-                .append("path", "$" + prefixPath + propertyMeta.name())
+                .append("path", "$" + prefixPath + fieldName(propertyMeta))
                 .append("preserveNullAndEmptyArrays", true));
     }
 
     private static <T> Document toProjection(Iterable<PropertyExpression<T, ?, ?>> properties) {
         Document projection = new Document();
-        properties.forEach(p -> projection.append(propertyToString(p), 1));
+        Set<String> props = Streams.fromIterable(properties)
+                .map(MongoQueries::propertyToString)
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        ImmutableSet.copyOf(props)
+                .stream()
+                .flatMap(MongoQueries::parentProperties)
+                .forEach(props::remove);
+
+        props.forEach(p -> projection.append(p, 1));
         return projection;
+    }
+
+    private static Stream<String> parentProperties(String property) {
+        int pos = property.lastIndexOf('.');
+        if (pos < 0) {
+            return Stream.empty();
+        }
+        String parent = property.substring(0, pos);
+        return Stream.concat(Stream.of(parent), parentProperties(parent));
     }
 
     private static <T> Document toSorting(Iterable<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos) {
@@ -148,8 +185,8 @@ public class MongoQueries {
 
     private static String propertyToString(PropertyExpression<?, ?, ?> property) {
         if (property.target().type().operationType() == Expression.OperationType.Property) {
-            return propertyToString((PropertyExpression<?, ?, ?>)property.target()) + "." + property.property().name();
+            return propertyToString((PropertyExpression<?, ?, ?>)property.target()) + "." + fieldName(property.property());
         }
-        return property.property().name();
+        return fieldName(property.property());
     }
 }

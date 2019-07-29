@@ -3,7 +3,7 @@ package com.slimgears.rxrepo.util;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "WeakerAccess"})
 public class GenericMath {
     public static <T extends Number> T add(T left, T right) {
         if (left instanceof Integer) {
@@ -76,7 +76,7 @@ public class GenericMath {
         } else if (left instanceof BigInteger) {
             return (T)((BigInteger)left).divide((BigInteger)right);
         } else if (left instanceof BigDecimal) {
-            return (T)((BigDecimal)left).divide((BigDecimal) right);
+            return (T)((BigDecimal)left).divide((BigDecimal) right, BigDecimal.ROUND_HALF_UP);
         }
         throw new IllegalArgumentException("Not supported operation for: " + left);
     }
@@ -98,5 +98,26 @@ public class GenericMath {
             return (T)((BigDecimal)val).negate();
         }
         throw new IllegalArgumentException("Not supported operation for: " + val);
+    }
+
+    public static <T> T fromNumber(Number number, Class<T> cls) {
+        if (cls.isInstance(number)) {
+            return (T)number;
+        }
+        if (cls == Long.class || cls == long.class) {
+            return (T)(Number)number.longValue();
+        } else if (cls == Integer.class || cls == int.class) {
+            return (T)(Number)number.intValue();
+        } else if (cls == Short.class || cls == short.class) {
+            return (T)(Number)number.shortValue();
+        } else if (cls == Float.class || cls == float.class) {
+            return (T)(Number)number.floatValue();
+        } else if (cls == Double.class || cls == double.class) {
+            return (T)(Number)number.doubleValue();
+        } else if (cls == Byte.class || cls == byte.class) {
+            return (T)(Number)number.byteValue();
+        } else {
+            return null;
+        }
     }
 }

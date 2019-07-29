@@ -5,13 +5,14 @@ import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.reactivestreams.client.*;
-import com.slimgears.rxrepo.mongodb.codecs.Codecs;
+import com.slimgears.rxrepo.mongodb.codecs.*;
 import com.slimgears.rxrepo.test.*;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.observers.TestObserver;
 import org.bson.Document;
+import org.bson.codecs.configuration.CodecRegistries;
 import org.junit.*;
 import org.reactivestreams.Publisher;
 
@@ -43,7 +44,14 @@ public class MongoDbClientTest {
     public void setUp() {
         mongoClient = MongoClients
                 .create(MongoClientSettings.builder()
-                        .codecRegistry(Codecs.discover())
+                        .codecRegistry(CodecRegistries.fromProviders(Codecs
+                                .providerBuilder()
+                                .providers(
+                                        new StandardCodecs(),
+                                        new MoreValueCodecProvider(),
+                                        new EnumCodecProvider(),
+                                        MetaClassCodecProvider.createEmbedded())
+                                .build()))
                         .applyConnectionString(MongoTestUtils.connectionString)
 //                        .applyConnectionString(new ConnectionString("mongodb://root:example@localhost:27017"))
                         .build());
@@ -61,7 +69,7 @@ public class MongoDbClientTest {
         System.out.println("Done");
     }
 
-    @Test @Ignore
+    @Test
     public void testBasicFunctionality() {
         Observable.fromIterable(createMany(10))
                 .flatMapCompletable(p -> Completable.fromPublisher(collection
@@ -112,7 +120,7 @@ public class MongoDbClientTest {
                 .assertNoTimeout();
     }
 
-    @Test
+    @Test @Ignore
     public void testObjectWithReferencesFromEntity() {
         ProductDescription productDescription = ProductDescription
                 .builder()
@@ -147,7 +155,7 @@ public class MongoDbClientTest {
         Assert.assertEquals(productDescription, foundProductDescription);
     }
 
-    @Test @Ignore
+    @Test
     public void testCountAggregation() {
         MongoCollection<Document> storages = mongoDatabase.getCollection(Storage.metaClass.simpleName());
         MongoCollection<Document> products = mongoDatabase.getCollection(Product.metaClass.simpleName());

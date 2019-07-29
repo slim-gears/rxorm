@@ -82,6 +82,8 @@ class MongoTestUtils {
                     .net(new Net("localhost", port, false))
                     .replication(new Storage(null, "rs0", 5000))
                     .cmdOptions(new MongoCmdOptionsBuilder().useNoJournal(false).build())
+                    .timeout(new Timeout(10000))
+                    .stopTimeoutInMillis(10000)
                     .build();
 
             MongodExecutable executable = starter.prepare(mongodConfig);
@@ -98,7 +100,6 @@ class MongoTestUtils {
                     .blockingAwait();
 
             Observable.fromPublisher(adminDb.runCommand(new Document("replSetGetStatus", 1)))
-                    .doOnNext(r -> System.out.println(">>>>>>>>" + r))
                     .ignoreElements()
                     .blockingAwait();
 

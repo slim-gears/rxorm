@@ -3,8 +3,12 @@ package com.slimgears.rxrepo.util;
 import com.slimgears.rxrepo.annotations.Embedded;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.stream.Optionals;
+
+import java.util.Optional;
 
 @SuppressWarnings("WeakerAccess")
 public class PropertyMetas {
@@ -30,5 +34,12 @@ public class PropertyMetas {
 
     public static boolean hasMetaClass(PropertyMeta<?, ?> property) {
         return hasMetaClass(property.type());
+    }
+
+    public static boolean isKey(PropertyMeta<?, ?> property) {
+        return Optional.of(property.declaringType())
+                .flatMap(Optionals.ofType(MetaClassWithKey.class))
+                .map(mc -> mc.keyProperty() == property)
+                .orElse(false);
     }
 }

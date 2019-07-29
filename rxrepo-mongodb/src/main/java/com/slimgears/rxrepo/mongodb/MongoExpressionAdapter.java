@@ -19,8 +19,10 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
+import static com.slimgears.rxrepo.mongodb.codecs.MetaClassCodec.fieldName;
+
 class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
-    private final static String aggregationField = "__aggregation";
+    final static String aggregationField = "__aggregation";
     private final static Map<Class<?>, ImmutableList<String>> searchableFieldsPerClass = new ConcurrentHashMap<>();
 
     private final static ImmutableMap<Expression.Type, Reducer> expressionTypeReducers = ImmutableMap
@@ -122,15 +124,15 @@ class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
         return Stream.concat(
                 Streams.fromIterable(metaClass.properties())
                         .filter(p -> p.hasAnnotation(Searchable.class))
-                        .map(p -> prefix + p.name()),
+                        .map(p -> prefix + fieldName(p)),
                 Streams.fromIterable(metaClass.properties())
                         .filter(p -> p.type().is(HasMetaClass.class::isAssignableFrom))
-                        .flatMap(p -> retrieveAllSearchableFields(p.type().asClass(), prefix + p.name() + ".", visitedClasses)));
+                        .flatMap(p -> retrieveAllSearchableFields(p.type().asClass(), prefix + fieldName(p) + ".", visitedClasses)));
     }
 
     @Override
     protected <T, V> Object visitProperty(PropertyMeta<T, V> propertyMeta, Void arg) {
-        return propertyMeta.name();
+        return fieldName(propertyMeta);
     }
 
     @Override

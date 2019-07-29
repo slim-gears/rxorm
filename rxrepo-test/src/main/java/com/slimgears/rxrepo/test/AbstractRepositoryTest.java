@@ -412,6 +412,7 @@ public abstract class AbstractRepositoryTest {
                 .where(Product.$.price.lessOrEqual(115))
                 .orderBy(Product.$.key.id)
                 .retrieve(Product.$.name)
+                .doOnNext(System.out::println)
                 .test()
                 .await()
                 .assertNoErrors()

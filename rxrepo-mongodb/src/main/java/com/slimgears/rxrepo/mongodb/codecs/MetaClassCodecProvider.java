@@ -12,6 +12,23 @@ import java.util.concurrent.ConcurrentHashMap;
 @AutoService(CodecProvider.class)
 public class MetaClassCodecProvider implements CodecProvider {
     private final Map<Class, Codec<?>> codecRegistryMap = new ConcurrentHashMap<>();
+    private final boolean alwaysEmbedNested;
+
+    private MetaClassCodecProvider(boolean alwaysEmbedNested) {
+        this.alwaysEmbedNested = alwaysEmbedNested;
+    }
+
+    public MetaClassCodecProvider() {
+        this(false);
+    }
+
+    public static CodecProvider create() {
+        return new MetaClassCodecProvider(false);
+    }
+
+    public static CodecProvider createEmbedded() {
+        return new MetaClassCodecProvider(true);
+    }
 
     @SuppressWarnings("unchecked")
     @Override
@@ -23,6 +40,6 @@ public class MetaClassCodecProvider implements CodecProvider {
     }
 
     private <T extends HasMetaClass<T>> Codec<T> forType(Class<T> cls, CodecRegistry codecRegistry) {
-        return MetaClassCodec.create(cls, codecRegistry);
+        return MetaClassCodec.create(cls, codecRegistry, alwaysEmbedNested);
     }
 }

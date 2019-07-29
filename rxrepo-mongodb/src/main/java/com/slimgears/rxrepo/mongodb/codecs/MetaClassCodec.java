@@ -20,38 +20,50 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static com.slimgears.util.stream.Optionals.ofType;
-
 public class MetaClassCodec<T extends HasMetaClass<T>> implements Codec<T> {
     private final MetaClass<T> metaClass;
     private final CodecRegistry codecRegistry;
     private final Lazy<Optional<Function<T, String>>> textSupplier;
+    private final boolean alwaysEmbedNested;
 
-    private MetaClassCodec(Class<T> clazz, CodecRegistry codecRegistry) {
+    private MetaClassCodec(Class<T> clazz, CodecRegistry codecRegistry, boolean alwaysEmbedNested) {
         this.metaClass = MetaClasses.forClass(clazz);
+        this.alwaysEmbedNested = alwaysEmbedNested;
         this.textSupplier = Lazy.of(this::searchableTextFromEntity);
         this.codecRegistry = codecRegistry;
     }
 
     static <T extends HasMetaClass<T>> Codec<T> create(Class<T> clazz, CodecRegistry codecRegistry) {
-        return new MetaClassCodec<>(clazz, codecRegistry);
+        return new MetaClassCodec<>(clazz, codecRegistry, false);
+    }
+
+    static <T extends HasMetaClass<T>> Codec<T> create(Class<T> clazz, CodecRegistry codecRegistry, boolean alwaysEmbedNested) {
+        return new MetaClassCodec<>(clazz, codecRegistry, alwaysEmbedNested);
+    }
+
+    public static String fieldName(PropertyMeta<?, ?> propertyMeta) {
+        return PropertyMetas.isKey(propertyMeta) ? "_id" : propertyMeta.name();
     }
 
     @Override
     public T decode(BsonReader reader, DecoderContext decoderContext) {
         reader.readStartDocument();
         MetaBuilder<T> builder = metaClass.createBuilder();
+        int foundProperties = 0;
         while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
             String name = reader.readName();
             PropertyMeta<T, ?> propertyMeta = fromFieldName(name);
             if (propertyMeta != null) {
                 readProperty(reader, propertyMeta, builder, decoderContext);
+                ++foundProperties;
             } else {
                 reader.skipValue();
             }
         }
         reader.readEndDocument();
-        return builder.build();
+        return (foundProperties > 0)
+                ? builder.build()
+                : null;
     }
 
     @Override
@@ -84,23 +96,11 @@ public class MetaClassCodec<T extends HasMetaClass<T>> implements Codec<T> {
                 : metaClass.getProperty(fieldName);
     }
 
-    private String toFieldName(PropertyMeta<T, ?> property) {
-        return isKeyProperty(property) ? "_id" : property.name();
-    }
-
-    private boolean isKeyProperty(PropertyMeta<T, ?> property) {
-        return Optional
-                .ofNullable(property.declaringType())
-                .flatMap(ofType(MetaClassWithKey.class))
-                .map(mc -> mc.keyProperty() == property)
-                .orElse(false);
-    }
-
     private <V> void writeProperty(BsonWriter writer, PropertyMeta<T, V> propertyMeta, T object, EncoderContext context) {
         V val = propertyMeta.getValue(object);
         if (val != null) {
-            writer.writeName(toFieldName(propertyMeta));
-            if (PropertyMetas.isReference(propertyMeta)) {
+            writer.writeName(fieldName(propertyMeta));
+            if (!alwaysEmbedNested && PropertyMetas.isReference(propertyMeta)) {
                 MetaClassWithKey<?, V> metaClass = MetaClasses.forTokenWithKeyUnchecked(propertyMeta.type());
                 writeKey(writer, metaClass, val, context);
             } else {

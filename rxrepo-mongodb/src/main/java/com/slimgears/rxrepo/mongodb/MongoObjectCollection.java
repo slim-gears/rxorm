@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.mongodb;
 
+import com.google.common.collect.ImmutableList;
 import com.mongodb.DuplicateKeyException;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
@@ -11,17 +12,15 @@ import com.mongodb.reactivestreams.client.AggregatePublisher;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import com.slimgears.rxrepo.expressions.Aggregator;
-import com.slimgears.rxrepo.expressions.Expression;
-import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.expressions.internal.ObjectConstantExpression;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
-import com.slimgears.rxrepo.util.Expressions;
+import com.slimgears.rxrepo.util.GenericMath;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Lazy;
+import com.slimgears.util.stream.Optionals;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
@@ -35,9 +34,7 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
 import java.util.ConcurrentModificationException;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -47,7 +44,6 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
     private final MetaClass<S> metaClass;
     private final Lazy<MongoCollection<BsonDocument>> objectCollection;
     private final Lazy<MongoCollection<Document>> notificationCollection;
-    private final Codec<Document> documentCodec;
     private final Codec<S> codec;
     private final CodecRegistry codecRegistry;
 
@@ -55,20 +51,26 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
         this.metaClass = metaClass;
         this.codecRegistry = database.getCodecRegistry();
         this.codec = codecRegistry.get(metaClass.asClass());
-        this.documentCodec = codecRegistry.get(Document.class);
         this.objectCollection = Lazy.of(() -> database.getCollection(metaClass.simpleName(), BsonDocument.class));
         this.notificationCollection = Lazy.of(() -> database.getCollection(metaClass.simpleName() + ".updates"));
+    }
+
+    private Maybe<Document> find(K key) {
+        return Observable.fromPublisher(objectCollection.get()
+                .aggregate(ImmutableList.<Document>builder()
+                        .addAll(MongoQueries.lookupAndUnwindReferences(metaClass))
+                        .add(MongoQueries.match(MongoQueries.filterForKey(key)))
+                        .add(MongoQueries.limit(1L))
+                        .build()))
+                .firstElement();
     }
 
     Maybe<S> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> update) {
         AtomicLong version = new AtomicLong();
         AtomicReference<S> oldObject = new AtomicReference<>();
         AtomicReference<S> newObject = new AtomicReference<>();
-        return Observable
-                .fromPublisher(objectCollection.get()
-                .find(MongoQueries.filterForKey(key)))
-                .firstElement()
-                .doOnSuccess(doc -> version.set(doc.getInt64("_version").longValue()))
+        return find(key)
+                .doOnSuccess(doc -> version.set(doc.getLong("_version")))
                 .map(this::objectFromDocument)
                 .doOnSuccess(oldObject::set)
                 .map(Maybe::just)
@@ -108,22 +110,6 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
     }
 
     <T> Observable<T> query(QueryInfo<K, S, T> query) {
-//        FindPublisher<BsonDocument> findPublisher = objectCollection.get()
-//                .find()
-//                .filter(MongoQueries.expr(query.predicate()))
-//                .sort(MongoQueries.toSorting(query.sorting()))
-//                .projection(MongoQueries.toProjection(query.properties()));
-//
-//
-//        findPublisher = Optional.ofNullable(query.limit())
-//                .map(Long::intValue)
-//                .map(findPublisher::limit)
-//                .orElse(findPublisher);
-//
-//        findPublisher = Optional.ofNullable(query.skip())
-//                .map(Long::intValue)
-//                .map(findPublisher::skip)
-//                .orElse(findPublisher);
         AggregatePublisher<Document> publisher = objectCollection.get()
                 .aggregate(MongoQueries.aggregationPipeline(query));
 
@@ -135,21 +121,25 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
 
     <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         AggregatePublisher<Document> publisher = objectCollection.get()
-                .aggregate(MongoQueries.aggregationPipeline(query));
+                .aggregate(MongoQueries.aggregationPipeline(query, aggregator));
 
-        Expressions.compileRx(aggregator
-                .apply(ObjectExpression.objectArg(TypeToken.ofParameterized(List.class, query.objectType()))));
-
+        TypeToken<R> resultType = aggregator.objectType(query.objectType());
         return Observable.fromPublisher(publisher)
                 .doOnNext(doc -> log.debug("Retrieved document: {}", doc))
-                .map(objectFromDocument(query.objectType()))
-                .toList()
-                .toMaybe()
-                .map(l -> (Collection<T>)l)
-                .map(l -> ObjectConstantExpression.<T, Collection<T>>create(Expression.Type.Constant, l))
-                .map(aggregator::apply)
-                .map(Expressions::compile)
-                .map(exp -> exp.apply(null));
+                .map(doc -> doc.get(MongoExpressionAdapter.aggregationField))
+                .map(obj -> obj instanceof Document
+                        ? objectFromDocument(resultType).apply((Document)obj)
+                        : toValue(obj, resultType.asClass()))
+                .firstElement();
+    }
+
+    @SuppressWarnings("unchecked")
+    private <V> V toValue(Object obj, Class<V> valueType) {
+        return Optional.ofNullable(obj)
+                .flatMap(Optionals.ofType(valueType))
+                .orElseGet(() -> Number.class.isAssignableFrom(valueType)
+                        ? (V)GenericMath.fromNumber((Number)obj, (Class<? extends Number>)valueType)
+                        : null);
     }
 
     Observable<Notification<S>> liveQuery() {
