@@ -1,20 +1,20 @@
-buildscript {
-    apply from: "$rootProject.projectDir/gradle/buildscript.gradle", to: it
-    dependencies {
-        classpath "gradle.plugin.com.sourcemuse.gradle.plugin:GradleMongoPlugin:1.0.7"
-    }
-}
+//buildscript {
+//    apply from: "$rootProject.projectDir/gradle/buildscript.gradle", to: it
+//    dependencies {
+//        classpath "gradle.plugin.com.sourcemuse.gradle.plugin:GradleMongoPlugin:1.0.7"
+//    }
+//}
+//
+//apply plugin: "com.sourcemuse.mongo"
 
-apply plugin: "com.sourcemuse.mongo"
+//mongo {
+//    port 27018
+//    artifactStorePath "$rootProject.projectDir/.gradle/mongo"
+//    storageLocation "$buildDir/mongo"
+//}
 
-mongo {
-    port 27018
-    artifactStorePath "$rootProject.projectDir/.gradle/mongo"
-    storageLocation "$buildDir/mongo"
-}
-
-test.dependsOn(startMongoDb)
-test.finalizedBy(stopMongoDb)
+//test.dependsOn(startMongoDb)
+//test.finalizedBy(stopMongoDb)
 
 dependencies {
     implementation project(':rxrepo-core')
