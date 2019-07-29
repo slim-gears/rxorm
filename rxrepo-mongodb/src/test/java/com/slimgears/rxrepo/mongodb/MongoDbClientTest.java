@@ -21,7 +21,6 @@ import java.util.List;
 import static com.slimgears.rxrepo.test.Products.createMany;
 import static com.slimgears.rxrepo.test.Products.createOne;
 
-@Ignore
 public class MongoDbClientTest {
     private static AutoCloseable mongoProcess;
     private MongoClient mongoClient;
@@ -57,11 +56,12 @@ public class MongoDbClientTest {
     @After
     public void tearDown() {
         System.out.println("Closing mongo client...");
+        await(mongoDatabase.drop());
         mongoClient.close();
         System.out.println("Done");
     }
 
-    @Test
+    @Test @Ignore
     public void testBasicFunctionality() {
         Observable.fromIterable(createMany(10))
                 .flatMapCompletable(p -> Completable.fromPublisher(collection
@@ -147,7 +147,7 @@ public class MongoDbClientTest {
         Assert.assertEquals(productDescription, foundProductDescription);
     }
 
-    @Test
+    @Test @Ignore
     public void testCountAggregation() {
         MongoCollection<Document> storages = mongoDatabase.getCollection(Storage.metaClass.simpleName());
         MongoCollection<Document> products = mongoDatabase.getCollection(Product.metaClass.simpleName());

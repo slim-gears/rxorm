@@ -26,7 +26,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.slimgears.rxrepo.orientdb.OrientDbObjectConverter.toOrientDbObjects;
-import static com.slimgears.util.generic.LazyToString.lazy;
+import static com.slimgears.util.generic.LazyString.lazy;
 
 class OrientDbStatementExecutor implements SqlStatementExecutor {
     private final static Logger log = LoggerFactory.getLogger(OrientDbStatementExecutor.class);

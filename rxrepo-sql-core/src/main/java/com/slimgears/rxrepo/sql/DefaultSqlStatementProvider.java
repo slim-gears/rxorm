@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 
 import static com.slimgears.rxrepo.sql.SqlStatement.of;
 import static com.slimgears.rxrepo.sql.StatementUtils.concat;
-import static com.slimgears.util.generic.LazyToString.lazy;
+import static com.slimgears.util.generic.LazyString.lazy;
 
 public class DefaultSqlStatementProvider implements SqlStatementProvider {
     private final static Logger log = LoggerFactory.getLogger(DefaultSqlStatementProvider.class);
