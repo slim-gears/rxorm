@@ -15,11 +15,9 @@ import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.rxrepo.util.Expressions;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import io.reactivex.Completable;
-import io.reactivex.Maybe;
-import io.reactivex.Observable;
-import io.reactivex.Single;
+import io.reactivex.*;
 import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,6 +26,7 @@ public class MongoQueryProvider implements QueryProvider {
     private final MongoClient client;
     private final MongoDatabase database;
     private final Map<String, MongoObjectCollection<?, ?>> collectionCache = new ConcurrentHashMap<>();
+    private final Scheduler scheduler = Schedulers.io();
 
     MongoQueryProvider(String connectionString, String dbName) {
         this.client = MongoClients.create(MongoClientSettings
@@ -45,12 +44,15 @@ public class MongoQueryProvider implements QueryProvider {
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return collection(metaClass).insertOrUpdate(key, entityUpdater);
+        return collection(metaClass)
+                .insertOrUpdate(key, m -> entityUpdater.apply(m).subscribeOn(scheduler));
     }
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
-        return collection(query.metaClass()).query(query);
+        return collection(query.metaClass())
+                .query(query)
+                .subscribeOn(scheduler);
     }
 
 
@@ -64,7 +66,9 @@ public class MongoQueryProvider implements QueryProvider {
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return collection(query.metaClass()).aggregate(query, aggregator);
+        return collection(query.metaClass())
+                .aggregate(query, aggregator)
+                .subscribeOn(scheduler);
     }
 
     @Override
@@ -74,12 +78,15 @@ public class MongoQueryProvider implements QueryProvider {
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> delete) {
-        return collection(delete.metaClass()).delete(delete);
+        return collection(delete.metaClass())
+                .delete(delete)
+                .subscribeOn(scheduler);
     }
 
     @Override
     public Completable drop() {
-        return Completable.fromPublisher(database.drop());
+        return Completable.fromPublisher(database.drop())
+                .subscribeOn(scheduler);
     }
 
     @SuppressWarnings("unchecked")

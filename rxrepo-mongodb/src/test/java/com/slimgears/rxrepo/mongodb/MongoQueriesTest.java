@@ -13,13 +13,13 @@ import java.util.stream.Collectors;
 public class MongoQueriesTest {
     @Test
     public void testPropertyExpression() {
-        Document filter = MongoQueries.expr(Product.$.inventory.name.eq("Product 2"));
+        Document filter = MongoPipeline.expr(Product.$.inventory.name.eq("Product 2"));
         Assert.assertEquals("{\"$expr\": {\"$eq\": [\"$inventory.name\", \"Product 2\"]}}", filter.toJson());
     }
 
     @Test
     public void testBooleanAndExpression() {
-        Document filter = MongoQueries.expr(
+        Document filter = MongoPipeline.expr(
                 Product.$.inventory.name.eq("Product 2")
                 .and(Product.$.price.betweenInclusive(101, 106)));
         Assert.assertEquals("{\"$expr\": {\"$and\": [{\"$eq\": [\"$inventory.name\", \"Product 2\"]}, {\"$not\": {\"$or\": [{\"$lt\": [\"$price\", 101]}, {\"$gt\": [\"$price\", 106]}]}}]}}", filter.toJson());
@@ -27,7 +27,7 @@ public class MongoQueriesTest {
 
     @Test
     public void testBooleanOrExpression() {
-        Document filter = MongoQueries.expr(
+        Document filter = MongoPipeline.expr(
                 Product.$.inventory.name.eq("Product 2")
                 .or(Product.$.price.lessOrEqual(101)));
         Assert.assertEquals("{\"$expr\": {\"$or\": [{\"$eq\": [\"$inventory.name\", \"Product 2\"]}, {\"$not\": {\"$gt\": [\"$price\", 101]}}]}}", filter.toJson());
@@ -35,8 +35,10 @@ public class MongoQueriesTest {
 
     @Test
     public void testLookupFromMetaClass() {
-        String json = MongoQueries
+        String json = MongoPipeline
+                .builder()
                 .lookupAndUnwindReferences(ProductDescription.metaClass)
+                .build()
                 .stream()
                 .map(Document::toJson)
                 .collect(Collectors.joining("\n"));
@@ -52,7 +54,7 @@ public class MongoQueriesTest {
 
     @Test
     public void testAggregateCount() {
-        Document doc = MongoQueries.aggregation(TypeToken.of(Product.class), Aggregator.count());
+        Document doc = MongoPipeline.aggregation(TypeToken.of(Product.class), Aggregator.count());
         Assert.assertEquals("{\"$count\": \"__aggregation\"}", doc.toJson());
     }
 }

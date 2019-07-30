@@ -89,7 +89,7 @@ public class MongoDbClientTest {
 
         Assert.assertEquals(10, documents.size());
 
-        List<Product> filteredProducts = Observable.fromPublisher(collection.find(MongoQueries.expr(Product.$.price.greaterOrEqual(106))))
+        List<Product> filteredProducts = Observable.fromPublisher(collection.find(MongoPipeline.expr(Product.$.price.greaterOrEqual(106))))
                 .toList()
                 .blockingGet();
 
@@ -113,7 +113,7 @@ public class MongoDbClientTest {
                 .assertNoTimeout();
 
         Completable
-                .fromPublisher(collection.updateOne(MongoQueries.filterFor(product), new Document("$set", product.toBuilder().price(product.price() + 1).build())))
+                .fromPublisher(collection.updateOne(MongoPipeline.filterFor(product), new Document("$set", product.toBuilder().price(product.price() + 1).build())))
                 .blockingAwait();
 
         testObserver.awaitCount(2)
@@ -146,7 +146,10 @@ public class MongoDbClientTest {
         Completable.fromPublisher(products.insertOne(productDescription.product())).blockingAwait();
         Completable.fromPublisher(productDescriptions.insertOne(productDescription)).blockingAwait();
 
-        AggregatePublisher<ProductDescription> foundProducts = productDescriptions.aggregate(MongoQueries.lookupAndUnwindReferences(ProductDescription.metaClass), ProductDescription.class);
+        AggregatePublisher<ProductDescription> foundProducts = productDescriptions.aggregate(MongoPipeline
+                .builder()
+                .lookupAndUnwindReferences(ProductDescription.metaClass)
+                .build(), ProductDescription.class);
         ProductDescription foundProductDescription = Observable
                 .fromPublisher(foundProducts)
                 .firstElement()

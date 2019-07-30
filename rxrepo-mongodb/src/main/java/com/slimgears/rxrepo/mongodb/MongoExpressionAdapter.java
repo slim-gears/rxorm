@@ -2,27 +2,22 @@ package com.slimgears.rxrepo.mongodb;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.slimgears.rxrepo.annotations.Searchable;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ExpressionVisitor;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.autovalue.annotations.MetaClass;
-import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Optionals;
-import com.slimgears.util.stream.Streams;
 import org.bson.Document;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
 
 import static com.slimgears.rxrepo.mongodb.codecs.MetaClassCodec.fieldName;
 
 class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
-    final static String aggregationField = "__aggregation";
     private final static Map<Class<?>, ImmutableList<String>> searchableFieldsPerClass = new ConcurrentHashMap<>();
 
     private final static ImmutableMap<Expression.Type, Reducer> expressionTypeReducers = ImmutableMap
@@ -48,11 +43,11 @@ class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
                             expr("$strLenCP", args[0]),
                             expr("$strLenCP", args[1]))))
             .put(Expression.Type.Contains, args -> expr("$gte", expr("$indexOfCP", args), 0))
-            .put(Expression.Type.Count, args -> expr("$count", aggregationField))
-            .put(Expression.Type.Min, args -> expr("$min", aggregationField))
-            .put(Expression.Type.Max, args -> expr("$max", aggregationField))
-            .put(Expression.Type.Sum, args -> expr("$sum", aggregationField))
-            .put(Expression.Type.Average, args -> expr("$avg", aggregationField))
+            .put(Expression.Type.Count, args -> expr("$count", MongoPipeline.aggregationField))
+            .put(Expression.Type.Min, args -> expr("$min", MongoPipeline.aggregationField))
+            .put(Expression.Type.Max, args -> expr("$max", MongoPipeline.aggregationField))
+            .put(Expression.Type.Sum, args -> expr("$sum", MongoPipeline.aggregationField))
+            .put(Expression.Type.Average, args -> expr("$avg", MongoPipeline.aggregationField))
             .build();
 
     private final static ImmutableMap<Expression.OperationType, Reducer> operationTypeReducers = ImmutableMap
@@ -86,48 +81,6 @@ class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
     @Override
     protected Object reduceUnary(ObjectExpression<?, ?> expression, Expression.Type type, Object first) {
         return reduce(type, first);
-    }
-
-//    @SuppressWarnings("unchecked")
-//    @Override
-//    public Object visit(Expression expression, Void arg) {
-//        if (expression.type() == Expression.Type.SearchText) {
-//            return visitSearchText((BinaryOperationExpression<?, ?, String, Boolean>)expression, arg);
-//        }
-//        return super.visit(expression, arg);
-//    }
-
-//    private <S, T> Object visitSearchText(BinaryOperationExpression<S, T, String, Boolean> expression, Void arg) {
-//        Document concatSearchable = new Document("$concat", getAllSearchableFields(expression.left().objectType()));
-//        return expressionTypeReducers.get(Expression.Type.Contains)
-//                .reduce(concatSearchable, visit(expression.right(), arg));
-//    }
-//
-    private static <T> Iterable<String> getAllSearchableFields(TypeToken<T> token) {
-        return searchableFieldsPerClass.computeIfAbsent(token.asClass(), MongoExpressionAdapter::retrieveAllSearchableFields);
-    }
-
-    @SuppressWarnings("UnstableApiUsage")
-    private static ImmutableList<String> retrieveAllSearchableFields(Class<?> clazz) {
-        return retrieveAllSearchableFields(clazz, "", new HashSet<>())
-                .collect(ImmutableList.toImmutableList());
-    }
-
-    private static Stream<String> retrieveAllSearchableFields(Class<?> clazz, String prefix, Set<Class<?>> visitedClasses) {
-        if (!visitedClasses.add(clazz)) {
-            return Stream.empty();
-        }
-        MetaClass<?> metaClass = MetaClasses.forClassUnchecked(clazz);
-        if (metaClass == null) {
-            return Stream.empty();
-        }
-        return Stream.concat(
-                Streams.fromIterable(metaClass.properties())
-                        .filter(p -> p.hasAnnotation(Searchable.class))
-                        .map(p -> prefix + fieldName(p)),
-                Streams.fromIterable(metaClass.properties())
-                        .filter(p -> p.type().is(HasMetaClass.class::isAssignableFrom))
-                        .flatMap(p -> retrieveAllSearchableFields(p.type().asClass(), prefix + fieldName(p) + ".", visitedClasses)));
     }
 
     @Override

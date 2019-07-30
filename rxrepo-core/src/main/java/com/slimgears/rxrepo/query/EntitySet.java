@@ -22,12 +22,7 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
     SelectQueryBuilder<K, S> query();
     Single<S> update(S entity);
     Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater);
-
-    default Single<List<S>> update(Iterable<S> entities) {
-        return Observable.fromIterable(entities)
-                .flatMapSingle(this::update)
-                .toList();
-    }
+    Single<List<S>> update(Iterable<S> entities);
 
     default Observable<S> update(Observable<S> entities) {
         return entities.flatMapSingle(this::update);

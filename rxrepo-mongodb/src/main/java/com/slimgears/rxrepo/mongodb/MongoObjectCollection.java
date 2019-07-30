@@ -1,6 +1,5 @@
 package com.slimgears.rxrepo.mongodb;
 
-import com.google.common.collect.ImmutableList;
 import com.mongodb.DuplicateKeyException;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
@@ -16,8 +15,9 @@ import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.util.GenericMath;
+import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClass;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Lazy;
 import com.slimgears.util.stream.Optionals;
@@ -31,6 +31,7 @@ import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.conversions.Bson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,27 +42,27 @@ import java.util.concurrent.atomic.AtomicReference;
 
 class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
     private final static Logger log = LoggerFactory.getLogger(MongoObjectCollection.class);
-    private final MetaClass<S> metaClass;
+    private final MetaClassWithKey<K, S> metaClass;
     private final Lazy<MongoCollection<BsonDocument>> objectCollection;
-    private final Lazy<MongoCollection<Document>> notificationCollection;
-    private final Codec<S> codec;
+    private final Lazy<MongoCollection<BsonDocument>> notificationCollection;
+    private final Lazy<Codec<S>> codec;
     private final CodecRegistry codecRegistry;
 
-    MongoObjectCollection(MetaClass<S> metaClass, MongoDatabase database) {
+    MongoObjectCollection(MetaClassWithKey<K, S> metaClass, MongoDatabase database) {
         this.metaClass = metaClass;
         this.codecRegistry = database.getCodecRegistry();
-        this.codec = codecRegistry.get(metaClass.asClass());
+        this.codec = Lazy.of(() -> codecRegistry.get(metaClass.asClass()));
         this.objectCollection = Lazy.of(() -> database.getCollection(metaClass.simpleName(), BsonDocument.class));
-        this.notificationCollection = Lazy.of(() -> database.getCollection(metaClass.simpleName() + ".updates"));
+        this.notificationCollection = Lazy.of(() -> database.getCollection(metaClass.simpleName() + ".updates", BsonDocument.class));
     }
 
-    private Maybe<Document> find(K key) {
+    private Maybe<BsonDocument> findDocument(K key) {
         return Observable.fromPublisher(objectCollection.get()
-                .aggregate(ImmutableList.<Document>builder()
-                        .addAll(MongoQueries.lookupAndUnwindReferences(metaClass))
-                        .add(MongoQueries.match(MongoQueries.filterForKey(key)))
-                        .add(MongoQueries.limit(1L))
-                        .build()))
+                .aggregate(MongoPipeline.builder()
+                        .lookupAndUnwindReferences(metaClass)
+                        .match(MongoPipeline.filterForKey(key))
+                        .limit(1L)
+                        .build(), BsonDocument.class))
                 .firstElement();
     }
 
@@ -69,21 +70,25 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
         AtomicLong version = new AtomicLong();
         AtomicReference<S> oldObject = new AtomicReference<>();
         AtomicReference<S> newObject = new AtomicReference<>();
-        return find(key)
-                .doOnSuccess(doc -> version.set(doc.getLong("_version")))
+        AtomicReference<BsonDocument> oldDoc = new AtomicReference<>();
+        AtomicReference<BsonDocument> newDoc = new AtomicReference<>();
+        return findDocument(key)
+                .doOnSuccess(oldDoc::set)
+                .doOnSuccess(doc -> version.set(doc.getInt64(MongoPipeline.versionField).longValue()))
                 .map(this::objectFromDocument)
                 .doOnSuccess(oldObject::set)
                 .map(Maybe::just)
                 .flatMap(update)
                 .doOnSuccess(newObject::set)
                 .map(obj -> objectToDocument(obj, version.get() + 1))
-                .doOnSuccess(doc -> log.debug("Updating object: {}", doc))
+                .doOnSuccess(newDoc::set)
+                .doOnSuccess(doc -> log.trace("Updating object: {}", doc))
                 .flatMap(doc -> Single
                         .fromPublisher(objectCollection.get()
                                 .replaceOne(
-                                        MongoQueries.filterForKeyAndVersion(key, version.get()),
+                                        MongoPipeline.filterForKeyAndVersion(key, version.get()),
                                         doc))
-                        .doOnSuccess(res -> log.debug("Update result: {}", res))
+                        .doOnSuccess(res -> log.trace("Update result: {}", res))
                         .map(UpdateResult::getMatchedCount)
                         .flatMapMaybe(c -> c == 1
                                 ? Maybe.just(newObject.get())
@@ -91,46 +96,47 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                                         new ConcurrentModificationException("Concurrent modification detected: version " +
                                                 version.get() +
                                                 " of object id " + key + " not found")))
-                        .flatMap(obj -> publish(Notification
-                                .ofModified(oldObject.get(), obj))
+                        .flatMap(obj -> publish(oldDoc.get(), newDoc.get())
                                 .andThen(Maybe.just(obj))))
                 .switchIfEmpty(Maybe
                         .defer(() -> update.apply(Maybe.empty()))
                         .doOnSuccess(newObject::set)
-                        .doOnSuccess(doc -> log.debug("Creating new object: {}", doc))
+                        .doOnSuccess(doc -> log.trace("Creating new object: {}", doc))
                         .map(obj -> objectToDocument(obj, version.get()))
                         .flatMap(doc -> Single.fromPublisher(objectCollection.get()
                                 .insertOne(doc))
-                                .doOnSuccess(res -> log.debug("Insert result: {}", res))
+                                .doOnSuccess(res -> log.trace("Insert result: {}", res))
                                 .toMaybe()
                                 .map(res -> newObject.get())
                                 .onErrorResumeNext((Throwable e) -> Maybe.error(convertError(e)))))
-                .doOnSuccess(obj -> log.debug("Final object after update/insert: {}", obj))
-                .doOnError(e -> log.debug("Could not update object: ", e));
+                .doOnSuccess(obj -> log.trace("Final object after update/insert: {}", obj))
+                .doOnError(e -> log.trace("Could not update object: ", e));
     }
 
     <T> Observable<T> query(QueryInfo<K, S, T> query) {
-        AggregatePublisher<Document> publisher = objectCollection.get()
-                .aggregate(MongoQueries.aggregationPipeline(query));
-
-        return Observable
-                .fromPublisher(publisher)
+        return queryDocuments(query)
                 .doOnNext(doc -> log.debug("Retrieved document: {}", doc))
                 .map(objectFromDocument(query.objectType()));
     }
 
     <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        AggregatePublisher<Document> publisher = objectCollection.get()
-                .aggregate(MongoQueries.aggregationPipeline(query, aggregator));
+        AggregatePublisher<BsonDocument> publisher = objectCollection.get()
+                .aggregate(MongoPipeline.aggregationPipeline(query, aggregator), BsonDocument.class);
 
         TypeToken<R> resultType = aggregator.objectType(query.objectType());
         return Observable.fromPublisher(publisher)
                 .doOnNext(doc -> log.debug("Retrieved document: {}", doc))
-                .map(doc -> doc.get(MongoExpressionAdapter.aggregationField))
-                .map(obj -> obj instanceof Document
-                        ? objectFromDocument(resultType).apply((Document)obj)
+                .map(this::toDocument)
+                .map(doc -> doc.get(MongoPipeline.aggregationField))
+                .map(obj -> obj instanceof Bson
+                        ? objectFromDocument(resultType).apply((BsonDocument)obj)
                         : toValue(obj, resultType.asClass()))
                 .firstElement();
+    }
+
+    private Observable<BsonDocument> queryDocuments(QueryInfo<K, S, ?> query) {
+        return Observable.fromPublisher(objectCollection.get()
+                .aggregate(MongoPipeline.aggregationPipeline(query), BsonDocument.class));
     }
 
     @SuppressWarnings("unchecked")
@@ -151,23 +157,51 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                 .fromPublisher(objectCollection
                         .get()
                         .watch(BsonDocument.class))
+                .doOnNext(d -> log.trace("Change detected: {}", d))
                 .flatMapMaybe(this::notificationFromChangeDocument);
 
         return modifications.mergeWith(insertionsAndDeletions);
     }
 
-    private Completable publish(Notification<S> notification) {
+    private Completable publish(BsonDocument oldDoc, BsonDocument newDoc) {
         return Completable.fromPublisher(notificationCollection.get()
-                .insertOne(notificationToDocument(notification)));
+                .insertOne(createNotification(oldDoc, newDoc)));
+    }
+
+    private BsonDocument createNotification(BsonDocument oldDoc, BsonDocument newDoc) {
+        BsonValue id = Optionals.or(
+                () -> Optional.ofNullable(newDoc),
+                () -> Optional.ofNullable(oldDoc))
+                .map(doc -> doc.get("_id"))
+                .orElse(null);
+
+        return new Document("key", id)
+                .append("oldValue", oldDoc)
+                .append("newValue", newDoc)
+                .toBsonDocument(BsonDocument.class, codecRegistry);
+    }
+
+    private Completable publishNotification(BsonDocument notificationDocument) {
+        return Completable
+                .fromPublisher(notificationCollection.get()
+                .insertOne(notificationDocument));
     }
 
     Single<Integer> delete(DeleteInfo<K, S> deleteInfo) {
-        return Observable.fromPublisher(objectCollection.get()
-                .deleteMany(MongoQueries.expr(deleteInfo.predicate())))
-                .map(DeleteResult::getDeletedCount)
-                .firstElement()
-                .map(Long::intValue)
-                .toSingle(0);
+        return queryDocuments(QueryInfo
+                .<K, S, S>builder()
+                .metaClass(deleteInfo.metaClass())
+                .predicate(deleteInfo.predicate())
+                .limit(deleteInfo.limit())
+                .build())
+                .map(doc -> createNotification(doc, doc))
+                .flatMapCompletable(this::publishNotification)
+                .andThen(Observable.fromPublisher(objectCollection.get()
+                        .deleteMany(MongoPipeline.expr(deleteInfo.predicate())))
+                        .map(DeleteResult::getDeletedCount)
+                        .firstElement()
+                        .map(Long::intValue)
+                        .toSingle(0));
     }
 
     private static Throwable convertError(Throwable e) {
@@ -181,12 +215,6 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                 (e instanceof MongoWriteException && ((MongoWriteException)e).getError().getCategory() == ErrorCategory.DUPLICATE_KEY);
     }
 
-    private Document notificationToDocument(Notification<S> notification) {
-        return new Document()
-                .append("oldValue", notification.oldValue())
-                .append("newValue", notification.newValue());
-    }
-
     private Notification<S> notificationFromDocument(Document document) {
         return Notification.ofModified(
                 document.get("oldValue", metaClass.asClass()),
@@ -194,41 +222,57 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
     }
 
     private Maybe<Notification<S>> notificationFromChangeDocument(ChangeStreamDocument<BsonDocument> changeDoc) {
-        S object = Optional
-                .ofNullable(changeDoc.getFullDocument())
-                .map(this::objectFromDocument)
-                .orElse(null);
-
         if (changeDoc.getOperationType() == OperationType.INSERT) {
+            S object = Optional
+                    .ofNullable(changeDoc.getFullDocument())
+                    .map(this::objectFromDocument)
+                    .orElse(null);
             return Maybe.just(Notification.ofCreated(object));
         } else if (changeDoc.getOperationType() == OperationType.DELETE) {
-            return object != null
-                    ? Maybe.just(Notification.ofDeleted(object))
-                    : Maybe.empty();
+            BsonValue key = Optional.of(changeDoc.getDocumentKey())
+                    .map(doc -> doc.get("_id"))
+                    .orElse(null);
+
+            return Observable.fromPublisher(notificationCollection.get()
+                    .aggregate(MongoPipeline.builder()
+                            .match(MongoPipeline.filterForField("key", key))
+                            .replaceRoot("$newValue")
+                            .lookupAndUnwindReferences(metaClass)
+                            .sort(new Document(MongoPipeline.versionField, "-1"))
+                            .limit(1L)
+                            .build(), BsonDocument.class))
+                    .firstElement()
+                    .map(this::objectFromDocument)
+                    .map(Notification::ofDeleted);
         }
         return Maybe.empty();
     }
 
     private BsonDocument objectToDocument(S obj, long version) {
         BsonDocument doc = new BsonDocument();
-        codec.encode(new BsonDocumentWriter(doc), obj, EncoderContext.builder().build());
-        doc.append("_version", new BsonInt64(version));
+        codec.get().encode(new BsonDocumentWriter(doc), obj, EncoderContext.builder().build());
+        doc.append(MongoPipeline.versionField, new BsonInt64(version));
         return doc;
     }
 
     private S objectFromDocument(BsonDocument bsonDoc) {
-        return codec.decode(bsonDoc.asBsonReader(), DecoderContext.builder().build());
+        return codec.get().decode(bsonDoc.asBsonReader(), DecoderContext.builder().build());
     }
 
-    private S objectFromDocument(Document doc) {
-        return objectFromDocument(doc.toBsonDocument(BsonDocument.class, codecRegistry));
-    }
-
-    private <T> Function<Document, T> objectFromDocument(TypeToken<T> objectType) {
+    @SuppressWarnings("unchecked")
+    private <T> Function<Bson, T> objectFromDocument(TypeToken<T> objectType) {
         return doc -> {
-            BsonReader reader = doc.toBsonDocument(BsonDocument.class, codecRegistry).asBsonReader();
+            BsonDocument bsonDoc = doc.toBsonDocument(BsonDocument.class, codecRegistry);
+            if (!PropertyMetas.hasMetaClass(objectType)) {
+                return (T)bsonDoc.get(MongoPipeline.valueField);
+            }
+            BsonReader reader = bsonDoc.asBsonReader();
             Codec<T> codec = codecRegistry.get(objectType.asClass());
             return codec.decode(reader, DecoderContext.builder().build());
         };
+    }
+
+    private Document toDocument(BsonDocument bson) {
+        return codecRegistry.get(Document.class).decode(bson.asBsonReader(), DecoderContext.builder().build());
     }
 }

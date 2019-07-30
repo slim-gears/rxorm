@@ -348,6 +348,14 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     }
 
     @Override
+    public Single<List<S>> update(Iterable<S> entities) {
+        return Observable.fromIterable(entities)
+                .window(32)
+                .concatMap(w -> w.flatMapSingle(this::update))
+                .toList();
+    }
+
+    @Override
     public Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
         return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, updater))
                 .compose(Maybes.backOffDelayRetry(

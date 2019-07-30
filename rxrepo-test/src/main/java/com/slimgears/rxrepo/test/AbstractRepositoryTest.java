@@ -222,8 +222,10 @@ public abstract class AbstractRepositoryTest {
         productSet.query()
                 .liveSelect()
                 .queryAndObserve()
+                .doOnNext(System.out::println)
                 .test()
-                .awaitCount(1000)
+                .awaitCount(1000, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
+                .assertNoTimeout()
                 .assertValueAt(10, NotificationPrototype::isCreate);
     }
 
@@ -244,7 +246,7 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(0, c -> c == 1000);
 
         productSet.delete()
-                .where(Product.$.searchText("Product 1*"))
+                .where(Product.$.searchText("Product 1"))
                 .execute()
                 .test()
                 .await()
