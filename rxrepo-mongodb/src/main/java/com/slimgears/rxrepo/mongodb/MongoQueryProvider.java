@@ -94,8 +94,10 @@ public class MongoQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Observable<S> update(UpdateInfo<K, S> update) {
-        return Observable.empty();
+    public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> update(UpdateInfo<K, S> update) {
+        return collection(update.metaClass())
+                .update(update)
+                .subscribeOn(scheduler);
     }
 
     @Override

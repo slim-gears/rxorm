@@ -65,7 +65,6 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                         .stream()
                         .map(pu -> concat(sqlExpressionGenerator.toSqlExpression(pu.property()), "=", sqlExpressionGenerator.toSqlExpression(pu.updater())))
                         .collect(Collectors.joining(", ")),
-                "return after",
                 whereClause(updateInfo),
                 limitClause(updateInfo)));
     }

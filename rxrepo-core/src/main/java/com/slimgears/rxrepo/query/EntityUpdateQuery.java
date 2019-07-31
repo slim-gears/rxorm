@@ -6,7 +6,7 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import io.reactivex.Observable;
+import io.reactivex.Single;
 
 import java.util.Collection;
 
@@ -29,5 +29,5 @@ public interface EntityUpdateQuery<K, S extends HasMetaClassWithKey<K, S>>
         return remove(property, ConstantExpression.of(item));
     }
 
-    Observable<S> prepare();
+    Single<Integer> execute();
 }

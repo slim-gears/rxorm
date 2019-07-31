@@ -114,12 +114,12 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             }
 
             @Override
-            public Observable<S> prepare() {
-                return Observable
+            public Single<Integer> execute() {
+                return Single
                         .defer(() -> queryProvider.update(builder
                                 .predicate(predicate.get())
                                 .build()))
-                        .compose(Observables.backOffDelayRetry(
+                        .compose(Singles.backOffDelayRetry(
                                 DefaultEntitySet::isConcurrencyException,
                                 Duration.ofMillis(config.retryInitialDurationMillis()),
                                 config.retryCount()));

@@ -200,16 +200,17 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Observable<S> update(UpdateInfo<K, S> update) {
-        return schemaProvider.createOrUpdate(update.metaClass()).andThen(statementExecutor
-                .executeCommandReturnEntries(statementProvider.forUpdate(update))
-                .map(pr -> pr.toObject(update.metaClass())));
+    public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> update(UpdateInfo<K, S> update) {
+        return schemaProvider
+                .createOrUpdate(update.metaClass())
+                .andThen(statementExecutor.executeCommandReturnCount(statementProvider.forUpdate(update)));
     }
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> deleteInfo) {
-        return schemaProvider.createOrUpdate(deleteInfo.metaClass()).andThen(statementExecutor
-               .executeCommandReturnCount(statementProvider.forDelete(deleteInfo)));
+        return schemaProvider
+                .createOrUpdate(deleteInfo.metaClass())
+                .andThen(statementExecutor.executeCommandReturnCount(statementProvider.forDelete(deleteInfo)));
     }
 
     @Override

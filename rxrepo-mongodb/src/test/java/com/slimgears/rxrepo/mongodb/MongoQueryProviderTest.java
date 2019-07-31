@@ -4,9 +4,7 @@ import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.test.AbstractRepositoryTest;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 
-@Ignore
 public class MongoQueryProviderTest extends AbstractRepositoryTest {
     private static AutoCloseable mongoProcess;
 
@@ -20,11 +18,12 @@ public class MongoQueryProviderTest extends AbstractRepositoryTest {
         mongoProcess.close();
     }
 
-
     @Override
     protected Repository createRepository() {
         return MongoRepository.builder()
                 .port(MongoTestUtils.port)
+//                .user("root")
+//                .password("example")
                 .build();
     }
 }

@@ -119,7 +119,6 @@ public class SqlStatementProviderTest {
         Assert.assertEquals(
                 "update Product " +
                         "set `name` = (`name` + ?) " +
-                        "return after " +
                         "where (`name` like '%' + ? + '%') " +
                         "limit 100", statement.statement());
         Assert.assertArrayEquals(new Object[]{"aa", "bbb"}, statement.args());

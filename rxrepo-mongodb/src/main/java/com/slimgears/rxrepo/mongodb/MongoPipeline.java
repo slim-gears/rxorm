@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.slimgears.rxrepo.expressions.*;
+import com.slimgears.rxrepo.query.provider.PropertyUpdateInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.SortingInfo;
 import com.slimgears.rxrepo.util.PropertyMetas;
@@ -200,6 +201,12 @@ public class MongoPipeline {
         }
 
         return new Document("$expr", toExpression(expr));
+    }
+
+    static <T> Document setFields(ImmutableList<PropertyUpdateInfo<T, ?, ?>> propertyUpdates) {
+        Document fields = new Document();
+        propertyUpdates.forEach(pu -> fields.append(propertyToString(pu.property()), toExpression(pu.updater())));
+        return new Document("$set", fields);
     }
 
     static <T> Document aggregation(TypeToken<T> type, Aggregator<T, T, ?> aggregator) {

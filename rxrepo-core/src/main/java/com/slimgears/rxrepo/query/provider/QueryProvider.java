@@ -20,7 +20,7 @@ public interface QueryProvider extends AutoCloseable {
     <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query);
     <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator);
 
-    <K, S extends HasMetaClassWithKey<K, S>> Observable<S> update(UpdateInfo<K, S> update);
+    <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> update(UpdateInfo<K, S> update);
     <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> delete);
     Completable drop();
 

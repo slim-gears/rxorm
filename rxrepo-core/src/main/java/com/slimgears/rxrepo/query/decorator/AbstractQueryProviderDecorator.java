@@ -47,7 +47,7 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Observable<S> update(UpdateInfo<K, S> update) {
+    public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> update(UpdateInfo<K, S> update) {
         return underlyingProvider.update(update);
     }
 

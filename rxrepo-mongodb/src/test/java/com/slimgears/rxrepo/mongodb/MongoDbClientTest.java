@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.mongodb;
 
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.reactivestreams.client.*;
@@ -246,6 +247,25 @@ public class MongoDbClientTest {
                                 new Document("$expr",
                                         new Document("$eq", Arrays.asList("$product.inventory.name", "Inventory 1"))))
                                         )))
+                .doOnNext(System.out::println)
+                .ignoreElements()
+                .blockingAwait();
+    }
+
+    @Test @Ignore
+    public void testBulkUpdate() {
+        MongoCollection<Document> products = mongoDatabase.getCollection("Product");
+        Completable.fromPublisher(products.insertMany(Arrays.asList(
+                new Document("_id", 1).append("name", "Product 1").append("price", 100),
+                new Document("_id", 2).append("name", "Product 2").append("price", 200))))
+                .blockingAwait();
+        Completable.fromPublisher(products.updateMany(
+                new Document(),
+                new Document("$set",
+                        new Document("name", new Document("$concat", Arrays.asList("$name", " - ", "$price")))),
+                new UpdateOptions()))
+                .blockingAwait();
+        Observable.fromPublisher(products.find())
                 .doOnNext(System.out::println)
                 .ignoreElements()
                 .blockingAwait();

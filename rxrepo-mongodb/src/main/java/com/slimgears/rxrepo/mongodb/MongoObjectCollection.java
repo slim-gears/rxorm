@@ -14,6 +14,7 @@ import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
+import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -34,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ConcurrentModificationException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -80,24 +82,27 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                 .map(Maybe::just)
                 .flatMap(update)
                 .doOnSuccess(newObject::set)
-                .map(obj -> objectToDocument(obj, version.get() + 1))
-                .doOnSuccess(newDoc::set)
-                .doOnSuccess(doc -> log.trace("Updating object: {}", doc))
-                .flatMap(doc -> Single
-                        .fromPublisher(objectCollection.get()
-                                .replaceOne(
-                                        MongoPipeline.filterForKeyAndVersion(key, version.get()),
-                                        doc))
-                        .doOnSuccess(res -> log.trace("Update result: {}", res))
-                        .map(UpdateResult::getMatchedCount)
-                        .flatMapMaybe(c -> c == 1
-                                ? Maybe.just(newObject.get())
-                                : Maybe.error(
-                                        new ConcurrentModificationException("Concurrent modification detected: version " +
-                                                version.get() +
-                                                " of object (id: " + key + ") not found")))
-                        .flatMap(obj -> publish(oldDoc.get(), newDoc.get())
-                                .andThen(Maybe.just(obj))))
+                .flatMap(newObj -> Objects.equals(newObj, oldObject.get())
+                        ? Maybe.just(oldObject.get())
+                        : Maybe.just(newObj)
+                        .map(obj -> objectToDocument(obj, version.get() + 1))
+                        .doOnSuccess(newDoc::set)
+                        .doOnSuccess(doc -> log.trace("Updating object: {}", doc))
+                        .flatMap(doc -> Single
+                            .fromPublisher(objectCollection.get()
+                                    .replaceOne(
+                                            MongoPipeline.filterForKeyAndVersion(key, version.get()),
+                                            doc))
+                            .doOnSuccess(res -> log.trace("Update result: {}", res))
+                            .map(UpdateResult::getMatchedCount)
+                            .flatMapMaybe(c -> c == 1
+                                    ? Maybe.just(newObject.get())
+                                    : Maybe.error(
+                                            new ConcurrentModificationException("Concurrent modification detected: version " +
+                                                    version.get() +
+                                                    " of object (id: " + key + ") not found")))
+                            .flatMap(obj -> publish(oldDoc.get(), newDoc.get())
+                                    .andThen(Maybe.just(obj)))))
                 .switchIfEmpty(Maybe
                         .defer(() -> update.apply(Maybe.empty()))
                         .doOnSuccess(newObject::set)
@@ -116,10 +121,9 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
     <T> Observable<T> query(QueryInfo<K, S, T> query) {
         return queryDocuments(query)
                 .doOnNext(doc -> log.debug("Retrieved document: {}", doc))
-                .map(objectFromDocument(query.objectType()));
+                .map(doc -> objectFromDocument(doc, query.objectType()));
     }
 
-    @SuppressWarnings("unchecked")
     <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         AggregatePublisher<Document> publisher = objectCollection.get()
                 .aggregate(MongoPipeline.aggregationPipeline(query, aggregator));
@@ -129,30 +133,31 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                 .doOnNext(doc -> log.debug("Retrieved document: {}", doc))
                 .map(doc -> doc.get(MongoPipeline.aggregationField))
                 .doOnNext(doc -> log.debug("Aggregation result: {}", doc))
-                .map(obj -> obj instanceof Document
-                        ? objectFromDocument(resultType).apply((Document)obj)
-                        : (R)obj)
+                .map(obj -> toObject(obj, resultType))
                 .firstElement();
     }
 
     private Observable<Document> queryDocuments(QueryInfo<K, S, ?> query) {
-        return Observable.fromPublisher(objectCollection.get()
+        return Observable
+                .fromPublisher(objectCollection.get()
                 .aggregate(MongoPipeline.aggregationPipeline(query)));
     }
 
     Observable<Notification<S>> liveQuery() {
         Observable<Notification<S>> modifications = Observable.fromPublisher(notificationCollection.get().watch())
                 .map(ChangeStreamDocument::getFullDocument)
-                .map(this::notificationFromDocument);
+                .doOnNext(d -> log.trace("New update: {}", d.toJson()))
+                .map(this::notificationFromDocument)
+                .filter(n -> !Objects.equals(n.oldValue(), n.newValue()));
 
-        Observable<Notification<S>> insertionsAndDeletions = Observable
+        Observable<Notification<S>> insertions = Observable
                 .fromPublisher(objectCollection
                         .get()
                         .watch())
                 .doOnNext(d -> log.trace("Change detected: {}", d))
                 .flatMapMaybe(this::notificationFromChangeDocument);
 
-        return modifications.mergeWith(insertionsAndDeletions);
+        return modifications.mergeWith(insertions);
     }
 
     private Completable publish(Document oldDoc, Document newDoc) {
@@ -176,6 +181,17 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
         return Completable
                 .fromPublisher(notificationCollection.get()
                 .insertOne(notificationDocument));
+    }
+
+    Single<Integer> update(UpdateInfo<K, S> updateInfo) {
+        return Observable.fromPublisher(objectCollection.get()
+                .updateMany(
+                        MongoPipeline.expr(updateInfo.predicate()),
+                        MongoPipeline.setFields(updateInfo.propertyUpdates())))
+                .map(UpdateResult::getModifiedCount)
+                .firstElement()
+                .map(Long::intValue)
+                .toSingle(0);
     }
 
     Single<Integer> delete(DeleteInfo<K, S> deleteInfo) {
@@ -208,8 +224,17 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
 
     private Notification<S> notificationFromDocument(Document document) {
         return Notification.ofModified(
-                document.get("oldValue", metaClass.asClass()),
-                document.get("newValue", metaClass.asClass()));
+                toObject(document.get("oldValue"), metaClass.objectClass()),
+                toObject(document.get("newValue"), metaClass.objectClass()));
+    }
+
+    private <T> T toObject(Object object, TypeToken<T> type) {
+        if (object instanceof Document) {
+            return objectFromDocument((Document)object, type);
+        }
+        return type.asClass().isInstance(object)
+                ? type.asClass().cast(object)
+                : null;
     }
 
     private Maybe<Notification<S>> notificationFromChangeDocument(ChangeStreamDocument<Document> changeDoc) {
@@ -228,8 +253,7 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                     .aggregate(MongoPipeline.builder()
                             .match(MongoPipeline.filterForField("key", key))
                             .replaceRoot("$newValue")
-                            .lookupAndUnwindReferences(metaClass)
-                            .sort(new Document(MongoPipeline.versionField, "-1"))
+                            .sort(new Document(MongoPipeline.versionField, -1))
                             .limit(1L)
                             .build()))
                     .firstElement()
@@ -259,16 +283,14 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> Function<Document, T> objectFromDocument(TypeToken<T> objectType) {
-        return doc -> {
-            if (!PropertyMetas.hasMetaClass(objectType)) {
-                return (T)doc.get(MongoPipeline.valueField);
-            }
-            BsonDocument bsonDoc = doc.toBsonDocument(BsonDocument.class, codecRegistry);
-            BsonReader reader = bsonDoc.asBsonReader();
-            Codec<T> codec = codecRegistry.get(objectType.asClass());
-            return codec.decode(reader, DecoderContext.builder().build());
-        };
+    private <T> T objectFromDocument(Document doc, TypeToken<T> objectType) {
+        if (!PropertyMetas.hasMetaClass(objectType)) {
+            return (T)doc.get(MongoPipeline.valueField);
+        }
+        BsonDocument bsonDoc = doc.toBsonDocument(BsonDocument.class, codecRegistry);
+        BsonReader reader = bsonDoc.asBsonReader();
+        Codec<T> codec = codecRegistry.get(objectType.asClass());
+        return codec.decode(reader, DecoderContext.builder().build());
     }
 
     private Document toDocument(BsonDocument bson) {

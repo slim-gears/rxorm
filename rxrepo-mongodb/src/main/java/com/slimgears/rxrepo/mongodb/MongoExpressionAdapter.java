@@ -35,6 +35,8 @@ class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
             .put(Expression.Type.GreaterThan, args -> expr("$gt", args))
             .put(Expression.Type.ValueIn, args -> expr("$in", args))
             .put(Expression.Type.Length, args -> expr("$strLenCP", args))
+            .put(Expression.Type.Concat, args -> expr("$concat", args))
+            .put(Expression.Type.AsString, args -> expr("$toString", args))
             .put(Expression.Type.StartsWith, args -> expr("$eq", expr("$indexOfCP", args), 0))
             .put(Expression.Type.SearchText, args -> reduce(Expression.Type.Contains, args[0] + "_text", args[1]))
             .put(Expression.Type.EndsWith, args -> expr("$eq",
