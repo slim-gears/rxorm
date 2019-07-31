@@ -1,6 +1,8 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.test.Inventory;
+import com.slimgears.rxrepo.test.Product;
 import com.slimgears.rxrepo.util.Expressions;
 import org.junit.Assert;
 import org.junit.Test;
@@ -8,8 +10,8 @@ import org.junit.Test;
 import java.util.Objects;
 import java.util.function.Function;
 
-import static com.slimgears.rxrepo.orientdb.UniqueId.inventoryId;
-import static com.slimgears.rxrepo.orientdb.UniqueId.productId;
+import static com.slimgears.rxrepo.test.UniqueId.inventoryId;
+import static com.slimgears.rxrepo.test.UniqueId.productId;
 
 public class ExpressionsTest {
     private final Product product1 = Product.builder()

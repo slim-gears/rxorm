@@ -14,6 +14,8 @@ import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.slimgears.rxrepo.sql.CacheSchemaProviderDecorator;
 import com.slimgears.rxrepo.sql.SchemaProvider;
+import com.slimgears.rxrepo.test.Inventory;
+import com.slimgears.rxrepo.test.UniqueId;
 import io.reactivex.functions.Consumer;
 import org.junit.Ignore;
 import org.junit.Test;

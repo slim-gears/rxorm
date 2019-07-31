@@ -43,18 +43,21 @@ public class MongoQueriesTest {
                 .map(Document::toJson)
                 .collect(Collectors.joining("\n"));
         Assert.assertEquals(
-                "{\"$lookup\": {\"from\": \"Product\", \"localField\": \"product\", \"foreignField\": \"_id\", \"as\": \"product\"}}\n" +
+                "{\"$lookup\": {\"from\": \"Product\", \"localField\": \"product__ref\", \"foreignField\": \"_id\", \"as\": \"product\"}}\n" +
                         "{\"$unwind\": {\"path\": \"$product\", \"preserveNullAndEmptyArrays\": true}}\n" +
-                        "{\"$lookup\": {\"from\": \"Inventory\", \"localField\": \"product.inventory\", \"foreignField\": \"_id\", \"as\": \"product.inventory\"}}\n" +
+                        "{\"$project\": {\"product__ref\": 0}}\n" +
+                        "{\"$lookup\": {\"from\": \"Inventory\", \"localField\": \"product.inventory__ref\", \"foreignField\": \"_id\", \"as\": \"product.inventory\"}}\n" +
                         "{\"$unwind\": {\"path\": \"$product.inventory\", \"preserveNullAndEmptyArrays\": true}}\n" +
-                        "{\"$lookup\": {\"from\": \"Inventory\", \"localField\": \"product.inventory.inventory\", \"foreignField\": \"_id\", \"as\": \"product.inventory.inventory\"}}\n" +
-                        "{\"$unwind\": {\"path\": \"$product.inventory.inventory\", \"preserveNullAndEmptyArrays\": true}}",
+                        "{\"$project\": {\"product.inventory__ref\": 0}}\n" +
+                        "{\"$lookup\": {\"from\": \"Inventory\", \"localField\": \"product.inventory.inventory__ref\", \"foreignField\": \"_id\", \"as\": \"product.inventory.inventory\"}}\n" +
+                        "{\"$unwind\": {\"path\": \"$product.inventory.inventory\", \"preserveNullAndEmptyArrays\": true}}\n" +
+                        "{\"$project\": {\"product.inventory.inventory__ref\": 0}}",
                 json);
     }
 
     @Test
     public void testAggregateCount() {
         Document doc = MongoPipeline.aggregation(TypeToken.of(Product.class), Aggregator.count());
-        Assert.assertEquals("{\"$count\": \"__aggregation\"}", doc.toJson());
+        Assert.assertEquals("{\"$sum\": {\"$toLong\": 1}}", doc.toJson());
     }
 }
