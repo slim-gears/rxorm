@@ -648,6 +648,7 @@ public abstract class AbstractRepositoryTest {
         products.query()
                 .selectDistinct(Product.$.inventory.name)
                 .retrieve()
+                .doOnNext(System.out::println)
                 .toList()
                 .test()
                 .awaitCount(1)

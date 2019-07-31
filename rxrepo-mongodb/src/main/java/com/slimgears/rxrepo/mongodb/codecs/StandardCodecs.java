@@ -12,7 +12,7 @@ public class StandardCodecs implements CodecProvider {
             .providerBuilder()
             .providers(
                     new ValueCodecProvider(),
-                    new IterableCodecProvider(),
+                    new IterableCodecProvider(new ContextValueTransformer()),
                     new DocumentCodecProvider(),
                     new BsonValueCodecProvider(),
                     new DBRefCodecProvider(),

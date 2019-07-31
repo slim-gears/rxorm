@@ -6,7 +6,10 @@ import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import com.slimgears.rxrepo.expressions.Aggregator;
+import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.mongodb.codecs.Codecs;
+import com.slimgears.rxrepo.mongodb.codecs.MetaClassCodecProvider;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
@@ -18,8 +21,10 @@ import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
+import org.bson.codecs.configuration.CodecRegistries;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MongoQueryProvider implements QueryProvider {
@@ -27,14 +32,31 @@ public class MongoQueryProvider implements QueryProvider {
     private final MongoDatabase database;
     private final Map<String, MongoObjectCollection<?, ?>> collectionCache = new ConcurrentHashMap<>();
     private final Scheduler scheduler = Schedulers.io();
+    private final ReferencedObjectResolver objectResolver = new ReferencedObjectResolver() {
+        @Override
+        public <K, S extends HasMetaClassWithKey<K, S>> S resolve(MetaClassWithKey<K, S> metaClass, K key) {
+            return collection(metaClass)
+                    .query(QueryInfo.<K, S, S>builder()
+                            .metaClass(metaClass)
+                            .predicate(PropertyExpression.ofObject(ObjectExpression.arg(metaClass.objectClass()), metaClass.keyProperty()).eq(key))
+                            .limit(1L)
+                            .build())
+                    .firstElement()
+                    .map(Optional::of)
+                    .blockingGet(Optional.empty())
+                    .orElse(null);
+        }
+    };
 
     MongoQueryProvider(String connectionString, String dbName) {
         this.client = MongoClients.create(MongoClientSettings
                 .builder()
                 .applyConnectionString(new ConnectionString(connectionString))
-                .codecRegistry(Codecs.discover())
                 .build());
-        this.database = client.getDatabase(dbName);
+        this.database = client.getDatabase(dbName)
+                .withCodecRegistry(CodecRegistries.fromProviders(
+                        Codecs.discoverProviders(),
+                        MetaClassCodecProvider.create(objectResolver)));
     }
 
     @Override

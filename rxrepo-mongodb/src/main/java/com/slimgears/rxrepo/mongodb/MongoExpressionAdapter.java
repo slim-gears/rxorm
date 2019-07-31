@@ -43,11 +43,11 @@ class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
                             expr("$strLenCP", args[0]),
                             expr("$strLenCP", args[1]))))
             .put(Expression.Type.Contains, args -> expr("$gte", expr("$indexOfCP", args), 0))
-            .put(Expression.Type.Count, args -> expr("$count", MongoPipeline.aggregationField))
-            .put(Expression.Type.Min, args -> expr("$min", MongoPipeline.aggregationField))
-            .put(Expression.Type.Max, args -> expr("$max", MongoPipeline.aggregationField))
-            .put(Expression.Type.Sum, args -> expr("$sum", MongoPipeline.aggregationField))
-            .put(Expression.Type.Average, args -> expr("$avg", MongoPipeline.aggregationField))
+            .put(Expression.Type.Count, args -> expr("$sum", expr("$toLong", 1)))
+            .put(Expression.Type.Min, args -> expr("$min", "$" + MongoPipeline.valueField))
+            .put(Expression.Type.Max, args -> expr("$max", "$" + MongoPipeline.valueField))
+            .put(Expression.Type.Sum, args -> expr("$sum", "$" + MongoPipeline.valueField))
+            .put(Expression.Type.Average, args -> expr("$avg", "$" + MongoPipeline.valueField))
             .build();
 
     private final static ImmutableMap<Expression.OperationType, Reducer> operationTypeReducers = ImmutableMap

@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.slimgears.rxrepo.mongodb.codecs.MetaClassCodec.fieldName;
+import static com.slimgears.rxrepo.mongodb.codecs.MetaClassCodec.referenceFieldName;
 
 @SuppressWarnings("WeakerAccess")
 public class MongoPipeline {
@@ -51,7 +52,10 @@ public class MongoPipeline {
         public Builder lookupAndUnwindReferences(MetaClass<?> metaClass) {
             builder.addAll(PropertyReferences.forMetaClass(metaClass)
                     .stream()
-                    .flatMap(pr -> Stream.of(lookup(pr), unwind(pr)))
+                    .flatMap(pr -> Stream.of(
+                            lookup(pr),
+                            unwind(pr),
+                            exclude(pr.referencePath() + referenceFieldName(pr.property()))))
                     .collect(Collectors.toList()));
             return this;
         }
@@ -118,8 +122,9 @@ public class MongoPipeline {
 
         public <T> Builder aggregate(TypeToken<T> type, Aggregator<T, T, ?> aggregator) {
             Optional.ofNullable(aggregator)
-                    .map(ag -> aggregation(type, ag))
-                    .ifPresent(builder::add);
+                    .ifPresent(ag -> group(
+                            new Document("_id", null)
+                            .append(aggregationField, aggregation(type, ag))));
             return this;
         }
 
@@ -212,12 +217,28 @@ public class MongoPipeline {
         return new MongoExpressionAdapter().visit(expression, null);
     }
 
+    private static Document exclude(String... fields) {
+        Document excluded = new Document();
+        Arrays.asList(fields).forEach(f -> excluded.append(f, 0));
+        return new Document("$project", excluded);
+    }
+
     private static Document lookup(PropertyReference propertyReference) {
         return lookup(propertyReference.referencePath(), propertyReference.property());
     }
 
     private static Document unwind(PropertyReference propertyReference) {
         return unwind(propertyReference.referencePath(), propertyReference.property());
+    }
+
+    private static Document renameReference(PropertyReference reference) {
+        return rename(
+                reference.referencePath() + referenceFieldName(reference.property()),
+                reference.referencePath() + fieldName(reference.property()));
+    }
+
+    private static Document rename(String fromName, String toName) {
+        return new Document("$rename", new Document(fromName, toName));
     }
 
     private static Document lookup(String prefixPath, PropertyMeta<?, ?> propertyMeta) {
@@ -230,7 +251,7 @@ public class MongoPipeline {
         return new Document("$lookup",
                 new Document()
                         .append("from", targetMeta.simpleName())
-                        .append("localField", prefixPath + fieldName(propertyMeta))
+                        .append("localField", prefixPath + referenceFieldName(propertyMeta))
                         .append("foreignField", "_id")
                         .append("as", prefixPath + fieldName(propertyMeta)));
     }
