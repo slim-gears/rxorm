@@ -1,14 +1,12 @@
 package com.slimgears.rxrepo.mongodb.codecs;
 
-import com.google.common.base.Strings;
-import com.slimgears.rxrepo.annotations.Searchable;
+import com.slimgears.rxrepo.encoding.MetaClassSearchableFields;
 import com.slimgears.rxrepo.mongodb.ReferencedObjectResolver;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Lazy;
 import com.slimgears.util.stream.Optionals;
-import com.slimgears.util.stream.Streams;
 import org.bson.*;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
@@ -16,17 +14,13 @@ import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.conversions.Bson;
 
-import java.util.HashSet;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 public class MetaClassCodec<T extends HasMetaClass<T>> implements Codec<T> {
     private final static Transformer emptyTransformer = obj -> obj;
     private final static DecoderContext defaultDecoderContext = DecoderContext.builder().build();
-    private final static EncoderContext defaultEncoderContext = EncoderContext.builder().build();
     private final MetaClass<T> metaClass;
     private final CodecRegistry codecRegistry;
     private final Lazy<Optional<Function<T, String>>> textSupplier;
@@ -38,7 +32,7 @@ public class MetaClassCodec<T extends HasMetaClass<T>> implements Codec<T> {
         this.metaClass = MetaClasses.forClass(clazz);
         this.objectResolver = objectResolver;
         this.alwaysEmbedNested = objectResolver == null;
-        this.textSupplier = Lazy.of(this::searchableTextFromEntity);
+        this.textSupplier = Lazy.of(() -> MetaClassSearchableFields.searchableTextFromEntity(metaClass));
         this.codecRegistry = codecRegistry;
     }
 
@@ -205,71 +199,5 @@ public class MetaClassCodec<T extends HasMetaClass<T>> implements Codec<T> {
                 .map(bson -> bson.toBsonDocument(BsonDocument.class, codecRegistry))
                 .map(bson -> codec.decode(bson.asBsonReader(), defaultDecoderContext))
                 .orElse(null);
-    }
-
-    private <K, S extends HasMetaClassWithKey<K, S>> Transformer referenceObjectTransformer(MetaClassWithKey<K, S> metaClass) {
-        Codec<K> codec = codecRegistry.get(metaClass.keyProperty().type().asClass());
-        return obj -> Optional.ofNullable(obj)
-                .flatMap(Optionals.ofType(Bson.class))
-                .map(bson -> bson.toBsonDocument(BsonDocument.class, codecRegistry))
-                .map(bson -> codec.decode(bson.asBsonReader(), defaultDecoderContext))
-                .map(key -> objectResolver.resolve(metaClass, key))
-                .orElse(null);
-    }
-
-    private Optional<Function<T, String>> searchableTextFromEntity() {
-        return searchableTextFromEntity(metaClass, e -> e, new HashSet<>());
-    }
-
-    private <R> Optional<Function<T, String>> searchableTextFromEntity(MetaClass<R> metaClass, Function<T, R> getter, Set<PropertyMeta<?, ?>> visitedProperties) {
-        Optional<Function<T, String>> selfFields = searchableTextForMetaClass(metaClass, visitedProperties).map(getter::andThen);
-        Optional<Function<T, String>> nestedFields = Streams
-                .fromIterable(metaClass.properties())
-                .filter(p -> p.type().is(HasMetaClass.class::isAssignableFrom))
-                .filter(visitedProperties::add)
-                .map(p -> searchableTextFromProperty(getter, p, visitedProperties))
-                .flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty))
-                .reduce(MetaClassCodec::combine);
-
-        if (selfFields.isPresent() && nestedFields.isPresent()) {
-            return Optional.of(combine(selfFields.get(), nestedFields.get()));
-        } else if (selfFields.isPresent()) {
-            return selfFields;
-        } else {
-            return nestedFields;
-        }
-    }
-
-    private <R, V> Optional<Function<T, String>> searchableTextFromProperty(Function<T, R> getter, PropertyMeta<R, V> propertyMeta, Set<PropertyMeta<?, ?>> visitedProperties) {
-        Function<T, V> nextGetter = val -> Optional.ofNullable(getter.apply(val)).map(propertyMeta::getValue).orElse(null);
-        MetaClass<V> metaClass = MetaClasses.forTokenUnchecked(propertyMeta.type());
-        return searchableTextFromEntity(metaClass, nextGetter, visitedProperties);
-    }
-
-    private static <T> Function<T, String> combine(Function<T, String> first, Function<T, String> second) {
-        return entity -> combineStrings(first.apply(entity), second.apply(entity));
-    }
-
-    private static <T> Optional<Function<T, String>> searchableTextForMetaClass(MetaClass<T> metaClass, Set<PropertyMeta<?, ?>> visitedProperties) {
-        return Streams
-                .fromIterable(metaClass.properties())
-                .filter(p -> p.hasAnnotation(Searchable.class))
-                .filter(visitedProperties::add)
-                .<Function<T, String>>map(p -> (entity -> Optional
-                        .ofNullable(entity)
-                        .map(p::getValue)
-                        .map(Object::toString)
-                        .orElse("")))
-                .reduce(MetaClassCodec::combine);
-    }
-
-    private static String combineStrings(String first, String second) {
-        if (Strings.isNullOrEmpty(first)) {
-            return second != null ? second : "";
-        }
-        if (Strings.isNullOrEmpty(second)) {
-            return first;
-        }
-        return first + " " + second;
     }
 }
