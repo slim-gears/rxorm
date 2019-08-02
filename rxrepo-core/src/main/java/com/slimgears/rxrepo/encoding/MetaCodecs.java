@@ -50,11 +50,10 @@ public class MetaCodecs {
     public static <T> MetaCodec<T> fromAdapter(TypeToken<T> type,
                                                BiConsumer<MetaWriter, T> writer,
                                                Function<MetaReader, T> reader) {
-        return fromAdapter(type, writer, Function.identity(), reader, Function.identity());
+        return fromAdapter(writer, Function.identity(), reader, Function.identity());
     }
 
-    public static <T, R> MetaCodec<T> fromAdapter(TypeToken<T> type,
-                                                  BiConsumer<MetaWriter, R> writer,
+    public static <T, R> MetaCodec<T> fromAdapter(BiConsumer<MetaWriter, R> writer,
                                                   Function<T, R> toWritable,
                                                   Function<MetaReader, R> reader,
                                                   Function<R, T> fromWritable) {
@@ -100,24 +99,24 @@ public class MetaCodecs {
         };
     }
 
-    public static <T> MetaCodec<T> longAdapter(TypeToken<T> type, Function<T, Long> toLong, Function<Long, T> fromLong) {
-        return fromAdapter(type, MetaWriter::writeLong, toLong, MetaReader::readLong, fromLong);
+    public static <T> MetaCodec<T> longAdapter(Function<T, Long> toLong, Function<Long, T> fromLong) {
+        return fromAdapter(MetaWriter::writeLong, toLong, MetaReader::readLong, fromLong);
     }
 
-    public static <T> MetaCodec<T> intAdapter(TypeToken<T> type, Function<T, Integer> toInt, Function<Integer, T> fromInt) {
-        return fromAdapter(type, MetaWriter::writeInt, toInt, MetaReader::readInt, fromInt);
+    public static <T> MetaCodec<T> intAdapter(Function<T, Integer> toInt, Function<Integer, T> fromInt) {
+        return fromAdapter(MetaWriter::writeInt, toInt, MetaReader::readInt, fromInt);
     }
 
-    public static <T> MetaCodec<T> doubleAdapter(TypeToken<T> type, Function<T, Double> toDouble, Function<Double, T> fromDouble) {
-        return fromAdapter(type, MetaWriter::writeDouble, toDouble, MetaReader::readDouble, fromDouble);
+    public static <T> MetaCodec<T> doubleAdapter(Function<T, Double> toDouble, Function<Double, T> fromDouble) {
+        return fromAdapter(MetaWriter::writeDouble, toDouble, MetaReader::readDouble, fromDouble);
     }
 
-    public static <T> MetaCodec<T> stringAdapter(TypeToken<T> type, Function<T, String> toString, Function<String, T> fromString) {
-        return fromAdapter(type, MetaWriter::writeString, toString, MetaReader::readString, fromString);
+    public static <T> MetaCodec<T> stringAdapter(Function<T, String> toString, Function<String, T> fromString) {
+        return fromAdapter(MetaWriter::writeString, toString, MetaReader::readString, fromString);
     }
 
-    public static <T> MetaCodec<T> bytesAdapter(TypeToken<T> type, Function<T, byte[]> toBytes, Function<byte[], T> fromBytes) {
-        return fromAdapter(type, MetaWriter::writeBytes, toBytes, MetaReader::readBytes, fromBytes);
+    public static <T> MetaCodec<T> bytesAdapter(Function<T, byte[]> toBytes, Function<byte[], T> fromBytes) {
+        return fromAdapter(MetaWriter::writeBytes, toBytes, MetaReader::readBytes, fromBytes);
     }
 
     public static class Builder {
@@ -142,12 +141,12 @@ public class MetaCodecs {
         }
 
         @SuppressWarnings("unchecked")
-        public <T> Builder add(TypeToken<?> type, Supplier<MetaCodec<T>> provider) {
+        public <T> Builder add(TypeToken<T> type, Supplier<MetaCodec<T>> provider) {
             codecMapBuilder.put(type, (Supplier<MetaCodec<?>>)(Supplier<?>)provider);
             return this;
         }
 
-        public <T> Builder add(TypeToken<?> type, MetaCodec<T> codec) {
+        public <T> Builder add(TypeToken<T> type, MetaCodec<T> codec) {
             return add(type, () -> codec);
         }
 
@@ -164,7 +163,7 @@ public class MetaCodecs {
                                   Function<T, R> toWritable,
                                   Function<MetaReader, R> reader,
                                   Function<R, T> fromWritable) {
-            return add(type, fromAdapter(type, writer, toWritable, reader, fromWritable));
+            return add(type, fromAdapter(writer, toWritable, reader, fromWritable));
         }
 
         public MetaCodecProvider build() {

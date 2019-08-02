@@ -1,8 +1,8 @@
 package com.slimgears.rxrepo.encoding;
 
 public interface MetaWriter {
-    MetaWriter writeBeginDocument();
-    MetaWriter writeEndDocument();
+    MetaWriter writeBeginObject();
+    MetaWriter writeEndObject();
     MetaWriter writeBeginArray();
     MetaWriter writeEndArray();
     MetaWriter writeName(String name);

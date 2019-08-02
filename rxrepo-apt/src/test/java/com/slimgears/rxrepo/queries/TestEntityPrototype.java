@@ -15,6 +15,11 @@ import java.util.Collection;
 @UseFilters
 @UseCopyAnnotator
 public interface TestEntityPrototype {
+    enum TestEnum {
+        Val1,
+        Val2
+    }
+
     @Key @Searchable TestKey key();
     @Indexable @Filterable @Searchable String text();
     @Indexable @Filterable int number();
@@ -24,4 +29,5 @@ public interface TestEntityPrototype {
     @Nullable Integer code();
     @Nullable Collection<String> col();
     @Nullable TestRefEntity optionalRefEntity();
+    @Nullable TestEnum enumVal();
 }

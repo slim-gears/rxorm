@@ -10,7 +10,7 @@ public class MetaDocumentCodec implements MetaCodec<MetaDocument> {
     @Override
     public void encode(MetaContext.Writer context, MetaDocument doc) {
         Map<String, Object> map = doc.asMap();
-        context.writer().writeBeginDocument();
+        context.writer().writeBeginObject();
         map.forEach((key, value) -> {
             context.writer().writeName(key);
             if (value == null) {
@@ -22,7 +22,7 @@ public class MetaDocumentCodec implements MetaCodec<MetaDocument> {
                 codec.encode(context, value);
             }
         });
-        context.writer().writeEndDocument();
+        context.writer().writeEndObject();
     }
 
     @Override

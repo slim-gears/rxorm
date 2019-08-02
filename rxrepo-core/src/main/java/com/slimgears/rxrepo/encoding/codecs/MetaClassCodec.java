@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.encoding.codecs;
 
+import com.google.auto.service.AutoService;
 import com.slimgears.rxrepo.encoding.*;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
@@ -29,7 +30,7 @@ public class MetaClassCodec<T> implements MetaCodec<T> {
 
     @Override
     public void encode(MetaContext.Writer context, T value) {
-        context.writer().writeBeginDocument();
+        context.writer().writeBeginObject();
         metaClass.properties()
                 .forEach(p -> writeProperty(context, p, value));
         textSupplier.get()
@@ -38,7 +39,7 @@ public class MetaClassCodec<T> implements MetaCodec<T> {
                     context.writer().writeName(context.fieldMapper().searchableTextField());
                     context.writer().writeString(text);
                 });
-        context.writer().writeEndDocument();
+        context.writer().writeEndObject();
     }
 
     @Override
@@ -121,5 +122,15 @@ public class MetaClassCodec<T> implements MetaCodec<T> {
         return Optional.ofNullable(readValue(context, metaClass.keyProperty().type()))
                 .map(key -> resolver.resolve(metaClass, key))
                 .orElse(null);
+    }
+
+    @AutoService(MetaCodecProvider.class)
+    public static class Provider implements MetaCodecProvider {
+        @Override
+        public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
+            return PropertyMetas.hasMetaClass(type)
+                    ? new MetaClassCodec<>(MetaClasses.forTokenUnchecked(type), null)
+                    : null;
+        }
     }
 }

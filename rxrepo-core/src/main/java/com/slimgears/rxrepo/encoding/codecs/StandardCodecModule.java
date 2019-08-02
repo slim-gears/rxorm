@@ -25,6 +25,7 @@ public class StandardCodecModule implements MetaCodecProvider.Module {
                 .add(boolean.class, MetaWriter::writeBoolean, MetaReader::readBoolean)
                 .add(String.class, MetaWriter::writeString, MetaReader::readString)
                 .add(byte[].class, MetaWriter::writeBytes, MetaReader::readBytes)
+                .add(new EnumCodecModule())
                 .add(new MapCodec.Provider())
                 .add(new IterableCodec.Provider())
                 .build();

@@ -20,12 +20,12 @@ public class MapCodec<K, V> implements MetaCodec<Map<K, V>> {
         MetaCodec<K> keyCodec = getKeyCodec(context);
         MetaCodec<V> valueCodec = context.codecProvider().resolve(valueType);
         MetaWriter writer = context.writer();
-        writer.writeBeginDocument();
+        writer.writeBeginObject();
         map.forEach((key, value) -> {
             keyCodec.encode(context, key);
             valueCodec.encode(context, value);
         });
-        writer.writeEndDocument();
+        writer.writeEndObject();
     }
 
     @Override

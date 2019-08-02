@@ -19,6 +19,9 @@ public class MetaContexts {
         return create(provider, defaultFieldMapper());
     }
 
+    public static MetaContext createDefault() {
+        return create(MetaCodecs.discover());
+    }
     @SuppressWarnings("WeakerAccess")
     public static MetaClassFieldMapper defaultFieldMapper() {
         return new MetaClassFieldMapper() {};

@@ -34,12 +34,12 @@ public class JacksonAdapter {
     public static MetaWriter writer(JsonGenerator generator) {
         return new MetaWriter() {
             @Override
-            public MetaWriter writeBeginDocument() {
+            public MetaWriter writeBeginObject() {
                 return invoke(JsonGenerator::writeStartObject);
             }
 
             @Override
-            public MetaWriter writeEndDocument() {
+            public MetaWriter writeEndObject() {
                 return invoke(JsonGenerator::writeEndObject);
             }
 
