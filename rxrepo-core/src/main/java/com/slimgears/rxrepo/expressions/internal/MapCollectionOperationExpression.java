@@ -3,9 +3,9 @@ package com.slimgears.rxrepo.expressions.internal;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.CollectionOperationExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Collection;
 
@@ -13,7 +13,7 @@ import java.util.Collection;
 public abstract class MapCollectionOperationExpression<S, T, R, C extends Collection<T>> implements CollectionOperationExpression<S, T, R, R, C, Collection<R>> {
     @Override
     public TypeToken<Collection<R>> objectType() {
-        return TypeToken.ofParameterized(Collection.class, operation().objectType());
+        return MoreTypeTokens.collection(operation().objectType());
     }
 
     @JsonCreator

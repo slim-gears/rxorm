@@ -15,5 +15,8 @@ public interface MetaWriter {
     MetaWriter writeString(String value);
     MetaWriter writeNull();
     MetaWriter writeBytes(byte[] bytes);
-    MetaWriter writeValue(Object object);
+
+    default MetaWriter writeValue(Object object) {
+        return MetaWriters.writeValue(this, object);
+    }
 }

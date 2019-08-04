@@ -1,9 +1,9 @@
 package com.slimgears.rxrepo.mongodb;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.test.Product;
 import com.slimgears.rxrepo.test.ProductDescription;
-import com.slimgears.util.reflect.TypeToken;
 import org.bson.Document;
 import org.junit.Assert;
 import org.junit.Test;

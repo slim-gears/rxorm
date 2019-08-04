@@ -3,7 +3,11 @@ package com.slimgears.rxrepo.mongodb;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.reflect.TypeToken;
+import com.slimgears.rxrepo.encoding.MetaClassFieldMapper;
 import com.slimgears.rxrepo.expressions.*;
+import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
+import com.slimgears.rxrepo.mongodb.adapter.MongoFieldMapper;
 import com.slimgears.rxrepo.query.provider.PropertyUpdateInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.SortingInfo;
@@ -12,7 +16,6 @@ import com.slimgears.rxrepo.util.PropertyReference;
 import com.slimgears.rxrepo.util.PropertyReferences;
 import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.generic.MoreStrings;
-import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Streams;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -23,14 +26,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.slimgears.rxrepo.mongodb.codecs.MetaClassCodec.fieldName;
-import static com.slimgears.rxrepo.mongodb.codecs.MetaClassCodec.referenceFieldName;
-
 @SuppressWarnings("WeakerAccess")
 public class MongoPipeline {
-    final static String aggregationField = "__aggregation";
-    final static String valueField = "__value";
-    final static String versionField = "_version";
+    public final static String aggregationField = "__aggregation";
+    public final static String valueField = "__value";
+    private final static MetaClassFieldMapper fieldMapper = MongoFieldMapper.instance;
     private final static Logger log = LoggerFactory.getLogger(MongoPipeline.class);
 
     public static Builder builder() {
@@ -56,7 +56,7 @@ public class MongoPipeline {
                     .flatMap(pr -> Stream.of(
                             lookup(pr),
                             unwind(pr),
-                            exclude(pr.referencePath() + referenceFieldName(pr.property()))))
+                            exclude(pr.referencePath() +fieldMapper.toReferenceFieldName(pr.property()))))
                     .collect(Collectors.toList()));
             return this;
         }
@@ -147,7 +147,7 @@ public class MongoPipeline {
     }
 
     static <K> Document filterForKeyAndVersion(K key, long version) {
-        return filterForKey(key).append(versionField, version);
+        return filterForKey(key).append(fieldMapper.versionField(), version);
     }
 
 
@@ -210,7 +210,8 @@ public class MongoPipeline {
     }
 
     static <T> Document aggregation(TypeToken<T> type, Aggregator<T, T, ?> aggregator) {
-        UnaryOperationExpression<T, Collection<T>, ?> expression = aggregator.apply(CollectionExpression.indirectArg(type));
+        UnaryOperationExpression<T, Collection<T>, ?> expression = aggregator
+                .apply(CollectionExpression.indirectArg(MoreTypeTokens.collection(type)));
         return (Document)new MongoExpressionAdapter().visit(expression, null);
     }
 
@@ -240,8 +241,8 @@ public class MongoPipeline {
 
     private static Document renameReference(PropertyReference reference) {
         return rename(
-                reference.referencePath() + referenceFieldName(reference.property()),
-                reference.referencePath() + fieldName(reference.property()));
+                reference.referencePath() + fieldMapper.toReferenceFieldName(reference.property()),
+                reference.referencePath() + fieldMapper.toFieldName(reference.property()));
     }
 
     private static Document rename(String fromName, String toName) {
@@ -258,15 +259,15 @@ public class MongoPipeline {
         return new Document("$lookup",
                 new Document()
                         .append("from", targetMeta.simpleName())
-                        .append("localField", prefixPath + referenceFieldName(propertyMeta))
+                        .append("localField", prefixPath + fieldMapper.toReferenceFieldName(propertyMeta))
                         .append("foreignField", "_id")
-                        .append("as", prefixPath + fieldName(propertyMeta)));
+                        .append("as", prefixPath + fieldMapper.toFieldName(propertyMeta)));
     }
 
     private static Document unwind(String prefixPath, PropertyMeta<?, ?> propertyMeta) {
         return new Document("$unwind",
                 new Document()
-                        .append("path", "$" + prefixPath + fieldName(propertyMeta))
+                        .append("path", "$" + prefixPath + fieldMapper.toFieldName(propertyMeta))
                         .append("preserveNullAndEmptyArrays", true));
     }
 
@@ -302,9 +303,9 @@ public class MongoPipeline {
 
     private static String propertyToString(PropertyExpression<?, ?, ?> property) {
         if (property.target().type().operationType() == Expression.OperationType.Property) {
-            return propertyToString((PropertyExpression<?, ?, ?>)property.target()) + "." + fieldName(property.property());
+            return propertyToString((PropertyExpression<?, ?, ?>)property.target()) + "." + fieldMapper.toFieldName(property.property());
         }
-        return fieldName(property.property());
+        return fieldMapper.toFieldName(property.property());
     }
 
 }

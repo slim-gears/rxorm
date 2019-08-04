@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.sql;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.*;
@@ -7,7 +8,6 @@ import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
-import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 import org.slf4j.Logger;
@@ -126,7 +126,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     private <K, S extends HasMetaClassWithKey<K, S>, T, Q extends HasMapping<S, T> & HasEntityMeta<K, S> & HasProperties<T>> String selectClause(Q queryInfo) {
         ObjectExpression<S, T> expression = Optional
                 .ofNullable(queryInfo.mapping())
-                .orElse(ObjectExpression.arg((TypeToken)queryInfo.metaClass().objectClass()));
+                .orElse(ObjectExpression.arg((TypeToken)queryInfo.metaClass().asType()));
 
         String selectOperator = Optional.ofNullable(queryInfo.distinct()).orElse(false) ? "select distinct" : "select";
 

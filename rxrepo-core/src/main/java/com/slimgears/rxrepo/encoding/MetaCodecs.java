@@ -2,7 +2,9 @@ package com.slimgears.rxrepo.encoding;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.slimgears.util.reflect.TypeToken;
+import com.google.common.reflect.TypeToken;
+import com.slimgears.util.reflect.TypeTokens;
+import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 
 import java.util.*;
@@ -13,7 +15,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({"WeakerAccess", "UnstableApiUsage"})
 public class MetaCodecs {
     private final static MetaCodecProvider emptyProvider = new MetaCodecProvider() {
         @Override
@@ -78,9 +80,9 @@ public class MetaCodecs {
                 .map(MetaCodecProvider.Module::create)
                 .collect(Collectors.toList());
 
-        ServiceLoader<MetaCodecProvider> fromLoader = ServiceLoader.load(
+        Iterable<MetaCodecProvider> fromLoader = ImmutableList.copyOf(ServiceLoader.load(
                 MetaCodecProvider.class,
-                ClassLoader.getSystemClassLoader());
+                ClassLoader.getSystemClassLoader()));
 
         return cachedOf(fromRegistries(
                 fromRegistries(fromModules),
@@ -150,6 +152,10 @@ public class MetaCodecs {
             return add(type, () -> codec);
         }
 
+        public <T> Builder add(Class<T> clazz, MetaCodec<T> codec) {
+            return add(TypeToken.of(clazz), codec);
+        }
+
         public <T> Builder add(TypeToken<T> type, BiConsumer<MetaWriter, T> writer, Function<MetaReader, T> reader) {
             return add(type, fromAdapter(type, writer, reader));
         }
@@ -172,11 +178,11 @@ public class MetaCodecs {
             MetaCodecProvider registryFromMap = new MetaCodecProvider() {
                 @Override
                 public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
-                    TypeToken<MetaCodec<T>> codecType = TypeToken.ofParameterized(MetaCodec.class, type);
+                    TypeToken<MetaCodec<T>> codecType = TypeTokens.ofParameterized(MetaCodec.class, type);
                     return Optional
                             .ofNullable(codecMap.get(type))
                             .map(Supplier::get)
-                            .map(codecType.asClass()::cast)
+                            .map(TypeTokens.asClass(codecType)::cast)
                             .orElse(null);
                 }
             };
@@ -221,19 +227,25 @@ public class MetaCodecs {
             return null;
         }
 
-        return Optional
-                .ofNullable(provider.tryResolve(token))
-                .map(codec -> (MetaCodec<T>)codec)
-                .orElseGet(() -> Optional
-                        .ofNullable(token.asClass().getSuperclass())
+        return Optionals.or(
+                () -> Optional.ofNullable(provider.tryResolve(token))
+                        .map(codec -> (MetaCodec<T>)codec),
+                () -> Optional
+                        .of(TypeTokens.asClass(token))
                         .map(TypeToken::of)
-                        .map(superClass -> MetaCodecs.<T>tryFindCodec(provider, superClass, visited))
-                        .orElseGet(() -> Arrays
-                                .stream(token.asClass().getGenericInterfaces())
-                                .map(TypeToken::ofType)
-                                .map(t -> MetaCodecs.<T>tryFindCodec(provider, t, visited))
-                                .filter(Objects::nonNull)
-                                .findFirst()
-                                .orElse(null)));
+                        .filter(t -> !t.equals(token))
+                        .map(provider::tryResolve)
+                        .map(codec -> (MetaCodec<T>)codec),
+                () -> Optional
+                        .ofNullable(token.getRawType().getGenericSuperclass())
+                        .map(TypeToken::of)
+                        .map(superClass -> MetaCodecs.tryFindCodec(provider, superClass, visited)),
+                () -> Arrays
+                        .stream(TypeTokens.asClass(token).getGenericInterfaces())
+                        .map(TypeToken::of)
+                        .map(t -> MetaCodecs.<T>tryFindCodec(provider, t, visited))
+                        .filter(Objects::nonNull)
+                        .findFirst())
+                .orElse(null);
     }
 }

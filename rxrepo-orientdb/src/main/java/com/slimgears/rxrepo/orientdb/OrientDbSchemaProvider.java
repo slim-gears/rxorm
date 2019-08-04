@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.google.common.reflect.TypeToken;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.index.OIndexException;
 import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
@@ -12,7 +13,6 @@ import com.slimgears.rxrepo.annotations.Searchable;
 import com.slimgears.rxrepo.sql.SchemaProvider;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
-import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
 import io.reactivex.schedulers.Schedulers;
@@ -131,7 +131,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
 
     private <T> void addProperty(ODatabaseDocument dbSession, OClass oClass, PropertyMeta<T, ?> propertyMeta) {
         OType propertyOType = toOType(propertyMeta.type());
-        log.trace("{}: Adding property {} of type {} ({})", oClass.getName(), propertyMeta.name(), propertyMeta.type().asClass().getSimpleName(), propertyOType);
+        log.trace("{}: Adding property {} of type {} ({})", oClass.getName(), propertyMeta.name(), propertyMeta.type().getRawType().getSimpleName(), propertyOType);
 
         if (propertyOType.isLink()) {
             OClass linkedOClass = dbSession.getClass(toClassName(propertyMeta.type()));
@@ -162,7 +162,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
     }
 
     private static OType toOType(TypeToken<?> token) {
-        Class<?> cls = token.asClass();
+        Class<?> cls = token.getRawType();
         return Optional
                 .ofNullable(OType.getTypeByClass(cls))
                 .orElseGet(() -> HasMetaClass.class.isAssignableFrom(cls)
@@ -171,11 +171,11 @@ class OrientDbSchemaProvider implements SchemaProvider {
     }
 
     static String toClassName(MetaClass<?> metaClass) {
-        return toClassName(metaClass.objectClass());
+        return toClassName(metaClass.asType());
     }
 
     static String toClassName(TypeToken<?> cls) {
-        return toClassName(cls.asClass());
+        return toClassName(cls.getRawType());
     }
 
     private static String toClassName(Class<?> cls) {

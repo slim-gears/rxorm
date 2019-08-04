@@ -2,12 +2,12 @@ package com.slimgears.rxrepo.util;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ExpressionVisitor;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
-import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Optionals;
 
 import java.util.*;
@@ -186,19 +186,19 @@ public class Expressions {
     }
 
     private static BiFunction<Number, Number, Number> divide() {
-        return numbericBinariesWithDefaultNumbers(GenericMath::divide, 0, 1);
+        return numericBinariesWithDefaultNumbers(GenericMath::divide, 0, 1);
     }
 
     private static BiFunction<Number, Number, Number> multiply() {
-        return numbericBinariesWithDefaultNumbers(GenericMath::multiply, 0, 0);
+        return numericBinariesWithDefaultNumbers(GenericMath::multiply, 0, 0);
     }
 
     private static BiFunction<Number, Number, Number> subtract() {
-        return numbericBinariesWithDefaultNumbers(GenericMath::subtract, 0, 0);
+        return numericBinariesWithDefaultNumbers(GenericMath::subtract, 0, 0);
     }
 
     private static BiFunction<Number, Number, Number> add() {
-        return numbericBinariesWithDefaultNumbers(GenericMath::add, 0, 0);
+        return numericBinariesWithDefaultNumbers(GenericMath::add, 0, 0);
     }
 
     private static BiFunction<String, String, Boolean> startsWith() {
@@ -213,7 +213,7 @@ public class Expressions {
         return (s1, s2) -> (s1 == null && s2 == null) || (s1 != null && s2 != null && s1.matches(s2));
     }
 
-    private static BiFunction<Number, Number, Number> numbericBinariesWithDefaultNumbers(BiFunction<Number, Number, Number> func, Number defaultValue1, Number defaultValue2) {
+    private static BiFunction<Number, Number, Number> numericBinariesWithDefaultNumbers(BiFunction<Number, Number, Number> func, Number defaultValue1, Number defaultValue2) {
         return (n1, n2) -> func.apply(getNumberOrDefault(n1, defaultValue1), getNumberOrDefault(n2, defaultValue2));
     }
 

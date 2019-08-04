@@ -56,12 +56,12 @@
         }
 
         @Override
-        public $[com.slimgears.util.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)> objectType() {
+        public $[com.google.common.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)> objectType() {
             return this.self.objectType();
         }
 
         public static #typeParamsDeclaration($sourceClass) Expressions<$targetClass.simpleName()#typeParams($sourceClass)#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> create() {
-            return new Expressions<>(ObjectExpression.arg(new $[com.slimgears.util.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)>(){}));
+            return new Expressions<>(ObjectExpression.arg(new $[com.google.common.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)>(){}));
         }
 
 #foreach ($p in $properties)
@@ -116,7 +116,7 @@
         }
 
         @Override
-        public $[com.slimgears.util.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)> objectType() {
+        public $[com.google.common.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)> objectType() {
             return property.type();
         }
     }

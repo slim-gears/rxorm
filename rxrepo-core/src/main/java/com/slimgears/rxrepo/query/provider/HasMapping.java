@@ -1,8 +1,8 @@
 package com.slimgears.rxrepo.query.provider;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import com.slimgears.util.reflect.TypeToken;
 
 import javax.annotation.Nullable;
 import java.util.Optional;
@@ -16,6 +16,6 @@ public interface HasMapping<S, T> {
         return Optional
                 .ofNullable(query.mapping())
                 .map(ObjectExpression::objectType)
-                .orElseGet(() -> (TypeToken)query.metaClass().objectClass());
+                .orElseGet(() -> (TypeToken)query.metaClass().asType());
     }
 }

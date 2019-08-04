@@ -1,10 +1,11 @@
 package com.slimgears.rxrepo.encoding;
 
-import com.slimgears.util.reflect.TypeToken;
+import com.google.common.reflect.TypeToken;
 
 import javax.annotation.Nonnull;
 import java.util.Objects;
 
+@SuppressWarnings("UnstableApiUsage")
 public interface MetaContext {
     MetaClassFieldMapper fieldMapper();
     MetaCodecProvider codecProvider();

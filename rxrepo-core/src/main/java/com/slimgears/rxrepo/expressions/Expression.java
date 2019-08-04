@@ -3,8 +3,8 @@ package com.slimgears.rxrepo.expressions;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.internal.*;
-import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -204,7 +204,7 @@ public interface Expression {
         }
 
         private static <T, R extends T> R requireInstanceOf(T obj, TypeToken<R> typeToken) {
-            if (!typeToken.asClass().isInstance(obj)) {
+            if (!typeToken.getRawType().isInstance(obj)) {
                 throw new RuntimeException("Should be instance of: " + typeToken);
             }
             //noinspection unchecked

@@ -1,8 +1,8 @@
 package com.slimgears.rxrepo.filters;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.BooleanExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Optional;
 

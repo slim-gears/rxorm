@@ -1,8 +1,9 @@
 package com.slimgears.rxrepo.encoding.codecs;
 
 import com.google.auto.service.AutoService;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.encoding.*;
-import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.reflect.TypeTokens;
 
 import java.util.Map;
 
@@ -18,7 +19,7 @@ public class MetaDocumentCodec implements MetaCodec<MetaDocument> {
             } else {
                 MetaCodec<Object> codec = context
                         .codecProvider()
-                        .resolve(TypeToken.ofType(value.getClass()));
+                        .resolve(TypeTokens.ofType(value.getClass()));
                 codec.encode(context, value);
             }
         });
@@ -45,7 +46,7 @@ public class MetaDocumentCodec implements MetaCodec<MetaDocument> {
     }
 
     private Iterable<?> decodeIterable(MetaContext.Reader context) {
-        MetaCodec<Iterable<?>> codec = context.codecProvider().resolve(TypeToken.ofType(Iterable.class));
+        MetaCodec<Iterable<?>> codec = context.codecProvider().resolve(TypeTokens.ofType(Iterable.class));
         return codec.decode(context);
     }
 
@@ -63,7 +64,7 @@ public class MetaDocumentCodec implements MetaCodec<MetaDocument> {
         @SuppressWarnings("unchecked")
         @Override
         public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
-            return type.asClass() == MetaDocument.class
+            return type.getRawType() == MetaDocument.class
                     ? (MetaCodec<T>)new MetaDocumentCodec()
                     : null;
         }

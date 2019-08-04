@@ -37,7 +37,7 @@ public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
     }
 
     default Observable<S> findAll(Filter<S> filter) {
-        return findAll(filter.toExpression(ObjectExpression.arg(metaClass().objectClass())).orElse(null));
+        return findAll(filter.toExpression(ObjectExpression.arg(metaClass().asType())).orElse(null));
     }
 
     default Maybe<S> find(K key) {

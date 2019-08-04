@@ -25,7 +25,7 @@ public class MetaClassSearchableFields {
 
         Optional<Function<T, String>> nestedFields = Streams
                 .fromIterable(metaClass.properties())
-                .filter(p -> p.type().is(HasMetaClass.class::isAssignableFrom))
+                .filter(p -> p.type().isSubtypeOf(HasMetaClass.class))
                 .filter(visitedProperties::add)
                 .map(p -> searchableTextFromProperty(getter, p, visitedProperties))
                 .flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty))

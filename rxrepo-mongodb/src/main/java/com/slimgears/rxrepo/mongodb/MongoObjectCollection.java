@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.mongodb;
 
+import com.google.common.reflect.TypeToken;
 import com.mongodb.DuplicateKeyException;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
@@ -10,6 +11,7 @@ import com.mongodb.client.result.UpdateResult;
 import com.mongodb.reactivestreams.client.AggregatePublisher;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
+import com.slimgears.rxrepo.encoding.MetaClassFieldMapper;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
@@ -18,7 +20,7 @@ import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Lazy;
 import com.slimgears.util.stream.Optionals;
 import io.reactivex.Completable;
@@ -48,12 +50,14 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
     private final Lazy<Codec<S>> codec;
     private final Lazy<Codec<Document>> docCodec;
     private final CodecRegistry codecRegistry;
+    private final MetaClassFieldMapper fieldMapper;
 
-    MongoObjectCollection(MetaClassWithKey<K, S> metaClass, MongoDatabase database) {
+    MongoObjectCollection(MetaClassWithKey<K, S> metaClass, MongoDatabase database, MetaClassFieldMapper fieldMapper) {
         this.metaClass = metaClass;
         this.codecRegistry = database.getCodecRegistry();
         this.codec = Lazy.of(() -> codecRegistry.get(metaClass.asClass()));
         this.docCodec = Lazy.of(() -> codecRegistry.get(Document.class));
+        this.fieldMapper = fieldMapper;
         this.objectCollection = Lazy.of(() -> database.getCollection(metaClass.simpleName()));
         this.notificationCollection = Lazy.of(() -> database.getCollection(metaClass.simpleName() + ".updates"));
     }
@@ -76,7 +80,7 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
         AtomicReference<Document> newDoc = new AtomicReference<>();
         return findDocument(key)
                 .doOnSuccess(oldDoc::set)
-                .doOnSuccess(doc -> version.set(doc.getLong(MongoPipeline.versionField)))
+                .doOnSuccess(doc -> version.set(doc.getLong(fieldMapper.versionField())))
                 .map(this::objectFromDocument)
                 .doOnSuccess(oldObject::set)
                 .map(Maybe::just)
@@ -224,16 +228,16 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
 
     private Notification<S> notificationFromDocument(Document document) {
         return Notification.ofModified(
-                toObject(document.get("oldValue"), metaClass.objectClass()),
-                toObject(document.get("newValue"), metaClass.objectClass()));
+                toObject(document.get("oldValue"), metaClass.asType()),
+                toObject(document.get("newValue"), metaClass.asType()));
     }
 
     private <T> T toObject(Object object, TypeToken<T> type) {
         if (object instanceof Document) {
             return objectFromDocument((Document)object, type);
         }
-        return type.asClass().isInstance(object)
-                ? type.asClass().cast(object)
+        return type.getRawType().isInstance(object)
+                ? TypeTokens.asClass(type).cast(object)
                 : null;
     }
 
@@ -253,7 +257,7 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                     .aggregate(MongoPipeline.builder()
                             .match(MongoPipeline.filterForField("key", key))
                             .replaceRoot("$newValue")
-                            .sort(new Document(MongoPipeline.versionField, -1))
+                            .sort(new Document(fieldMapper.versionField(), -1))
                             .limit(1L)
                             .build()))
                     .firstElement()
@@ -266,7 +270,7 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
     private Document objectToDocument(S obj, long version) {
         BsonDocument bson = new BsonDocument();
         codec.get().encode(new BsonDocumentWriter(bson), obj, EncoderContext.builder().build());
-        bson.append(MongoPipeline.versionField, new BsonInt64(version));
+        bson.append(fieldMapper.versionField(), new BsonInt64(version));
         return fromBson(bson);
     }
 
@@ -289,7 +293,7 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
         }
         BsonDocument bsonDoc = doc.toBsonDocument(BsonDocument.class, codecRegistry);
         BsonReader reader = bsonDoc.asBsonReader();
-        Codec<T> codec = codecRegistry.get(objectType.asClass());
+        Codec<T> codec = codecRegistry.get(TypeTokens.asClass(objectType));
         return codec.decode(reader, DecoderContext.builder().build());
     }
 

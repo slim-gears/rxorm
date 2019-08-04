@@ -5,11 +5,13 @@ import com.mongodb.MongoClientSettings;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
+import com.slimgears.rxrepo.encoding.MetaObjectResolver;
+import com.slimgears.rxrepo.encoding.codecs.MetaClassCodec;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
-import com.slimgears.rxrepo.mongodb.codecs.Codecs;
-import com.slimgears.rxrepo.mongodb.codecs.MetaClassCodecProvider;
+import com.slimgears.rxrepo.mongodb.adapter.MongoFieldMapper;
+import com.slimgears.rxrepo.mongodb.codecs.StandardCodecs;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
@@ -26,41 +28,30 @@ import org.bson.codecs.configuration.CodecRegistries;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MongoQueryProvider implements QueryProvider {
     private final MongoClient client;
     private final MongoDatabase database;
     private final Map<String, MongoObjectCollection<?, ?>> collectionCache = new ConcurrentHashMap<>();
     private final Scheduler scheduler = Schedulers.io();
-    private final ReferencedObjectResolver objectResolver = new ReferencedObjectResolver() {
-        @Override
-        public <K, S extends HasMetaClassWithKey<K, S>> S resolve(MetaClassWithKey<K, S> metaClass, K key) {
-            return collection(metaClass)
-                    .query(QueryInfo.<K, S, S>builder()
-                            .metaClass(metaClass)
-                            .predicate(PropertyExpression.ofObject(ObjectExpression.arg(metaClass.objectClass()), metaClass.keyProperty()).eq(key))
-                            .limit(1L)
-                            .build())
-                    .firstElement()
-                    .map(Optional::of)
-                    .blockingGet(Optional.empty())
-                    .orElse(null);
-        }
-    };
+    private final AtomicBoolean isClosed = new AtomicBoolean(false);
 
     MongoQueryProvider(String connectionString, String dbName) {
-        this.client = MongoClients.create(MongoClientSettings
-                .builder()
-                .applyConnectionString(new ConnectionString(connectionString))
-                .build());
-        this.database = client.getDatabase(dbName)
-                .withCodecRegistry(CodecRegistries.fromProviders(
-                        Codecs.discoverProviders(),
-                        MetaClassCodecProvider.create(objectResolver)));
+        MetaObjectResolver objectResolver = new ObjectResolver();
+        this.client = MetaClassCodec.withResolver(
+                objectResolver,
+                () -> MongoClients.create(MongoClientSettings
+                        .builder()
+                        .applyConnectionString(new ConnectionString(connectionString))
+                        .codecRegistry(CodecRegistries.fromProviders(StandardCodecs.provider))
+                        .build()));
+        this.database = client.getDatabase(dbName);
     }
 
     @Override
     public void close() {
+        isClosed.set(true);
         client.close();
     }
 
@@ -120,6 +111,25 @@ public class MongoQueryProvider implements QueryProvider {
     }
 
     private <K, S extends HasMetaClassWithKey<K, S>> MongoObjectCollection<K, S> retrieveCollection(MetaClassWithKey<K, S> metaClass) {
-        return new MongoObjectCollection<>(metaClass, database);
+        return new MongoObjectCollection<>(metaClass, database, MongoFieldMapper.instance);
+    }
+
+    private class ObjectResolver implements MetaObjectResolver {
+        @Override
+        public <K, S extends HasMetaClassWithKey<K, S>> S resolve(MetaClassWithKey<K, S> metaClass, K key) {
+            if (isClosed.get()) {
+                return null;
+            }
+            return collection(metaClass)
+                    .query(QueryInfo.<K, S, S>builder()
+                            .metaClass(metaClass)
+                            .predicate(PropertyExpression.ofObject(ObjectExpression.arg(metaClass.asType()), metaClass.keyProperty()).eq(key))
+                            .limit(1L)
+                            .build())
+                    .firstElement()
+                    .map(Optional::of)
+                    .blockingGet(Optional.empty())
+                    .orElse(null);
+        }
     }
 }

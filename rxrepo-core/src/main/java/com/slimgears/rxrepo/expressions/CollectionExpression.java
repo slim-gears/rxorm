@@ -1,7 +1,7 @@
 package com.slimgears.rxrepo.expressions;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.internal.*;
-import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Collection;
 
@@ -11,7 +11,7 @@ public interface CollectionExpression<S, E, C extends Collection<E>> extends Obj
     }
 
     default TypeToken<E> elementType() {
-        return TypeTokens.element(objectType());
+        return MoreTypeTokens.elementType(objectType());
     }
 
     default BooleanExpression<S> contains(E item) {
@@ -57,11 +57,11 @@ public interface CollectionExpression<S, E, C extends Collection<E>> extends Obj
         return aggregator.apply(this);
     }
 
-    static <S, C extends Collection<S>> CollectionExpression<C, S, C> arg(TypeToken<S> argType) {
-        return CollectionArgumentExpression.create(Type.CollectionArgument, TypeToken.ofParameterized(Collection.class, argType));
+    static <S, C extends Collection<S>> CollectionExpression<C, S, C> arg(TypeToken<C> collectionType) {
+        return CollectionArgumentExpression.create(Type.CollectionArgument, collectionType);
     }
 
-    static <S, T, C extends Collection<T>> CollectionExpression<S, T, C> indirectArg(TypeToken<T> argType) {
-        return CollectionArgumentExpression.create(Type.CollectionArgument, TypeToken.ofParameterized(Collection.class, argType));
+    static <S, T, C extends Collection<T>> CollectionExpression<S, T, C> indirectArg(TypeToken<C> collectionType) {
+        return CollectionArgumentExpression.create(Type.CollectionArgument, collectionType);
     }
 }

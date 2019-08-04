@@ -84,7 +84,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             @Override
             public EntityDeleteQuery<K, S> where(Filter<S> filter) {
                 return Optional.ofNullable(filter)
-                        .flatMap(f -> f.<S>toExpression(metaClass.objectClass()))
+                        .flatMap(f -> f.<S>toExpression(metaClass.asType()))
                         .map(this::where)
                         .orElse(this);
             }
@@ -140,7 +140,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             @Override
             public EntityUpdateQuery<K, S> where(Filter<S> filter) {
                 return Optional.ofNullable(filter)
-                        .flatMap(f -> f.<S>toExpression(metaClass.objectClass()))
+                        .flatMap(f -> f.<S>toExpression(metaClass.asType()))
                         .map(this::where)
                         .orElse(this);
             }
@@ -169,7 +169,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
             @Override
             public SelectQuery<S> select() {
-                return select(ObjectExpression.arg(metaClass.objectClass()));
+                return select(ObjectExpression.arg(metaClass.asType()));
             }
 
             @Override
@@ -210,7 +210,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
             @Override
             public LiveSelectQuery<K, S, S> liveSelect() {
-                return liveSelect(ObjectExpression.arg(metaClass.objectClass()));
+                return liveSelect(ObjectExpression.arg(metaClass.asType()));
             }
 
             @Override
@@ -324,7 +324,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
             @Override
             public SelectQueryBuilder<K, S> where(Filter<S> filter) {
                 return Optional.ofNullable(filter)
-                        .flatMap(f -> f.<S>toExpression(metaClass.objectClass()))
+                        .flatMap(f -> f.<S>toExpression(metaClass.asType()))
                         .map(this::where)
                         .orElse(this);
             }

@@ -1,13 +1,13 @@
 package com.slimgears.rxrepo.expressions;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.internal.*;
-import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Collection;
 
 public interface ObjectExpression<S, T> extends Expression {
-    default @JsonIgnore TypeToken<T> objectType() {
+    @JsonIgnore default TypeToken<T> objectType() {
         return type().resolveType(this);
     }
 

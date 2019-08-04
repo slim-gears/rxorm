@@ -3,30 +3,19 @@ package com.slimgears.rxrepo.util;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.slimgears.util.autovalue.annotations.BuilderPrototype;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.autovalue.annotations.MetaBuilder;
-import com.slimgears.util.autovalue.annotations.MetaClass;
-import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.PropertyMeta;
-import com.slimgears.util.reflect.TypeToken;
+import com.google.common.reflect.TypeToken;
+import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
+import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.stream.Streams;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.slimgears.util.stream.Optionals.ofType;
 
-public class PropertyResolvers {
+class PropertyResolvers {
     static <T extends HasMetaClass<T>> T toObject(PropertyResolver resolver, MetaClass<T> metaClass) {
         BuilderPrototype<T, ?> builder = metaClass.createBuilder();
         Streams.fromIterable(resolver.propertyNames())
@@ -141,8 +130,8 @@ public class PropertyResolvers {
             //noinspection unchecked
             return PropertyResolvers.fromObject((HasMetaClass)value);
         } else if (value instanceof Iterable) {
-            TypeToken<?> elementType = typeParam(type, 0);
-            if (elementType.is(HasMetaClass.class::isAssignableFrom)) {
+            TypeToken<?> elementType = type.resolveType(Iterable.class.getTypeParameters()[0]);
+            if (elementType.isSubtypeOf(HasMetaClass.class)) {
                 Stream<?> stream = Streams.fromIterable((Iterable<?>)value)
                         .map(val -> fromValue(elementType, val));
                 if (value instanceof Set) {
@@ -159,9 +148,9 @@ public class PropertyResolvers {
     private static <V> V toValue(TypeToken<V> type, Object value) {
         if (value == null) {
             return null;
-        } else if (value instanceof Iterable) {
-            TypeToken<?> elementType = typeParam(type, 0);
-            Stream<?> objects = elementType.is(HasMetaClass.class::isAssignableFrom)
+        } else if (value instanceof Iterable && type.isSubtypeOf(Iterable.class)) {
+            TypeToken<?> elementType = MoreTypeTokens.elementType((TypeToken)type);
+            Stream<?> objects = elementType.isSubtypeOf(HasMetaClass.class)
                     ? Streams.fromIterable((Iterable<?>)value)
                     .flatMap(Streams.ofType(PropertyResolver.class))
                     .map(pr -> pr.toObject(elementType))
@@ -175,31 +164,22 @@ public class PropertyResolvers {
                 throw new RuntimeException("Not supported iterable type: " + value.getClass());
             }
 
-        } else if (value instanceof Map) {
-            TypeToken<?> keyType = typeParam(type, 0);
-            TypeToken<?> valType = typeParam(type, 1);
+        } else if (value instanceof Map && type.isSubtypeOf(Map.class)) {
+            TypeToken<?> keyType = MoreTypeTokens.keyType((TypeToken)type);
+            TypeToken<?> valType = MoreTypeTokens.valueType((TypeToken)type);
             return (V)((Map<?,?>)value)
                     .entrySet()
                     .stream()
                     .collect(ImmutableMap.toImmutableMap(
                             val -> toValue(keyType, val.getKey()),
                             val -> toValue(valType, val.getValue())));
-        } else if (type.asClass().isInstance(value)) {
+        } else if (type.getRawType().isInstance(value)) {
             return (V)value;
-        } else if ((value instanceof PropertyResolver) && HasMetaClass.class.isAssignableFrom(type.asClass())) {
+        } else if ((value instanceof PropertyResolver) && type.isSubtypeOf(HasMetaClass.class)) {
             return (V)((PropertyResolver) value).toObject((TypeToken)type);
         } else {
             throw new RuntimeException("Cannot convert value: " + value + " to type: " + type);
         }
-    }
-
-    private static <T, R> TypeToken<R> typeParam(TypeToken<T> token, int index) {
-        //noinspection unchecked
-        return Optional
-                .ofNullable(token.typeArguments())
-                .filter(args -> args.length > index)
-                .map(args -> (TypeToken<R>)args[index])
-                .orElse(null);
     }
 
     private static class PropertyValue<T, V> {

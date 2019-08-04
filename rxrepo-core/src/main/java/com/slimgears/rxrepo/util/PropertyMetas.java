@@ -1,11 +1,11 @@
 package com.slimgears.rxrepo.util;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.annotations.Embedded;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
-import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Optionals;
 
 import java.util.Optional;
@@ -21,7 +21,7 @@ public class PropertyMetas {
     }
 
     public static boolean isReference(TypeToken<?> typeToken) {
-        return typeToken.is(HasMetaClassWithKey.class::isAssignableFrom);
+        return typeToken.isSubtypeOf(HasMetaClassWithKey.class);
     }
 
     public static boolean isEmbedded(TypeToken<?> typeToken) {
@@ -29,7 +29,7 @@ public class PropertyMetas {
     }
 
     public static boolean hasMetaClass(TypeToken<?> typeToken) {
-        return typeToken.is(HasMetaClass.class::isAssignableFrom);
+        return typeToken.isSubtypeOf(HasMetaClass.class);
     }
 
     public static boolean hasMetaClass(PropertyMeta<?, ?> property) {

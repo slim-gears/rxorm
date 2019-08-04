@@ -1,26 +1,18 @@
 package com.slimgears.rxrepo.mongodb.codecs;
 
-import com.google.auto.service.AutoService;
 import com.mongodb.DBRefCodecProvider;
-import org.bson.codecs.*;
+import com.slimgears.rxrepo.mongodb.adapter.MetaCodecAdapter;
+import org.bson.codecs.BsonValueCodecProvider;
+import org.bson.codecs.DocumentCodecProvider;
+import org.bson.codecs.ValueCodecProvider;
 import org.bson.codecs.configuration.CodecProvider;
-import org.bson.codecs.configuration.CodecRegistry;
 
-@AutoService(CodecProvider.class)
-public class StandardCodecs implements CodecProvider {
-    private final static CodecProvider provider = Codecs
-            .providerBuilder()
-            .providers(
+public class StandardCodecs {
+    public final static CodecProvider provider = CodecProviders
+            .combine(
                     new ValueCodecProvider(),
-                    new IterableCodecProvider(new ContextValueTransformer()),
                     new DocumentCodecProvider(),
                     new BsonValueCodecProvider(),
                     new DBRefCodecProvider(),
-                    new MapCodecProvider())
-            .build();
-
-    @Override
-    public <T> Codec<T> get(Class<T> clazz, CodecRegistry registry) {
-        return provider.get(clazz, registry);
-    }
+                    new MetaCodecAdapter.Provider());
 }

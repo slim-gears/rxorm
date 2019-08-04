@@ -10,8 +10,6 @@ import com.slimgears.rxrepo.query.NotificationPrototype;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
-import com.slimgears.util.test.logging.LogLevel;
-import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
 import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
@@ -53,7 +51,6 @@ public abstract class AbstractRepositoryTest {
 
 
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testLiveSelectThenInsert() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
 
@@ -91,7 +88,7 @@ public abstract class AbstractRepositoryTest {
                 .assertValue(29);
 
         productUpdatesTest
-                .awaitCount(1020)
+                .awaitCount(1020, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
                 .assertValueAt(1019, Notification::isDelete)
                 .assertNoErrors();
 
@@ -100,7 +97,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testAddAndRetrieveByKey() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Product product = Product.builder()
@@ -114,7 +110,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testAddAlreadyExistingObject() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Product product = Product.builder()
@@ -129,7 +124,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testAddRecursiveInventory() throws InterruptedException {
         Inventory inventory = Inventory.builder()
                 .id(UniqueId.inventoryId(1))
@@ -157,7 +151,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.DEBUG)
     public void testAddAndRetrieveSingleEntity() {
         Product product = Products.createOne();
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
@@ -174,7 +167,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testAddSameInventory() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         EntitySet<UniqueId, Inventory> inventorySet = repository.entities(Inventory.metaClass);
@@ -292,7 +284,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testInsertThenRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = Products.createMany(1000);
@@ -347,7 +338,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testInsertThenSearch() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = Products.createMany(100);
@@ -410,7 +400,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testPartialRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = Products.createMany(10);
@@ -434,7 +423,6 @@ public abstract class AbstractRepositoryTest {
 
     @SuppressWarnings("ConstantConditions")
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testEntityWithListOfReferenceField() throws InterruptedException {
         EntitySet<UniqueId, Storage> storages = repository.entities(Storage.metaClass);
         storages.update(Storage.builder()
@@ -455,7 +443,6 @@ public abstract class AbstractRepositoryTest {
 
     @SuppressWarnings("ConstantConditions")
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testEntityWithStringByReferenceMapField() throws InterruptedException {
         EntitySet<UniqueId, Storage> storages = repository.entities(Storage.metaClass);
         storages.update(Storage.builder()
@@ -477,7 +464,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testEntityWithListOfStringField() throws InterruptedException {
         Product product = Product.builder()
                 .key(UniqueId.productId(1))
@@ -519,7 +505,6 @@ public abstract class AbstractRepositoryTest {
 
     @SuppressWarnings("ConstantConditions")
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testEntityWithListOfEmbeddedField() throws InterruptedException {
         Product product = Product.builder()
                 .key(UniqueId.productId(1))
@@ -551,7 +536,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testInsertThenQueryValueIn() throws InterruptedException {
         repository.entities(Product.metaClass)
                 .update(Products.createMany(10))
@@ -652,7 +636,7 @@ public abstract class AbstractRepositoryTest {
                 .assertTimeout();
     }
 
-    @Test @UseLogLevel(LogLevel.TRACE)
+    @Test
     public void testDistinctSelect() {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
         products.update(Products.createMany(20)).ignoreElement().blockingAwait();
@@ -698,7 +682,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testObserveAsList() {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
         products.update(Products.createMany(10)).ignoreElement().blockingAwait();
@@ -815,5 +798,4 @@ public abstract class AbstractRepositoryTest {
                 .assertValue(n -> ProductPrototype.Type.ComputeHardware.equals(requireNonNull(n.oldValue()).type()))
                 .assertValue(n -> ProductPrototype.Type.ComputerSoftware.equals(requireNonNull(n.newValue()).type()));
     }
-
 }

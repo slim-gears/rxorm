@@ -1,13 +1,15 @@
 package com.slimgears.rxrepo.encoding.codecs;
 
 import com.google.auto.service.AutoService;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.encoding.*;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
-import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.generic.ScopedInstance;
 import com.slimgears.util.stream.Lazy;
 
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -17,14 +19,20 @@ public class MetaClassCodec<T> implements MetaCodec<T> {
     private final MetaObjectResolver resolver;
     private final boolean alwaysEmbedNested;
 
+    private static final ScopedInstance<MetaObjectResolver> objectResolver = ScopedInstance.create();
+
+    public static <T> T withResolver(MetaObjectResolver resolver, Callable<T> action) {
+        return objectResolver.withScope(resolver, action);
+    }
+
     private MetaClassCodec(MetaClass<T> metaClass, MetaObjectResolver resolver) {
         this.metaClass = metaClass;
-        this.resolver = resolver;
+        this.resolver = Optional.ofNullable(resolver).orElseGet(objectResolver::current);
         this.textSupplier = Lazy.of(() -> MetaClassSearchableFields.searchableTextFromEntity(metaClass));
         this.alwaysEmbedNested = resolver == null;
     }
 
-    public static <T> MetaCodec<T> forMetaClass(MetaClass<T> metaClass, MetaObjectResolver resolver) {
+    private static <T> MetaCodec<T> forMetaClass(MetaClass<T> metaClass, MetaObjectResolver resolver) {
         return new MetaClassCodec<>(metaClass, resolver);
     }
 
@@ -126,10 +134,16 @@ public class MetaClassCodec<T> implements MetaCodec<T> {
 
     @AutoService(MetaCodecProvider.class)
     public static class Provider implements MetaCodecProvider {
+        private final MetaObjectResolver resolver;
+
+        public Provider() {
+            this.resolver = objectResolver.current();
+        }
+
         @Override
         public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
             return PropertyMetas.hasMetaClass(type)
-                    ? new MetaClassCodec<>(MetaClasses.forTokenUnchecked(type), null)
+                    ? forMetaClass(MetaClasses.forTokenUnchecked(type), resolver)
                     : null;
         }
     }

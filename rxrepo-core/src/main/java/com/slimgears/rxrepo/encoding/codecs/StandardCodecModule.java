@@ -5,6 +5,7 @@ import com.slimgears.rxrepo.encoding.MetaCodecProvider;
 import com.slimgears.rxrepo.encoding.MetaCodecs;
 import com.slimgears.rxrepo.encoding.MetaReader;
 import com.slimgears.rxrepo.encoding.MetaWriter;
+import com.slimgears.util.stream.Safe;
 
 @AutoService(MetaCodecProvider.Module.class)
 public class StandardCodecModule implements MetaCodecProvider.Module {
@@ -25,6 +26,7 @@ public class StandardCodecModule implements MetaCodecProvider.Module {
                 .add(boolean.class, MetaWriter::writeBoolean, MetaReader::readBoolean)
                 .add(String.class, MetaWriter::writeString, MetaReader::readString)
                 .add(byte[].class, MetaWriter::writeBytes, MetaReader::readBytes)
+                .add(Class.class, MetaCodecs.stringAdapter(Class::getName, Safe.ofFunction(Class::forName)))
                 .add(new EnumCodecModule())
                 .add(new MapCodec.Provider())
                 .add(new IterableCodec.Provider())

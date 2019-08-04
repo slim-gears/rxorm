@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
@@ -9,7 +10,6 @@ import com.slimgears.rxrepo.sql.DefaultSqlExpressionGenerator;
 import com.slimgears.rxrepo.util.ExpressionTextGenerator;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -68,7 +68,7 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
             TypeToken<?> valueType = constantExpression.objectType();
             if (PropertyMetas.isEmbedded(valueType)) {
                 return visitor.apply(ConstantExpression.of(String.valueOf(value)));
-            } else if (valueType.is(Collection.class::isAssignableFrom)) {
+            } else if (valueType.isSubtypeOf(Collection.class)) {
                 value = ((Collection<?>)value)
                         .stream()
                         .map(val -> val instanceof HasMetaClass ? val.toString() : val)

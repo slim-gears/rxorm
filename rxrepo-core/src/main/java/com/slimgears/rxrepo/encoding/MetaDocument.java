@@ -1,6 +1,6 @@
 package com.slimgears.rxrepo.encoding;
 
-import com.slimgears.util.reflect.TypeToken;
+import com.google.common.reflect.TypeToken;
 
 import java.util.Map;
 

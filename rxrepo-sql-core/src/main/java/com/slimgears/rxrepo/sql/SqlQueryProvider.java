@@ -1,16 +1,18 @@
 package com.slimgears.rxrepo.sql;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.CollectionExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.*;
@@ -158,7 +160,7 @@ public class SqlQueryProvider implements QueryProvider {
                 .map(e -> (PropertyExpression<?, ?, T>)e)
                 .map(this::toPropertyPath)
                 .<Function<PropertyResolver, Maybe<T>>>map(path -> pr -> Optional
-                        .ofNullable(pr.getProperty(path, objectType.asClass()))
+                        .ofNullable(pr.getProperty(path, TypeTokens.asClass(objectType)))
                         .map(obj -> obj instanceof PropertyResolver
                                 ? ((PropertyResolver) obj).toObject(objectType)
                                 : (T)obj)
@@ -185,12 +187,12 @@ public class SqlQueryProvider implements QueryProvider {
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         TypeToken<T> elementType = HasMapping.objectType(query);
-        ObjectExpression<T, R> aggregation = aggregator.apply(CollectionExpression.indirectArg(elementType));
+        ObjectExpression<T, R> aggregation = aggregator.apply(CollectionExpression.indirectArg(MoreTypeTokens.collection(elementType)));
         TypeToken<R> resultType = aggregation.objectType();
         return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
                 .executeQuery(statementProvider.forAggregation(query, aggregation, aggregationField))
                 .map(pr -> {
-                    Object obj = pr.getProperty(aggregationField, resultType.asClass());
+                    Object obj = pr.getProperty(aggregationField, TypeTokens.asClass(resultType));
                     //noinspection unchecked
                     return (obj instanceof PropertyResolver)
                             ? ((PropertyResolver)obj).toObject(resultType)

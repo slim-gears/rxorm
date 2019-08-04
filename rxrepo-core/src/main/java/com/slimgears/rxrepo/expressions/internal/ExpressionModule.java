@@ -9,9 +9,10 @@ import com.fasterxml.jackson.databind.module.SimpleDeserializers;
 import com.fasterxml.jackson.databind.module.SimpleSerializers;
 import com.fasterxml.jackson.databind.ser.Serializers;
 import com.google.auto.service.AutoService;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
-import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.reflect.TypeTokens;
 
 import java.io.IOException;
 
@@ -38,14 +39,14 @@ public class ExpressionModule extends Module {
         simpleDeserializers.addDeserializer(TypeToken.class, new JsonDeserializer<TypeToken>() {
             @Override
             public TypeToken deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-                return TypeToken.valueOf(p.getText());
+                return TypeTokens.valueOf(p.getText());
             }
         });
         simpleDeserializers.addDeserializer(PropertyMeta.class, new JsonDeserializer<PropertyMeta>() {
             @Override
             public PropertyMeta deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
                 JsonNode treeNode = p.readValueAsTree();
-                TypeToken declaredType = TypeToken.valueOf(treeNode.get("type").asText());
+                TypeToken declaredType = TypeTokens.valueOf(treeNode.get("type").asText());
                 String name = treeNode.get("name").asText();
                 //noinspection unchecked
                 return MetaClasses.forToken(declaredType).getProperty(name);
@@ -57,17 +58,19 @@ public class ExpressionModule extends Module {
     private Serializers createSerializers() {
         SimpleSerializers simpleSerializers = new SimpleSerializers();
         simpleSerializers.addSerializer(TypeToken.class, new JsonSerializer<TypeToken>() {
+            @SuppressWarnings("unchecked")
             @Override
             public void serialize(TypeToken value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-                gen.writeString(value.eliminateTypeVars().toString());
+                gen.writeString(TypeTokens.eliminateTypeVars(value).toString());
             }
         });
         simpleSerializers.addSerializer(PropertyMeta.class, new JsonSerializer<PropertyMeta>() {
+            @SuppressWarnings("unchecked")
             @Override
             public void serialize(PropertyMeta value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
                 gen.writeStartObject();
                 gen.writeFieldName("type");
-                gen.writeString(value.declaringType().objectClass().eliminateTypeVars().toString());
+                gen.writeString(TypeTokens.eliminateTypeVars(value.declaringType().asType()).toString());
                 gen.writeFieldName("name");
                 gen.writeString(value.name());
                 gen.writeEndObject();

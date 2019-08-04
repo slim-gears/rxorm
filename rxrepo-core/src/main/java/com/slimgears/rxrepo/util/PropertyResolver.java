@@ -1,11 +1,12 @@
 package com.slimgears.rxrepo.util;
 
 import com.google.common.collect.Iterables;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
-import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.reflect.TypeTokens;
 
 import java.util.Optional;
 
@@ -16,7 +17,7 @@ public interface PropertyResolver {
 
     @SuppressWarnings("unchecked")
     default <V> V getProperty(PropertyMeta<?, V> propertyMeta) {
-        Object value = getProperty(propertyMeta.name(), propertyMeta.type().asClass());
+        Object value = getProperty(propertyMeta.name(), TypeTokens.asClass(propertyMeta.type()));
         return (value instanceof PropertyResolver)
                 ? ((PropertyResolver)value).toObject(propertyMeta.type())
                 : (V)value;
@@ -36,7 +37,7 @@ public interface PropertyResolver {
 
     @SuppressWarnings("unchecked")
     default <T> T toObject(TypeToken<T> typeToken) {
-        if (typeToken.is(HasMetaClass.class::isAssignableFrom)) {
+        if (typeToken.isSubtypeOf(HasMetaClass.class)) {
             return (T)toObject(MetaClasses.forToken((TypeToken)typeToken));
         } else {
             return Optional.ofNullable(propertyNames())

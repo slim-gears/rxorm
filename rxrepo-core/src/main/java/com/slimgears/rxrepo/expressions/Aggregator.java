@@ -1,8 +1,8 @@
 package com.slimgears.rxrepo.expressions;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.internal.ComparableUnaryOperationExpression;
 import com.slimgears.rxrepo.expressions.internal.NumericUnaryOperationExpression;
-import com.slimgears.util.reflect.TypeToken;
 
 import java.util.Collection;
 

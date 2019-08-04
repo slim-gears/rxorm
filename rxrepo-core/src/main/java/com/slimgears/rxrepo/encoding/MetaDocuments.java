@@ -2,12 +2,13 @@ package com.slimgears.rxrepo.encoding;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.encoding.adapter.JacksonAdapter;
 import com.slimgears.rxrepo.encoding.codecs.MetaDocumentCodec;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.generic.MoreStrings;
-import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.reflect.TypeTokens;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -46,8 +47,8 @@ public class MetaDocuments {
         @Override
         public <V> V get(String name, TypeToken<V> type) {
             Object value = values.get(name);
-            if (type.asClass().isInstance(value)) {
-                return type.asClass().cast(value);
+            if (type.getRawType().isInstance(value)) {
+                return TypeTokens.asClass(type).cast(value);
             }
 
             if (value == null) {

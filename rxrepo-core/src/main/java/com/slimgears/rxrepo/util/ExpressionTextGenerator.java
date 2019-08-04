@@ -2,13 +2,13 @@ package com.slimgears.rxrepo.util;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ExpressionVisitor;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.generic.ScopedInstance;
-import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Optionals;
 
 import java.util.Arrays;

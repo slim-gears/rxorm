@@ -2,9 +2,12 @@ package com.slimgears.rxrepo.mongodb;
 
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.test.AbstractRepositoryTest;
+import com.slimgears.util.test.logging.LogLevel;
+import com.slimgears.util.test.logging.UseLogLevel;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
+@UseLogLevel(LogLevel.INFO)
 public class MongoQueryProviderTest extends AbstractRepositoryTest {
     private static AutoCloseable mongoProcess;
 

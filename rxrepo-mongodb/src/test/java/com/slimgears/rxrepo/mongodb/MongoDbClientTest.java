@@ -6,7 +6,7 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.reactivestreams.client.*;
-import com.slimgears.rxrepo.mongodb.codecs.*;
+import com.slimgears.rxrepo.mongodb.codecs.StandardCodecs;
 import com.slimgears.rxrepo.test.*;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
@@ -44,21 +44,13 @@ public class MongoDbClientTest {
     @Before
     public void setUp() {
         mongoClient = MongoClients
-                .create(MongoClientSettings.builder()
-                        .codecRegistry(CodecRegistries.fromProviders(Codecs
-                                .providerBuilder()
-                                .providers(
-                                        new StandardCodecs(),
-                                        new MoreValueCodecProvider(),
-                                        new EnumCodecProvider(),
-                                        MetaClassCodecProvider.createEmbedded())
-                                .build()))
+                .create(MongoClientSettings
+                        .builder()
+                        .codecRegistry(CodecRegistries.fromProviders(StandardCodecs.provider))
                         .applyConnectionString(MongoTestUtils.connectionString)
-//                        .applyConnectionString(new ConnectionString("mongodb://root:example@localhost:27017"))
                         .build());
 
         mongoDatabase = mongoClient.getDatabase("repository");
-
         collection = mongoDatabase.getCollection(Product.metaClass.simpleName(), Product.class);
     }
 

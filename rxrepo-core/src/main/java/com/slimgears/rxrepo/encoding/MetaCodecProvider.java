@@ -1,9 +1,10 @@
 package com.slimgears.rxrepo.encoding;
 
-import com.slimgears.util.reflect.TypeToken;
+import com.google.common.reflect.TypeToken;
 
 import java.util.Optional;
 
+@SuppressWarnings("UnstableApiUsage")
 public interface MetaCodecProvider {
     <T> MetaCodec<T> tryResolve(TypeToken<T> type);
 

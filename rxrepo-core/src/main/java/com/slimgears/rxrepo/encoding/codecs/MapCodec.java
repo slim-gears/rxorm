@@ -1,8 +1,10 @@
 package com.slimgears.rxrepo.encoding.codecs;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.encoding.*;
-import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
+import com.slimgears.util.reflect.TypeTokens;
 
 import java.util.Map;
 
@@ -45,7 +47,7 @@ public class MapCodec<K, V> implements MetaCodec<Map<K, V>> {
     }
 
     private MetaCodec<K> getKeyCodec(MetaContext context) {
-        return keyType.asClass() == String.class
+        return keyType.getRawType() == String.class
                 ? keyAsNameCodec()
                 : context.codecProvider().resolve(keyType);
     }
@@ -69,9 +71,17 @@ public class MapCodec<K, V> implements MetaCodec<Map<K, V>> {
         @SuppressWarnings("unchecked")
         @Override
         public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
-            return type.is(Map.class::isAssignableFrom)
-                    ? (MetaCodec<T>)new MapCodec<>(type.typeArguments()[0], type.typeArguments()[1])
-                    : null;
+            if (!type.isSubtypeOf(Map.class)) {
+                return null;
+            }
+
+            TypeToken<?> keyType = MoreTypeTokens.keyType((TypeToken)type);
+            TypeToken<?> valType = MoreTypeTokens.valueType((TypeToken)type);
+            if (TypeTokens.hasTypeVars(keyType) || TypeTokens.hasTypeVars(valType)) {
+                return null;
+            }
+
+            return (MetaCodec<T>)new MapCodec<>(keyType, valType);
         }
     }
 }

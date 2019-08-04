@@ -1,7 +1,7 @@
 package com.slimgears.rxrepo.expressions;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
-import com.slimgears.util.reflect.TypeToken;
 
 @SuppressWarnings("WeakerAccess")
 public abstract class ExpressionVisitor<_T, _R> {

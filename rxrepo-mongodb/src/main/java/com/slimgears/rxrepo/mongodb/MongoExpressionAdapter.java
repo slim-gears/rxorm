@@ -1,25 +1,19 @@
 package com.slimgears.rxrepo.mongodb;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ExpressionVisitor;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.mongodb.adapter.MongoFieldMapper;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
-import com.slimgears.util.reflect.TypeToken;
 import com.slimgears.util.stream.Optionals;
 import org.bson.Document;
 
 import java.util.Arrays;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-
-import static com.slimgears.rxrepo.mongodb.codecs.MetaClassCodec.fieldName;
 
 class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
-    private final static Map<Class<?>, ImmutableList<String>> searchableFieldsPerClass = new ConcurrentHashMap<>();
-
     private final static ImmutableMap<Expression.Type, Reducer> expressionTypeReducers = ImmutableMap
             .<Expression.Type, Reducer>builder()
             .put(Expression.Type.IsNull, args -> expr("$eq", args[0], null))
@@ -38,7 +32,7 @@ class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
             .put(Expression.Type.Concat, args -> expr("$concat", args))
             .put(Expression.Type.AsString, args -> expr("$toString", args))
             .put(Expression.Type.StartsWith, args -> expr("$eq", expr("$indexOfCP", args), 0))
-            .put(Expression.Type.SearchText, args -> reduce(Expression.Type.Contains, args[0] + "_text", args[1]))
+            .put(Expression.Type.SearchText, args -> reduce(Expression.Type.Contains, args[0] + MongoFieldMapper.instance.searchableTextField(), args[1]))
             .put(Expression.Type.EndsWith, args -> expr("$eq",
                     expr("$indexOfCP", args),
                     expr("$subtract",
@@ -87,7 +81,7 @@ class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
 
     @Override
     protected <T, V> Object visitProperty(PropertyMeta<T, V> propertyMeta, Void arg) {
-        return fieldName(propertyMeta);
+        return MongoFieldMapper.instance.toFieldName(propertyMeta);
     }
 
     @Override

@@ -34,7 +34,7 @@ class OrientDbObjectConverter {
         OElement oElement = new ODocument(OrientDbSchemaProvider.toClassName(metaClass));
         metaClass.properties().forEach(p -> {
             oElement.setProperty(p.name(), toOrientDbObject(((PropertyMeta)p).getValue(obj)));
-            if (p.type().is(HasMetaClass.class::isAssignableFrom) && !p.type().is(HasMetaClassWithKey.class::isAssignableFrom)) {
+            if (p.type().isSubtypeOf(HasMetaClass.class) && !p.type().isSubtypeOf(HasMetaClassWithKey.class)) {
                 Optional.ofNullable(((PropertyMeta)p).getValue(obj))
                         .map(Object::toString)
                         .ifPresent(str -> oElement.setProperty(p.name() + "AsString", str));

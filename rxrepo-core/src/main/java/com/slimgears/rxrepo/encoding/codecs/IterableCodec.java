@@ -1,8 +1,11 @@
 package com.slimgears.rxrepo.encoding.codecs;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.encoding.*;
-import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
+
+import java.util.Optional;
 
 public class IterableCodec<T> implements MetaCodec<Iterable<T>> {
     private final TypeToken<T> elementType;
@@ -37,8 +40,12 @@ public class IterableCodec<T> implements MetaCodec<Iterable<T>> {
         @SuppressWarnings("unchecked")
         @Override
         public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
-            return type.is(Iterable.class::isAssignableFrom)
-                    ? (MetaCodec<T>)new IterableCodec<>(type.typeArguments()[0])
+            return type.isSubtypeOf(Iterable.class)
+                    ? (MetaCodec<T>) Optional
+                    .of((TypeToken<?>)MoreTypeTokens.elementType((TypeToken) type))
+                    .filter(MoreTypeTokens::hasNoTypeVars)
+                    .map(IterableCodec::new)
+                    .orElse(null)
                     : null;
         }
     }

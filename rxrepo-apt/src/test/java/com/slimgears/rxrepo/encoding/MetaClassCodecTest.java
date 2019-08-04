@@ -4,12 +4,12 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.google.common.collect.ImmutableList;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.encoding.adapter.JacksonAdapter;
 import com.slimgears.rxrepo.queries.TestEntity;
 import com.slimgears.rxrepo.queries.TestEntityPrototype;
 import com.slimgears.rxrepo.queries.TestKey;
 import com.slimgears.rxrepo.queries.TestRefEntity;
-import com.slimgears.util.reflect.TypeToken;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -44,7 +44,7 @@ public class MetaClassCodecTest {
         String json = stringWriter.toString();
         Assert.assertEquals("{\"key\":\"Key1\",\"text\":\"Text10\",\"number\":10,\"refEntity\":{\"id\":2,\"text\":\"Text1\"},\"refEntities\":[{\"id\":4,\"text\":\"Test4\"}],\"address\":\"Address\",\"enumVal\":\"Val2\",\"__text\":\"TestKey{name=Key1} Text10\"}", json);
         try (JsonParser parser = factory.createParser(json)) {
-            TestEntity decodedEntity = context.read(JacksonAdapter.reader(parser), TestEntity.metaClass.objectClass());
+            TestEntity decodedEntity = context.read(JacksonAdapter.reader(parser), TestEntity.metaClass.asType());
             Assert.assertEquals(testEntity, decodedEntity);
         }
     }

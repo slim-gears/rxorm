@@ -8,6 +8,7 @@ import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
+import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Observable;
 
@@ -39,7 +40,7 @@ public class MandatoryPropertiesQueryProviderDecorator implements QueryProvider.
             return query.properties().isEmpty()
                     ? super.query(query)
                     : super.query(query.toBuilder()
-                            .apply(includeProperties(query.properties(), query.objectType().asClass()))
+                            .apply(includeProperties(query.properties(), TypeTokens.asClass(query.objectType())))
                             .build());
         }
     }
@@ -64,7 +65,7 @@ public class MandatoryPropertiesQueryProviderDecorator implements QueryProvider.
     }
 
     private static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(MetaClass<S> metaClass) {
-        return mandatoryProperties(ObjectExpression.arg(metaClass.objectClass()), metaClass);
+        return mandatoryProperties(ObjectExpression.arg(metaClass.asType()), metaClass);
     }
 
     @SuppressWarnings("unchecked")
@@ -73,7 +74,7 @@ public class MandatoryPropertiesQueryProviderDecorator implements QueryProvider.
                 .filter(p -> !p.hasAnnotation(Nullable.class))
                 .flatMap(p -> {
                     PropertyExpression<S, T, ?> propertyExpression = PropertyExpression.ofObject(target, p);
-                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>) Optional.of(p.type().asClass())
+                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>) Optional.of(TypeTokens.asClass(p.type()))
                             .filter(HasMetaClass.class::isAssignableFrom)
                             .map(cls -> (Class) cls)
                             .map(MetaClasses::forClass)

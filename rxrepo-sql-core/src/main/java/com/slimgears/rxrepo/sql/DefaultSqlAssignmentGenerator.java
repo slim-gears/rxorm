@@ -3,13 +3,10 @@ package com.slimgears.rxrepo.sql;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.reflect.TypeToken;
+import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.rxrepo.util.PropertyResolver;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClass;
-import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClasses;
-import com.slimgears.util.autovalue.annotations.PropertyMeta;
-import com.slimgears.util.reflect.TypeToken;
+import com.slimgears.util.autovalue.annotations.*;
 
 import java.util.List;
 import java.util.Map;
@@ -59,18 +56,18 @@ public class DefaultSqlAssignmentGenerator implements SqlAssignmentGenerator {
             MetaClass valMeta = MetaClasses.forToken(type);
             return ((PropertyResolver)obj).toObject(valMeta);
         } else if (obj instanceof List) {
-            TypeToken elementType = type.typeArguments()[0];
+            TypeToken elementType = MoreTypeTokens.elementType(type);
             return ((List<?>) obj).stream()
                     .map(o -> convertObject(o, elementType))
                     .collect(ImmutableList.toImmutableList());
         } else if (obj instanceof Set) {
-            TypeToken elementType = type.typeArguments()[0];
+            TypeToken elementType = MoreTypeTokens.elementType(type);
             return ((Set<?>) obj).stream()
                     .map(o -> convertObject(o, elementType))
                     .collect(ImmutableSet.toImmutableSet());
         } else if (obj instanceof Map) {
-            TypeToken keyType = type.typeArguments()[0];
-            TypeToken valType = type.typeArguments()[1];
+            TypeToken keyType = MoreTypeTokens.keyType(type);
+            TypeToken valType = MoreTypeTokens.valueType(type);
             return ((Map<?, ?>) obj).entrySet()
                     .stream()
                     .collect(ImmutableMap.toImmutableMap(
