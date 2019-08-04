@@ -11,7 +11,7 @@ import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.mongodb.adapter.MongoFieldMapper;
-import com.slimgears.rxrepo.mongodb.codecs.StandardCodecs;
+import com.slimgears.rxrepo.mongodb.adapter.StandardCodecs;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
@@ -23,7 +23,6 @@ import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
-import org.bson.codecs.configuration.CodecRegistries;
 
 import java.util.Map;
 import java.util.Optional;
@@ -44,7 +43,7 @@ public class MongoQueryProvider implements QueryProvider {
                 () -> MongoClients.create(MongoClientSettings
                         .builder()
                         .applyConnectionString(new ConnectionString(connectionString))
-                        .codecRegistry(CodecRegistries.fromProviders(StandardCodecs.provider))
+                        .codecRegistry(StandardCodecs.registry())
                         .build()));
         this.database = client.getDatabase(dbName);
     }

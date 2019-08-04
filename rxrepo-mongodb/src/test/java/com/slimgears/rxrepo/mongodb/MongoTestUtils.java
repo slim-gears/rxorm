@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class MongoTestUtils {
@@ -110,6 +111,12 @@ class MongoTestUtils {
             return () -> {
                 System.out.println("Stopping mongod...");
                 process.stop();
+                //noinspection ResultOfMethodCallIgnored
+                Observable.interval(200, TimeUnit.MILLISECONDS)
+                        .takeWhile(i -> process.isProcessRunning())
+                        .ignoreElements()
+                        .blockingAwait(2000, TimeUnit.MILLISECONDS);
+
                 System.out.println("Done");
             };
 

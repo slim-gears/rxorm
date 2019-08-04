@@ -6,14 +6,13 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.reactivestreams.client.*;
-import com.slimgears.rxrepo.mongodb.codecs.StandardCodecs;
+import com.slimgears.rxrepo.mongodb.adapter.StandardCodecs;
 import com.slimgears.rxrepo.test.*;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.observers.TestObserver;
 import org.bson.Document;
-import org.bson.codecs.configuration.CodecRegistries;
 import org.junit.*;
 import org.reactivestreams.Publisher;
 
@@ -46,11 +45,11 @@ public class MongoDbClientTest {
         mongoClient = MongoClients
                 .create(MongoClientSettings
                         .builder()
-                        .codecRegistry(CodecRegistries.fromProviders(StandardCodecs.provider))
+                        .codecRegistry(StandardCodecs.registry())
                         .applyConnectionString(MongoTestUtils.connectionString)
                         .build());
 
-        mongoDatabase = mongoClient.getDatabase("repository");
+        mongoDatabase = mongoClient.getDatabase("test-repository");
         collection = mongoDatabase.getCollection(Product.metaClass.simpleName(), Product.class);
     }
 

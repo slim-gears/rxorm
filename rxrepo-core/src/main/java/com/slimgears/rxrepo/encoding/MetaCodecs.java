@@ -8,7 +8,6 @@ import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -32,11 +31,11 @@ public class MetaCodecs {
         return emptyProvider;
     }
 
-    public static MetaCodecProvider fromRegistries(MetaCodecProvider... registries) {
-        return fromRegistries(Arrays.asList(registries));
+    public static MetaCodecProvider fromProviders(MetaCodecProvider... registries) {
+        return fromProviders(Arrays.asList(registries));
     }
 
-    public static MetaCodecProvider fromRegistries(Iterable<MetaCodecProvider> registries) {
+    public static MetaCodecProvider fromProviders(Iterable<MetaCodecProvider> registries) {
         return new MetaCodecProvider() {
             @Override
             public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
@@ -84,21 +83,22 @@ public class MetaCodecs {
                 MetaCodecProvider.class,
                 ClassLoader.getSystemClassLoader()));
 
-        return cachedOf(fromRegistries(
-                fromRegistries(fromModules),
-                fromRegistries(fromLoader)));
+        return cachedOf(fromProviders(
+                fromProviders(fromModules),
+                fromProviders(fromLoader)));
     }
 
-    public static MetaCodecProvider cachedOf(MetaCodecProvider registry) {
-        return new MetaCodecProvider() {
-            private final Map<TypeToken<?>, MetaCodec<?>> cache = new ConcurrentHashMap<>();
-
-            @SuppressWarnings("unchecked")
-            @Override
-            public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
-                return (MetaCodec<T>)cache.computeIfAbsent(type, registry::tryResolve);
-            }
-        };
+    public static MetaCodecProvider cachedOf(MetaCodecProvider provider) {
+        return provider;
+//        return new MetaCodecProvider() {
+//            private final Map<TypeToken<?>, MetaCodec<?>> cache = new ConcurrentHashMap<>();
+//
+//            @SuppressWarnings("unchecked")
+//            @Override
+//            public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
+//                return (MetaCodec<T>)cache.computeIfAbsent(type, provider::tryResolve);
+//            }
+//        };
     }
 
     public static <T> MetaCodec<T> longAdapter(Function<T, Long> toLong, Function<Long, T> fromLong) {
@@ -173,7 +173,7 @@ public class MetaCodecs {
         }
 
         public MetaCodecProvider build() {
-            MetaCodecProvider registryFromList = fromRegistries(registryListBuilder.build());
+            MetaCodecProvider registryFromList = fromProviders(registryListBuilder.build());
             Map<TypeToken<?>, Supplier<MetaCodec<?>>> codecMap = codecMapBuilder.build();
             MetaCodecProvider registryFromMap = new MetaCodecProvider() {
                 @Override
@@ -186,7 +186,7 @@ public class MetaCodecs {
                             .orElse(null);
                 }
             };
-            return cachedOf(fromRegistries(registryFromMap, registryFromList));
+            return cachedOf(fromProviders(registryFromMap, registryFromList));
         }
 
         static class Entry<T> {
