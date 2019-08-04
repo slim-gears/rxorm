@@ -64,8 +64,8 @@ public class MongoRepository {
 
         private String createConnectionString() {
             return user != null && password != null
-                    ? MoreStrings.format("mongodb://{}:{}@{}:{}", user, password, host, port)
-                    : MoreStrings.format("mongodb://{}:{}/{}", host, port);
+                    ? MoreStrings.format("mongodb://{}:{}@{}:{}?maxPoolSize=200", user, password, host, port)
+                    : MoreStrings.format("mongodb://{}:{}/{}?maxPoolSize=200", host, port);
         }
     }
 }
