@@ -8,6 +8,7 @@ import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -89,16 +90,15 @@ public class MetaCodecs {
     }
 
     public static MetaCodecProvider cachedOf(MetaCodecProvider provider) {
-        return provider;
-//        return new MetaCodecProvider() {
-//            private final Map<TypeToken<?>, MetaCodec<?>> cache = new ConcurrentHashMap<>();
-//
-//            @SuppressWarnings("unchecked")
-//            @Override
-//            public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
-//                return (MetaCodec<T>)cache.computeIfAbsent(type, provider::tryResolve);
-//            }
-//        };
+        return new MetaCodecProvider() {
+            private final Map<TypeToken<?>, MetaCodec<?>> cache = new ConcurrentHashMap<>();
+
+            @SuppressWarnings("unchecked")
+            @Override
+            public <T> MetaCodec<T> tryResolve(TypeToken<T> type) {
+                return (MetaCodec<T>)cache.computeIfAbsent(type, provider::tryResolve);
+            }
+        };
     }
 
     public static <T> MetaCodec<T> longAdapter(Function<T, Long> toLong, Function<Long, T> fromLong) {
