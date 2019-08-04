@@ -11,6 +11,7 @@ import com.slimgears.rxrepo.test.*;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
 import org.bson.Document;
 import org.junit.*;
@@ -101,14 +102,16 @@ public class MongoDbClientTest {
                 .fromPublisher(collection.insertOne(product))
                 .blockingAwait();
 
-        testObserver.awaitCount(1)
+        testObserver
+                .awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
                 .assertNoTimeout();
 
         Completable
                 .fromPublisher(collection.updateOne(MongoPipeline.filterFor(product), new Document("$set", product.toBuilder().price(product.price() + 1).build())))
                 .blockingAwait();
 
-        testObserver.awaitCount(2)
+        testObserver
+                .awaitCount(2, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
                 .assertNoTimeout();
     }
 
