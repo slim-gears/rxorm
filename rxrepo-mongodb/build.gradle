@@ -16,6 +16,14 @@
 //test.dependsOn(startMongoDb)
 //test.finalizedBy(stopMongoDb)
 
+sourceSets {
+    embed {
+        java {
+            srcDir "$projectDir/src/embed/java"
+        }
+    }
+}
+
 dependencies {
     implementation project(':rxrepo-core')
     implementation libs.slimAutoValueUtilsAnnotations, libs.slimGenericUtils
@@ -30,5 +38,10 @@ dependencies {
 
     testImplementation project(':rxrepo-test')
     testImplementation libs.slimTestUtils, libs.slimTestUtilsLogback
+    testImplementation sourceSets.embed.output
     testImplementation libs.flapDoodle
+    embedImplementation libs.flapDoodle
+    embedImplementation libs.rxJava
+    embedImplementation libs.slf4j
+    embedImplementation libs.mongoReactive
 }
