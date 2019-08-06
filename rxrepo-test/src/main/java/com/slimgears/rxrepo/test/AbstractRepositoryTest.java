@@ -390,8 +390,10 @@ public abstract class AbstractRepositoryTest {
                 .assertNoTimeout()
                 .assertValueAt(15, pr -> {
                     System.out.println(pr);
-                    Matcher matcher = Pattern.compile("Product 1([0-9]+) - Inventory ([0-9]+)").matcher(requireNonNull(pr.name()));
-                    return matcher.matches() && Integer.valueOf(matcher.group(1)).equals(Integer.valueOf(matcher.group(2)));
+                    Matcher matcher = Pattern.compile("Product ([0-9]+) - Inventory ([0-9]+)").matcher(requireNonNull(pr.name()));
+                    return matcher.matches() &&
+                            Integer.parseInt(matcher.group(1)) == pr.key().id() &&
+                            Integer.parseInt(matcher.group(2)) == requireNonNull(pr.inventory()).id().id();
                 });
     }
 
