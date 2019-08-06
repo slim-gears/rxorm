@@ -10,6 +10,8 @@ import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Maybe;
 import io.reactivex.ObservableTransformer;
 import io.reactivex.functions.Predicate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
@@ -19,6 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 public class Notifications {
+    private final static Logger log = LoggerFactory.getLogger(Notifications.class);
     public static <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<List<Notification<S>>, List<S>> toList(
             ImmutableList<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos,
             @Nullable Long limit) {
@@ -66,9 +69,10 @@ public class Notifications {
 
     public static <K, S extends HasMetaClassWithKey<K, S>, T> ObservableTransformer<Notification<S>, Notification<T>> applyQuery(QueryInfo<K, S, T> query) {
         return src -> src
+                .doOnNext(n -> log.debug("Notification: {}", n))
                 .compose(filter(query.predicate()))
                 .compose(map(query.mapping()))
-                .filter(fieldsFilter(query.properties()));
+                .compose(fieldsFilter(query.properties()));
     }
 
     private static <K, S extends HasMetaClassWithKey<K, S>, T> ObservableTransformer<Notification<S>, Notification<T>> map(ObjectExpression<S, T> projection) {
@@ -76,12 +80,14 @@ public class Notifications {
         return src -> src.map(n -> n.map(mapper));
     }
 
-    private static <T> Predicate<Notification<T>> fieldsFilter(Collection<PropertyExpression<T, ?, ?>> properties) {
+    private static <T> ObservableTransformer<Notification<T>, Notification<T>> fieldsFilter(Collection<PropertyExpression<T, ?, ?>> properties) {
         List<java.util.function.Function<T, ?>> propertyMetas = properties.stream()
                 .map(Expressions::compile)
                 .collect(Collectors.toList());
 
-        return n -> fieldsChanged(n, propertyMetas);
+        return properties.isEmpty()
+                ? src -> src
+                : src -> src.filter(n -> fieldsChanged(n, propertyMetas));
     }
 
     private static <T> boolean fieldsChanged(Notification<T> notification, List<java.util.function.Function<T, ?>> properties) {

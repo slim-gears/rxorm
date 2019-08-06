@@ -11,15 +11,15 @@ import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.stream.Lazy;
 import com.slimgears.util.stream.Streams;
-import io.reactivex.Completable;
-import io.reactivex.Maybe;
 import io.reactivex.Observable;
-import io.reactivex.Single;
+import io.reactivex.*;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,23 +27,35 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implements EntityQueryProvider<K, S> {
+    private final static Logger log = LoggerFactory.getLogger(MemoryEntityQueryProvider.class);
     private final MetaClassWithKey<K, S> metaClass;
     private final MetaObjectResolver objectResolver;
     private final Map<K, AtomicReference<S>> objects = new ConcurrentHashMap<>();
     private final Subject<Notification<S>> notificationSubject = PublishSubject.create();
     private final Lazy<List<PropertyMeta<S, ?>>> referenceProperties;
+    private final Scheduler notificationScheduler;
+    private final Scheduler updateScheduler;
 
-    private MemoryEntityQueryProvider(MetaClassWithKey<K, S> metaClass, MetaObjectResolver objectResolver) {
+    private MemoryEntityQueryProvider(MetaClassWithKey<K, S> metaClass,
+                                      MetaObjectResolver objectResolver,
+                                      Scheduler notificationScheduler,
+                                      Scheduler updateScheduler) {
         this.metaClass = metaClass;
         this.objectResolver = objectResolver;
         this.referenceProperties = Lazy.of(() -> Streams
                 .fromIterable(metaClass.properties())
                 .filter(PropertyMetas::isReference)
                 .collect(ImmutableList.toImmutableList()));
+        this.notificationScheduler = notificationScheduler;
+        this.updateScheduler = updateScheduler;
     }
 
-    static <K, S extends HasMetaClassWithKey<K, S>> EntityQueryProvider<K, S> create(MetaClassWithKey<K, S> metaClass, MetaObjectResolver objectResolver) {
-        return new MemoryEntityQueryProvider<>(metaClass, objectResolver);
+    static <K, S extends HasMetaClassWithKey<K, S>> EntityQueryProvider<K, S> create(
+            MetaClassWithKey<K, S> metaClass,
+            MetaObjectResolver objectResolver,
+            Scheduler notificationScheduler,
+            Scheduler updateScheduler) {
+        return new MemoryEntityQueryProvider<>(metaClass, objectResolver, notificationScheduler, updateScheduler);
     }
 
     @Override
@@ -56,7 +68,14 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
                     .flatMap(e -> reference.compareAndSet(oldValue.get(), e)
                             ? Maybe.just(e)
                             : Maybe.error(new ConcurrentModificationException("Concurrent modification of " + metaClass.simpleName() + " detected")))
-                    .doOnSuccess(e -> notificationSubject.onNext(Notification.ofModified(oldValue.get(), e)));
+                    .doOnSuccess(e -> {
+                        if (!Objects.equals(oldValue.get(), e)) {
+                            Notification<S> notification = Notification.ofModified(oldValue.get(), e);
+                            notificationSubject.onNext(notification);
+                            log.debug("Published notification: {}", notification);
+                        }
+                    })
+                    .subscribeOn(updateScheduler);
         });
     }
 
@@ -65,14 +84,18 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
         Predicate<S> predicate = Expressions.compileRxPredicate(query.predicate());
         Function<S, T> mapper = Expressions.compileRx(query.mapping());
         return Observable.fromIterable(objects.values())
-                .map(AtomicReference::get)
+                .flatMapMaybe(val -> Maybe.fromCallable(val::get))
                 .filter(predicate)
                 .compose(ob -> Optional.ofNullable(query.sorting()).map(SortingInfos::toComparator).map(ob::sorted).orElse(ob))
                 .compose(ob -> Optional.ofNullable(query.skip()).map(ob::skip).orElse(ob))
                 .compose(ob -> Optional.ofNullable(query.limit()).map(ob::take).orElse(ob))
                 .flatMapSingle(this::applyReferences)
                 .map(mapper)
-                .compose(ob -> Optional.ofNullable(query.distinct()).filter(Boolean::booleanValue).map(b -> ob.distinct()).orElse(ob))
+                .compose(ob -> Optional
+                        .ofNullable(query.distinct())
+                        .filter(Boolean::booleanValue)
+                        .map(b -> ob.distinct())
+                        .orElse(ob))
                 .compose(ob -> Optional
                         .ofNullable(query.properties())
                         .filter(p -> !p.isEmpty())
@@ -128,16 +151,17 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-        java.util.function.Function<S, T> mapper = Expressions.compile(query.mapping());
         return notificationSubject
-                .map(n -> n.map(mapper))
-                .compose(ob -> Optional
-                        .ofNullable(query.properties())
-                        .filter(p -> !p.isEmpty())
-                        .map(p -> ob.map(n -> n.map(maskProperties(query.properties()))))
-                        .orElse(ob));
+                .doOnSubscribe(d -> log.debug("Subscribed!!!"))
+                .doOnNext(n -> log.debug("Notification: {}", n))
+                .observeOn(notificationScheduler)
+                .compose(src -> Optional.ofNullable(query.mapping())
+                        .map(Expressions::compile)
+                        .map(m -> src.map(nn -> nn.map(m)))
+                        .orElse((Observable<Notification<T>>)(Observable)src));
     }
 
     @Override

@@ -6,8 +6,11 @@ import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Observable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
+    private final static Logger log = LoggerFactory.getLogger(LiveQueryProviderDecorator.class);
     private LiveQueryProviderDecorator(QueryProvider upstream) {
         super(upstream);
     }

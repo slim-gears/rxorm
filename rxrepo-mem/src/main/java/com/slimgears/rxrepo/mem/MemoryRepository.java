@@ -8,7 +8,8 @@ import com.slimgears.rxrepo.query.provider.QueryProvider;
 public class MemoryRepository {
     public static Repository create(QueryProvider.Decorator... decorators) {
         return Repository
-                .fromProvider(new MemoryQueryProvider(),
+                .fromProvider(
+                        new MemoryQueryProvider(),
                         LiveQueryProviderDecorator.decorator(),
                         UpdateReferencesFirstQueryProviderDecorator.decorator(),
                         QueryProvider.Decorator.of(decorators));

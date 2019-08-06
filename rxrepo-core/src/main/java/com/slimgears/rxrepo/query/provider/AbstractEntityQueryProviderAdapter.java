@@ -16,8 +16,7 @@ public abstract class AbstractEntityQueryProviderAdapter implements QueryProvide
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return entities(metaClass)
-                .insertOrUpdate(key, entityUpdater)
-                .subscribeOn(scheduler());
+                .insertOrUpdate(key, entityUpdater);
     }
 
     @Override

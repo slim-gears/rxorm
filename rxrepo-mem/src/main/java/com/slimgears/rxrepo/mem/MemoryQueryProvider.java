@@ -10,15 +10,26 @@ import io.reactivex.Maybe;
 import io.reactivex.Scheduler;
 import io.reactivex.schedulers.Schedulers;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class MemoryQueryProvider extends AbstractEntityQueryProviderAdapter implements MetaObjectResolver {
+    private final ExecutorService notificationExecutor = Executors.newSingleThreadExecutor();
+    private final Scheduler notificationScheduler = Schedulers.from(notificationExecutor);
+    private final ExecutorService updateExecutor = Executors.newFixedThreadPool(10);
+    private final Scheduler updateScheduler = Schedulers.from(updateExecutor);
+
     @Override
     protected <K, S extends HasMetaClassWithKey<K, S>> EntityQueryProvider<K, S> createProvider(MetaClassWithKey<K, S> metaClass) {
-        return MemoryEntityQueryProvider.create(metaClass, this);
+        return MemoryEntityQueryProvider.create(metaClass,
+                this,
+                notificationScheduler,
+                updateScheduler);
     }
 
     @Override
     protected Scheduler scheduler() {
-        return Schedulers.io();
+        return Schedulers.computation();
     }
 
     @Override
@@ -29,5 +40,11 @@ public class MemoryQueryProvider extends AbstractEntityQueryProviderAdapter impl
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> resolve(MetaClassWithKey<K, S> metaClass, K key) {
         return ((MemoryEntityQueryProvider<K, S>)entities(metaClass)).find(key);
+    }
+
+    @Override
+    public void close() {
+        notificationExecutor.shutdown();
+        updateExecutor.shutdown();
     }
 }

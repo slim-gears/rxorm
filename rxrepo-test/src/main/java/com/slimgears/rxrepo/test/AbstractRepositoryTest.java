@@ -11,12 +11,12 @@ import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import io.reactivex.Maybe;
-import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.CompletableSubject;
 import org.junit.*;
 import org.junit.rules.MethodRule;
 import org.junit.rules.TestName;
+import org.junit.rules.Timeout;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -27,11 +27,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.slimgears.rxrepo.test.TestUtils.*;
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractRepositoryTest {
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
+    @Rule public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
 
     private Repository repository;
 
@@ -48,7 +50,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     protected abstract Repository createRepository();
-
 
     @Test
     public void testLiveSelectThenInsert() throws InterruptedException {
@@ -72,13 +73,13 @@ public abstract class AbstractRepositoryTest {
                 .doOnNext(c -> System.out.println("Count: " + c))
                 .test();
 
-        productSet.update(Products.createMany(1000))
+        productSet.update(Products.createMany(200))
                 .test()
                 .await()
                 .assertNoErrors();
 
         productUpdatesTest
-                .awaitCount(1000);
+                .assertOf(countAtLeast(200));
 
         productSet.delete().where(Product.$.key.id.betweenExclusive(100, 130))
                 .execute()
@@ -88,8 +89,8 @@ public abstract class AbstractRepositoryTest {
                 .assertValue(29);
 
         productUpdatesTest
-                .awaitCount(1020, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
-                .assertValueAt(1019, Notification::isDelete)
+                .assertOf(countAtLeast(220))
+                .assertValueAt(219, Notification::isDelete)
                 .assertNoErrors();
 
         productCount
@@ -144,9 +145,7 @@ public abstract class AbstractRepositoryTest {
         inventorySet.findAll()
                 .sorted(Comparator.comparing(c -> c.id().id()))
                 .test()
-                .awaitCount(2)
-                .assertNoTimeout()
-                .assertNoErrors()
+                .assertOf(countAtLeast(2))
                 .assertValueAt(0, inventory);
     }
 
@@ -160,9 +159,7 @@ public abstract class AbstractRepositoryTest {
 
         productSet.findAll()
                 .test()
-                .awaitCount(1)
-                .assertNoErrors()
-                .assertNoTimeout()
+                .assertOf(countAtLeast(1))
                 .assertValue(product);
     }
 
@@ -208,7 +205,7 @@ public abstract class AbstractRepositoryTest {
     @Test
     public void testInsertThenLiveSelectShouldReturnAdded() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
-        Iterable<Product> products = Products.createMany(1000);
+        Iterable<Product> products = Products.createMany(200);
         productSet.update(products).test().await();
 
         productSet.query()
@@ -216,8 +213,7 @@ public abstract class AbstractRepositoryTest {
                 .queryAndObserve()
                 .doOnNext(System.out::println)
                 .test()
-                .awaitCount(1000, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
-                .assertNoTimeout()
+                .assertOf(countAtLeast(200))
                 .assertValueAt(10, NotificationPrototype::isCreate);
     }
 
@@ -225,7 +221,7 @@ public abstract class AbstractRepositoryTest {
     //@UseLogLevel(UseLogLevel.Level.FINEST)
     public void testInsertThenLiveSelectCountShouldReturnCount() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
-        Iterable<Product> products = Products.createMany(1000);
+        Iterable<Product> products = Products.createMany(200);
         productSet.update(products).test().await();
 
         TestObserver<Long> countObserver = productSet.query()
@@ -234,8 +230,8 @@ public abstract class AbstractRepositoryTest {
                 .test();
 
         countObserver
-                .awaitCount(1)
-                .assertValueAt(0, c -> c == 1000);
+                .assertOf(countAtLeast(1))
+                .assertValueAt(0, c -> c == 200);
 
         productSet.delete()
                 .where(Product.$.searchText("Product 1"))
@@ -245,8 +241,8 @@ public abstract class AbstractRepositoryTest {
                 .assertValue(111);
 
         countObserver
-                .awaitCount(2)
-                .assertValueAt(1, 889L);
+                .assertOf(countAtLeast(2))
+                .assertValueAt(1, 89L);
     }
 
     @Test
@@ -286,7 +282,7 @@ public abstract class AbstractRepositoryTest {
     @Test
     public void testInsertThenRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
-        Iterable<Product> products = Products.createMany(1000);
+        Iterable<Product> products = Products.createMany(200);
         Stopwatch stopwatch = Stopwatch.createUnstarted();
         productSet
                 .update(products)
@@ -303,7 +299,7 @@ public abstract class AbstractRepositoryTest {
                 .count()
                 .test()
                 .await()
-                .assertValue(20L);
+                .assertValue(2L);
 
         productSet.query()
                 .where(Product.$.name.contains("21"))
@@ -311,30 +307,30 @@ public abstract class AbstractRepositoryTest {
                 .aggregate(Aggregator.sum())
                 .test()
                 .await()
-                .assertValue(2364);
+                .assertValue(212);
 
         productSet
                 .query()
-                .where(Product.$.name.contains("231"))
+                .where(Product.$.name.contains("131"))
                 .select()
                 .retrieve(Product.$.key, Product.$.price, Product.$.inventory.id, Product.$.inventory.name)
                 .test()
                 .await()
                 .assertNoErrors()
                 .assertValue(p -> p.name() == null)
-                .assertValue(p -> p.key().id() == 231)
-                .assertValue(p -> p.price() == 110)
-                .assertValue(p -> "Inventory 31".equals(requireNonNull(p.inventory()).name()))
+                .assertValue(p -> p.key().id() == 131)
+                .assertValue(p -> p.price() == 151)
+                .assertValue(p -> "Inventory 11".equals(requireNonNull(p.inventory()).name()))
                 .assertValueCount(1);
 
         productSet
                 .query()
                 .where(Product.$.type.in(ProductPrototype.Type.ComputerSoftware, ProductPrototype.Type.ComputeHardware))
-                .skip(66)
+                .skip(20)
                 .retrieve()
                 .test()
                 .await()
-                .assertValueCount(600);
+                .assertValueCount(113);
     }
 
     @Test
@@ -364,7 +360,7 @@ public abstract class AbstractRepositoryTest {
     @Test @Ignore
     public void testInsertThenUpdate() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
-        Iterable<Product> products = Products.createMany(1000);
+        Iterable<Product> products = Products.createMany(200);
         productSet
                 .update(products)
                 .test()
@@ -374,7 +370,7 @@ public abstract class AbstractRepositoryTest {
         productSet
                 .update()
                 .set(Product.$.name, Product.$.name.concat(" - ").concat(Product.$.inventory.name.asString()))
-                .where(Product.$.key.id.betweenExclusive(100, 200))
+                .where(Product.$.key.id.betweenExclusive(100, 150))
                 .limit(20)
                 .execute()
                 .test()
@@ -385,7 +381,7 @@ public abstract class AbstractRepositoryTest {
 
         productSet
                 .query()
-                .where(Product.$.key.id.betweenExclusive(100, 200))
+                .where(Product.$.key.id.betweenExclusive(100, 150))
                 .limit(20)
                 .retrieve()
                 .test()
@@ -583,14 +579,12 @@ public abstract class AbstractRepositoryTest {
                 .test();
 
         productObserver
-                .awaitCount(1)
-                .assertNoErrors()
-                .assertNoTimeout()
+                .assertOf(countAtLeast(1))
                 .assertValueAt(0, Notification::isCreate)
                 .assertValueAt(0, n -> requireNonNull(n.newValue()).price() == 101);
 
         productObserver
-                .awaitCount(2)
+                .assertOf(countLessThan(2))
                 .assertTimeout();
 
         products.update(Product
@@ -602,9 +596,7 @@ public abstract class AbstractRepositoryTest {
                 .ignoreElement().blockingAwait();
 
         productObserver
-                .awaitCount(2)
-                .assertNoErrors()
-                .assertValueCount(2)
+                .assertOf(countExactly(2))
                 .assertValueAt(1, Notification::isCreate)
                 .assertValueAt(1, n -> requireNonNull(n.newValue()).price() == 102);
 
@@ -617,9 +609,7 @@ public abstract class AbstractRepositoryTest {
                 .ignoreElement().blockingAwait();
 
         productObserver
-                .awaitCount(3)
-                .assertNoErrors()
-                .assertValueCount(3)
+                .assertOf(countExactly(3))
                 .assertValueAt(2, NotificationPrototype::isDelete)
                 .assertValueAt(2, n -> requireNonNull(n.oldValue()).price() == 101);
 
@@ -631,9 +621,7 @@ public abstract class AbstractRepositoryTest {
                 .build())
                 .ignoreElement().blockingAwait();
 
-        productObserver
-                .awaitCount(4)
-                .assertTimeout();
+        productObserver.assertOf(countLessThan(4));
     }
 
     @Test
@@ -695,8 +683,7 @@ public abstract class AbstractRepositoryTest {
                     l.forEach(System.out::println);
                 })
                 .test()
-                .awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
-                .assertNoTimeout()
+                .assertOf(countAtLeast(1))
                 .assertValueAt(0, l -> l.size() == 3)
                 .assertValueAt(0, l -> Objects.equals(l.get(0).name(), "Product 2"))
                 .assertValueAt(0, l -> Objects.equals(l.get(2).name(), "Product 4"));
@@ -723,7 +710,7 @@ public abstract class AbstractRepositoryTest {
                 .ignoreElement().blockingAwait();
 
         productTestObserver
-                .awaitCount(2, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
+                .assertOf(countAtLeast(2))
                 .assertValueAt(1, l -> l.size() == 3)
                 .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 2"))
                 .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 3"))
@@ -732,9 +719,10 @@ public abstract class AbstractRepositoryTest {
 
     @Test
     public void testLiveQueryWithProjection() throws InterruptedException {
-        repository.entities(Product.metaClass).update(Products.createMany(10))
+        repository.entities(Product.metaClass)
+                .update(Products.createMany(10))
                 .test()
-                .await()
+                .awaitCount(10)
                 .assertNoErrors();
 
         TestObserver<Notification<Product>> productNameChanges = repository
@@ -742,7 +730,6 @@ public abstract class AbstractRepositoryTest {
                 .query()
                 .liveSelect()
                 .queryAndObserve(Product.$.name)
-                .filter(NotificationPrototype::isModify)
                 .doOnNext(System.out::println)
                 .test();
 
@@ -751,7 +738,6 @@ public abstract class AbstractRepositoryTest {
                 .query()
                 .liveSelect()
                 .queryAndObserve(Product.$.type)
-                .filter(NotificationPrototype::isModify)
                 .doOnNext(System.out::println)
                 .test();
 
@@ -760,9 +746,12 @@ public abstract class AbstractRepositoryTest {
                 .query()
                 .liveSelect()
                 .queryAndObserve(Product.$.name, Product.$.type)
-                .filter(NotificationPrototype::isModify)
                 .doOnNext(System.out::println)
                 .test();
+
+        productNameChanges.assertOf(countExactly(10));
+        productNameAndTypeChanges.assertOf(countExactly(10));
+        productTypeChanges.assertOf(countExactly(10));
 
         repository.entities(Product.metaClass)
                 .update(UniqueId.productId(1), productMaybe -> productMaybe
@@ -772,14 +761,14 @@ public abstract class AbstractRepositoryTest {
                 .assertValue(p -> "Product 1 - new name".equals(p.name()))
                 .assertNoErrors();
 
-        productNameChanges.awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_10MS, 10000).assertValueCount(1);
-        productNameAndTypeChanges.awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_10MS, 10000).assertValueCount(1);
-        productTypeChanges.assertNoValues();
+        productNameChanges.assertOf(countExactly(11));
+        productNameAndTypeChanges.assertOf(countExactly(11));
+        productTypeChanges.assertOf(countExactly(10));
 
         productNameChanges
-                .assertValue(NotificationPrototype::isModify)
-                .assertValue(n -> "Product 1".equals(requireNonNull(n.oldValue()).name()))
-                .assertValue(n -> "Product 1 - new name".equals(requireNonNull(n.newValue()).name()));
+                .assertValueAt(10, NotificationPrototype::isModify)
+                .assertValueAt(10, n -> "Product 1".equals(requireNonNull(n.oldValue()).name()))
+                .assertValueAt(10, n -> "Product 1 - new name".equals(requireNonNull(n.newValue()).name()));
 
         repository.entities(Product.metaClass)
                 .update(UniqueId.productId(1), productMaybe -> productMaybe
@@ -789,13 +778,13 @@ public abstract class AbstractRepositoryTest {
                 .assertValue(p -> ProductPrototype.Type.ComputerSoftware.equals(p.type()))
                 .assertNoErrors();
 
-        productTypeChanges.awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_10MS, 10000).assertValueCount(1);
-        productNameAndTypeChanges.awaitCount(2, BaseTestConsumer.TestWaitStrategy.SLEEP_10MS, 10000).assertValueCount(2);
-        productNameChanges.assertValueCount(1);
+        productTypeChanges.assertOf(countExactly(11));
+        productNameAndTypeChanges.assertOf(countExactly(12));
+        productNameChanges.assertValueCount(11);
 
         productTypeChanges
-                .assertValue(NotificationPrototype::isModify)
-                .assertValue(n -> ProductPrototype.Type.ComputeHardware.equals(requireNonNull(n.oldValue()).type()))
-                .assertValue(n -> ProductPrototype.Type.ComputerSoftware.equals(requireNonNull(n.newValue()).type()));
+                .assertValueAt(10, NotificationPrototype::isModify)
+                .assertValueAt(10, n -> ProductPrototype.Type.ComputeHardware.equals(requireNonNull(n.oldValue()).type()))
+                .assertValueAt(10, n -> ProductPrototype.Type.ComputerSoftware.equals(requireNonNull(n.newValue()).type()));
     }
 }

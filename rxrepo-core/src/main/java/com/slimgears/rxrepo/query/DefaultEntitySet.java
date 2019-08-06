@@ -20,6 +20,9 @@ import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -31,6 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
+    private final static Logger log = LoggerFactory.getLogger(DefaultEntitySet.class);
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
     private final RepositoryConfigModel config;
@@ -351,6 +355,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     public Single<List<S>> update(Iterable<S> entities) {
         return Observable.fromIterable(entities)
                 .window(32)
+                .observeOn(Schedulers.io())
                 .concatMap(w -> w.flatMapSingle(this::update))
                 .toList();
     }
