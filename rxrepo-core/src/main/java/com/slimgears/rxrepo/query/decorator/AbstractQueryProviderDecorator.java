@@ -57,8 +57,13 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
     }
 
     @Override
-    public Completable drop() {
-        return underlyingProvider.drop();
+    public <K, S extends HasMetaClassWithKey<K, S>> Completable drop(MetaClassWithKey<K, S> metaClass) {
+        return underlyingProvider.drop(metaClass);
+    }
+
+    @Override
+    public Completable dropAll() {
+        return underlyingProvider.dropAll();
     }
 
     @Override

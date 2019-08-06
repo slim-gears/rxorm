@@ -22,7 +22,8 @@ public interface QueryProvider extends AutoCloseable {
 
     <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> update(UpdateInfo<K, S> update);
     <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> delete);
-    Completable drop();
+    <K, S extends HasMetaClassWithKey<K, S>> Completable drop(MetaClassWithKey<K, S> metaClass);
+    Completable dropAll();
 
     default <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
         K key = HasMetaClassWithKey.keyOf(entity);

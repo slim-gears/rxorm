@@ -14,6 +14,7 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
 public class Expressions {
@@ -114,11 +115,16 @@ public class Expressions {
                 .put(Expression.Type.ToLower, Expressions.<String, String>fromUnary(s -> s != null ? s.toLowerCase() : null))
                 .put(Expression.Type.ToUpper, Expressions.<String, String>fromUnary(s -> s != null ? s.toUpperCase() : null))
                 .put(Expression.Type.Trim, Expressions.<String, String>fromUnary(s -> s != null ? s.trim() : null))
-                .put(Expression.Type.Count, Expressions.<Collection, Integer>fromUnary(col -> Optional.ofNullable(col).map(Collection::size).orElse(0)))
+                .put(Expression.Type.Count, Expressions.<Collection, Long>fromUnary(col -> Optional.ofNullable(col).map(Collection::size).map(val -> (long)val).orElse(0L)))
                 .put(Expression.Type.Average, notSupported())
                 .put(Expression.Type.Min, notSupported())
                 .put(Expression.Type.Max, notSupported())
-                .put(Expression.Type.Sum, notSupported())
+                .put(Expression.Type.Sum, Expressions.<Collection<Number>, Number>fromUnary(col -> Optional
+                        .ofNullable(col)
+                        .map(Collection::stream)
+                        .orElseGet(Stream::empty)
+                        .reduce(GenericMath::add)
+                        .orElse(null)))
                 .put(Expression.Type.SearchText, Expressions.<Object, String, Boolean>fromBinary((obj, str) -> obj != null && obj.toString().contains(getStringOrEmpty(str)))) //obj != null and str == null returns true.
                 .put(Expression.Type.ValueIn, Expressions.fromBinary((Object obj, Collection<Object> collection) -> obj != null && collection != null && collection.contains(obj)))
                 .put(Expression.Type.IsNull, Expressions.fromUnary(Objects::isNull))

@@ -216,7 +216,15 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public Completable drop() {
+    public <K, S extends HasMetaClassWithKey<K, S>> Completable drop(MetaClassWithKey<K, S> metaClass) {
+        return Completable.defer(() -> {
+            SqlStatement statement = statementProvider.forDrop(metaClass);
+            return statementExecutor.executeCommand(statement);
+        });
+    }
+
+    @Override
+    public Completable dropAll() {
         return Completable.defer(() -> {
             SqlStatement statement = statementProvider.forDrop();
             return statementExecutor.executeCommand(statement);

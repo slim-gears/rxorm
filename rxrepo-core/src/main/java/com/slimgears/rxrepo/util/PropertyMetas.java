@@ -8,6 +8,7 @@ import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.stream.Optionals;
 
+import javax.annotation.Nullable;
 import java.util.Optional;
 
 @SuppressWarnings("WeakerAccess")
@@ -41,5 +42,9 @@ public class PropertyMetas {
                 .flatMap(Optionals.ofType(MetaClassWithKey.class))
                 .map(mc -> mc.keyProperty() == property)
                 .orElse(false);
+    }
+
+    public static boolean isMandatory(PropertyMeta<?, ?> propertyMeta) {
+        return !propertyMeta.hasAnnotation(Nullable.class);
     }
 }

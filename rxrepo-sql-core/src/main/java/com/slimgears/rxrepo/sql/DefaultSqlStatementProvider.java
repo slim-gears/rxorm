@@ -98,6 +98,11 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     @Override
+    public <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forDrop(MetaClassWithKey<K, S> metaClass) {
+        return statement(() -> of("drop", "table", schemaProvider.tableName(metaClass)));
+    }
+
+    @Override
     public SqlStatement forDrop() {
         return statement(() -> of("drop", "database", schemaProvider.databaseName()));
     }

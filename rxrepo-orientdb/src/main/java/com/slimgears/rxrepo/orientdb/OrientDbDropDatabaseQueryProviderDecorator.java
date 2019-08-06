@@ -7,6 +7,7 @@ import io.reactivex.Completable;
 
 import java.util.function.Supplier;
 
+@SuppressWarnings("WeakerAccess")
 class OrientDbDropDatabaseQueryProviderDecorator extends AbstractQueryProviderDecorator {
     private final Supplier<OrientDB> clientSupplier;
     private final String dbName;
@@ -22,7 +23,7 @@ class OrientDbDropDatabaseQueryProviderDecorator extends AbstractQueryProviderDe
     }
 
     @Override
-    public Completable drop() {
+    public Completable dropAll() {
         return Completable.fromAction(() -> {
             OrientDB client = clientSupplier.get();
             if (client.exists(dbName)) {

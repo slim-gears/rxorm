@@ -22,6 +22,7 @@ public interface SqlStatementProvider {
                                                                             PropertyResolver propertyResolver,
                                                                             ReferenceResolver referenceResolver);
 
+    <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forDrop(MetaClassWithKey<K, S> metaClass);
     SqlStatement forDrop();
 
     default <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forInsertOrUpdate(S entity, ReferenceResolver referenceResolver) {

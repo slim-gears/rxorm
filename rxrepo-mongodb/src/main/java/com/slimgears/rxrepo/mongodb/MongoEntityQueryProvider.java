@@ -15,8 +15,10 @@ import com.slimgears.rxrepo.encoding.MetaClassFieldMapper;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
+import com.slimgears.rxrepo.query.provider.EntityQueryProvider;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
+import com.slimgears.rxrepo.util.Expressions;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -42,8 +44,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
-    private final static Logger log = LoggerFactory.getLogger(MongoObjectCollection.class);
+class MongoEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implements EntityQueryProvider<K, S> {
+    private final static Logger log = LoggerFactory.getLogger(MongoEntityQueryProvider.class);
     private final MetaClassWithKey<K, S> metaClass;
     private final Lazy<MongoCollection<Document>> objectCollection;
     private final Lazy<MongoCollection<Document>> notificationCollection;
@@ -52,7 +54,7 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
     private final CodecRegistry codecRegistry;
     private final MetaClassFieldMapper fieldMapper;
 
-    MongoObjectCollection(MetaClassWithKey<K, S> metaClass, MongoDatabase database, MetaClassFieldMapper fieldMapper) {
+    MongoEntityQueryProvider(MetaClassWithKey<K, S> metaClass, MongoDatabase database, MetaClassFieldMapper fieldMapper) {
         this.metaClass = metaClass;
         this.codecRegistry = database.getCodecRegistry();
         this.codec = Lazy.of(() -> codecRegistry.get(metaClass.asClass()));
@@ -72,7 +74,8 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                 .firstElement();
     }
 
-    Maybe<S> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> update) {
+    @Override
+    public Maybe<S> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> update) {
         AtomicLong version = new AtomicLong();
         AtomicReference<S> oldObject = new AtomicReference<>();
         AtomicReference<S> newObject = new AtomicReference<>();
@@ -122,13 +125,15 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                 .doOnError(e -> log.trace("Could not update object: ", e));
     }
 
-    <T> Observable<T> query(QueryInfo<K, S, T> query) {
+    @Override
+    public <T> Observable<T> query(QueryInfo<K, S, T> query) {
         return queryDocuments(query)
                 .doOnNext(doc -> log.debug("Retrieved document: {}", doc))
                 .map(doc -> objectFromDocument(doc, query.objectType()));
     }
 
-    <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
+    @Override
+    public <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         AggregatePublisher<Document> publisher = objectCollection.get()
                 .aggregate(MongoPipeline.aggregationPipeline(query, aggregator));
 
@@ -147,7 +152,10 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                 .aggregate(MongoPipeline.aggregationPipeline(query)));
     }
 
-    Observable<Notification<S>> liveQuery() {
+    @Override
+    public <T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
+        java.util.function.Function<S, T> mapper = Expressions.compile(query.mapping());
+
         Observable<Notification<S>> modifications = Observable.fromPublisher(notificationCollection.get().watch())
                 .map(ChangeStreamDocument::getFullDocument)
                 .doOnNext(d -> log.trace("New update: {}", d.toJson()))
@@ -161,7 +169,8 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                 .doOnNext(d -> log.trace("Change detected: {}", d))
                 .flatMapMaybe(this::notificationFromChangeDocument);
 
-        return modifications.mergeWith(insertions);
+        return modifications.mergeWith(insertions)
+                .map(n -> n.map(mapper));
     }
 
     private Completable publish(Document oldDoc, Document newDoc) {
@@ -187,7 +196,8 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                 .insertOne(notificationDocument));
     }
 
-    Single<Integer> update(UpdateInfo<K, S> updateInfo) {
+    @Override
+    public Single<Integer> update(UpdateInfo<K, S> updateInfo) {
         return Observable.fromPublisher(objectCollection.get()
                 .updateMany(
                         MongoPipeline.expr(updateInfo.predicate()),
@@ -198,7 +208,8 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                 .toSingle(0);
     }
 
-    Single<Integer> delete(DeleteInfo<K, S> deleteInfo) {
+    @Override
+    public Single<Integer> delete(DeleteInfo<K, S> deleteInfo) {
         return queryDocuments(QueryInfo
                 .<K, S, S>builder()
                 .metaClass(deleteInfo.metaClass())
@@ -213,6 +224,11 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
                         .firstElement()
                         .map(Long::intValue)
                         .toSingle(0));
+    }
+
+    @Override
+    public Completable drop() {
+        return Completable.fromPublisher(objectCollection.get().drop());
     }
 
     private static Throwable convertError(Throwable e) {
@@ -295,9 +311,5 @@ class MongoObjectCollection<K, S extends HasMetaClassWithKey<K, S>> {
         BsonReader reader = bsonDoc.asBsonReader();
         Codec<T> codec = codecRegistry.get(TypeTokens.asClass(objectType));
         return codec.decode(reader, DecoderContext.builder().build());
-    }
-
-    private Document toDocument(BsonDocument bson) {
-        return codecRegistry.get(Document.class).decode(bson.asBsonReader(), DecoderContext.builder().build());
     }
 }

@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+@SuppressWarnings("WeakerAccess")
 public class MetaDocuments {
     public static MetaDocument create(MetaContext context) {
         return new DefaultDocument(context);
@@ -115,7 +116,7 @@ public class MetaDocuments {
         return builder.build();
     }
 
-    private static <T> MetaDocument toDocument(T obj, MetaClass<T> metaClass) {
+    public static <T> MetaDocument toDocument(T obj, MetaClass<T> metaClass) {
         if (obj == null) {
             return null;
         }
