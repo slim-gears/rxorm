@@ -18,7 +18,9 @@ public class MongoQueryProviderTest extends AbstractRepositoryTest {
 
     @AfterClass
     public static void tearDownClass() throws Exception {
-        mongoProcess.close();
+        if (mongoProcess != null) {
+            mongoProcess.close();
+        }
     }
 
     @Override
