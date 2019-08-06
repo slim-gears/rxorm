@@ -5,7 +5,7 @@ import com.slimgears.rxrepo.mongodb.embed.MongoService;
 
 class MongoTestUtils {
     final static int port = 27018;
-    final static ConnectionString connectionString = new ConnectionString("mongodb://localhost:" + port);
+    final static ConnectionString connectionString = new ConnectionString("mongodb://localhost:" + port + "?maxPoolSize=200");
 
     static AutoCloseable startMongo() {
         return MongoService.builder()
