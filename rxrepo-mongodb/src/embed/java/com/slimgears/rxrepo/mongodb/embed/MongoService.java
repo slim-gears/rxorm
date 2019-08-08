@@ -167,7 +167,7 @@ public class MongoService implements AutoCloseable {
     public static class Builder {
         private int port = 27017;
         private String version = "4.0.11";
-        private String workingDir = ".mongo";
+        private String workingDir = "";
         private boolean enableReplica = false;
 
         public Builder port(int port) {
