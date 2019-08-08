@@ -12,6 +12,7 @@ import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.observers.TestObserver;
+import io.reactivex.subjects.CompletableSubject;
 import org.bson.Document;
 import org.junit.*;
 import org.reactivestreams.Publisher;
@@ -91,12 +92,17 @@ public class MongoDbClientTest {
 
     @Test
     public void testWatchCollection() {
+        CompletableSubject subscribed = CompletableSubject.create();
+
         TestObserver<ChangeStreamDocument<Document>> testObserver = Observable
                 .fromPublisher(collection.watch().fullDocument(FullDocument.UPDATE_LOOKUP))
                 .doOnNext(System.out::println)
+                .doOnSubscribe(d -> subscribed.onComplete())
                 .test();
 
         Product product = createOne();
+
+        subscribed.blockingAwait();
 
         Completable
                 .fromPublisher(collection.insertOne(product))
