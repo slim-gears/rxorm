@@ -20,6 +20,12 @@ public interface EntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> {
     Single<Integer> delete(DeleteInfo<K, S> delete);
     Completable drop();
 
+    default Completable insert(Iterable<S> entities) {
+        return Observable.fromIterable(entities)
+                .concatMapEager(e -> insertOrUpdate(e).toObservable())
+                .ignoreElements();
+    }
+
     default Single<S> insertOrUpdate(S entity) {
         K key = HasMetaClassWithKey.keyOf(entity);
         return insertOrUpdate(key, val -> val

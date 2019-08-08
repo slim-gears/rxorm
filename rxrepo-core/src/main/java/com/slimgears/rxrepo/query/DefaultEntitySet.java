@@ -19,16 +19,14 @@ import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
 import io.reactivex.Single;
+import io.reactivex.exceptions.CompositeException;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.Collection;
-import java.util.ConcurrentModificationException;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -255,7 +253,8 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider.aggregate(query, aggregator)
                                 .toObservable()
-                                .concatWith(queryProvider.liveAggregate(query, aggregator));
+                                .concatWith(queryProvider.liveAggregate(query, aggregator))
+                                .distinctUntilChanged();
                     }
 
                     @Override
@@ -343,21 +342,30 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
     @Override
     public Single<S> update(S entity) {
-        return Single
-                .defer(() -> queryProvider.insertOrUpdate(entity))
-                .compose(Singles.backOffDelayRetry(
-                        DefaultEntitySet::isConcurrencyException,
-                        Duration.ofMillis(config.retryInitialDurationMillis()),
-                        config.retryCount()));
+        return queryProvider.insert(Collections.singleton(entity))
+                .andThen(Single.just(entity))
+                .onErrorResumeNext(e ->
+                        isConcurrencyException(e)
+                        ? Single.defer(() -> queryProvider.insertOrUpdate(entity))
+                                .compose(Singles.backOffDelayRetry(
+                                        DefaultEntitySet::isConcurrencyException,
+                                        Duration.ofMillis(config.retryInitialDurationMillis()),
+                                        config.retryCount()))
+                        : Single.error(e));
     }
 
     @Override
     public Single<List<S>> update(Iterable<S> entities) {
-        return Observable.fromIterable(entities)
-                .window(32)
-                .observeOn(Schedulers.io())
-                .concatMap(w -> w.flatMapSingle(this::update))
-                .toList();
+        return queryProvider.insert(entities)
+                .andThen(Single.<List<S>>fromCallable(() -> ImmutableList.copyOf(entities)))
+                .onErrorResumeNext(e -> isConcurrencyException(e)
+                        ? Single.defer(() -> Observable
+                                .fromIterable(entities)
+                                .window(100)
+                                .observeOn(Schedulers.newThread())
+                                .concatMap(w -> w.flatMapSingle(this::update))
+                                .toList())
+                        : Single.error(e));
     }
 
     @Override
@@ -370,6 +378,11 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
     }
 
     private static boolean isConcurrencyException(Throwable exception) {
-        return exception instanceof ConcurrentModificationException;
+        log.debug("Checking exception: {}", exception.getMessage(), exception);
+        return exception instanceof ConcurrentModificationException ||
+                (exception instanceof CompositeException && ((CompositeException)exception)
+                        .getExceptions()
+                        .stream()
+                        .anyMatch(DefaultEntitySet::isConcurrencyException));
     }
 }

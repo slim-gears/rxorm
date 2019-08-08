@@ -27,8 +27,6 @@ public class MongoQueryProviderTest extends AbstractRepositoryTest {
     protected Repository createRepository() {
         return MongoRepository.builder()
                 .port(MongoTestUtils.port)
-//                .user("root")
-//                .password("example")
                 .build();
     }
 }

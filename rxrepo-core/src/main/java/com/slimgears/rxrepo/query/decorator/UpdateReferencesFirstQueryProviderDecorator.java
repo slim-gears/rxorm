@@ -23,17 +23,21 @@ public class UpdateReferencesFirstQueryProviderDecorator extends AbstractQueryPr
         super(underlyingProvider);
     }
 
-    public static QueryProvider.Decorator decorator() {
+    public static QueryProvider.Decorator create() {
         return UpdateReferencesFirstQueryProviderDecorator::new;
     }
 
     @Override
+    public <K, S extends HasMetaClassWithKey<K, S>> Completable insert(Iterable<S> entities) {
+        return Observable.fromIterable(entities)
+                .concatMapEager(e -> insertOrUpdateReferences(e).andThen(Observable.just(e)))
+                .ignoreElements()
+                .andThen(super.insert(entities));
+    }
+
+    @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
-        K key = HasMetaClassWithKey.keyOf(entity);
-        return insertOrUpdate(entity.metaClass(), key, val -> val
-                .map(e -> e.merge(entity))
-                .switchIfEmpty(Maybe.just(entity)))
-                .toSingle();
+        return insertOrUpdateReferences(entity).andThen(super.insertOrUpdate(entity));
     }
 
     @Override

@@ -9,14 +9,14 @@ import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.RepositoryConfigModelBuilder;
 import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
+import com.slimgears.rxrepo.query.decorator.SchedulingQueryProviderDecorator;
+import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
 import com.slimgears.rxrepo.sql.SqlServiceFactory;
 import com.slimgears.util.stream.Lazy;
 import io.reactivex.Observable;
-import io.reactivex.Scheduler;
 import io.reactivex.internal.functions.Functions;
-import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.CompletableSubject;
 
 import javax.annotation.Nonnull;
@@ -52,7 +52,6 @@ public class OrientDbRepository {
         private ODatabaseType dbType = ODatabaseType.MEMORY;
         private String user = "admin";
         private String password = "admin";
-        private Scheduler scheduler = Schedulers.io();
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
         private RepositoryConfig.Builder configBuilder = RepositoryConfig
                 .builder()
@@ -84,11 +83,6 @@ public class OrientDbRepository {
             return this;
         }
 
-        public final Builder scheduler(@Nonnull Scheduler scheduler) {
-            this.scheduler = scheduler;
-            return this;
-        }
-
         public final Builder decorate(@Nonnull QueryProvider.Decorator... decorators) {
             this.decorator = this.decorator.andThen(QueryProvider.Decorator.of(decorators));
             return this;
@@ -114,7 +108,6 @@ public class OrientDbRepository {
                     session -> Optional.ofNullable(sessions.remove(session))
                             .ifPresent(CompletableSubject::onComplete))
                     .shutdownSignal(shutdownSubject)
-                    .scheduler(scheduler)
                     .decorate(decorator)
                     .decorate(OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName))
                     .buildRepository(configBuilder.build())
@@ -166,11 +159,14 @@ public class OrientDbRepository {
         OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(sessionProvider, sessionCloser);
         return SqlServiceFactory.builder()
                 .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
-                .statementExecutor(svc -> new OrientDbStatementExecutor(dbSessionProvider, svc.scheduler(), svc.shutdownSignal()))
+                .statementExecutor(svc -> new OrientDbStatementExecutor(dbSessionProvider, svc.shutdownSignal()))
                 .expressionGenerator(OrientDbSqlExpressionGenerator::new)
                 .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                 .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
                 .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
-                .decorate(LiveQueryProviderDecorator.decorator());
+                .decorate(
+                        SchedulingQueryProviderDecorator.createDefault(),
+                        UpdateReferencesFirstQueryProviderDecorator.create(),
+                        LiveQueryProviderDecorator.create());
     }
 }

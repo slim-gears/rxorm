@@ -12,7 +12,6 @@ import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
-import io.reactivex.Scheduler;
 import io.reactivex.Single;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,13 +31,11 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
     private final static Logger log = LoggerFactory.getLogger(OrientDbStatementExecutor.class);
     private final static long timeoutMillis = 10000;
     private final OrientDbSessionProvider sessionProvider;
-    private final Scheduler scheduler;
     private final Completable shutdown;
 
-    OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider, Scheduler scheduler, Completable shutdown) {
+    OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider, Completable shutdown) {
         this.shutdown = shutdown;
         this.sessionProvider = sessionProvider;
-        this.scheduler = scheduler;
     }
 
     @Override
@@ -67,7 +64,6 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                         logStatement("Executed command", statement);
                     }
                 })
-                .subscribeOn(scheduler)
                 .timeout(timeoutMillis,
                         TimeUnit.MILLISECONDS,
                         Observable.error(new TimeoutException("Timeout when executing: " + toString(statement))));
@@ -123,7 +119,6 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                     emitter.onComplete();
                 }))
                 .map(res -> OResultPropertyResolver.create(sessionProvider, res))
-                .subscribeOn(scheduler)
                 .timeout(timeoutMillis, TimeUnit.MILLISECONDS);
     }
 

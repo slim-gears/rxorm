@@ -3,7 +3,9 @@ package com.slimgears.rxrepo.mongodb;
 import com.google.common.reflect.TypeToken;
 import com.mongodb.DuplicateKeyException;
 import com.mongodb.ErrorCategory;
+import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoWriteException;
+import com.mongodb.bulk.BulkWriteError;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.OperationType;
 import com.mongodb.client.result.DeleteResult;
@@ -25,6 +27,7 @@ import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Lazy;
 import com.slimgears.util.stream.Optionals;
+import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
@@ -39,10 +42,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ConcurrentModificationException;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 class MongoEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implements EntityQueryProvider<K, S> {
     private final static Logger log = LoggerFactory.getLogger(MongoEntityQueryProvider.class);
@@ -72,6 +77,19 @@ class MongoEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implement
                         .limit(1L)
                         .build()))
                 .firstElement();
+    }
+
+    @Override
+    public Completable insert(Iterable<S> entities) {
+        List<Document> documents = Streams
+                .fromIterable(entities)
+                .map(e -> objectToDocument(e, 0))
+                .collect(Collectors.toList());
+
+        return Completable
+                .fromPublisher(objectCollection.get().insertMany(documents))
+                .doOnComplete(() -> log.debug("Insert of {} documents complete", documents.size()))
+                .onErrorResumeNext(e -> Completable.error(convertError(e)));
     }
 
     @Override
@@ -198,14 +216,15 @@ class MongoEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implement
 
     @Override
     public Single<Integer> update(UpdateInfo<K, S> updateInfo) {
-        return Observable.fromPublisher(objectCollection.get()
-                .updateMany(
-                        MongoPipeline.expr(updateInfo.predicate()),
-                        MongoPipeline.setFields(updateInfo.propertyUpdates())))
-                .map(UpdateResult::getModifiedCount)
-                .firstElement()
-                .map(Long::intValue)
-                .toSingle(0);
+        return Single.error(() -> new UnsupportedOperationException("Not supported yet"));
+//        return Observable.fromPublisher(objectCollection.get()
+//                .updateMany(
+//                        MongoPipeline.expr(updateInfo.predicate()),
+//                        MongoPipeline.setFields(updateInfo.propertyUpdates())))
+//                .map(UpdateResult::getModifiedCount)
+//                .firstElement()
+//                .map(Long::intValue)
+//                .toSingle(0);
     }
 
     @Override
@@ -232,14 +251,19 @@ class MongoEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implement
     }
 
     private static Throwable convertError(Throwable e) {
-        return (isDuplicateKeyException(e))
+        return isDuplicateKeyException(e)
                 ? new ConcurrentModificationException(e)
                 : e;
     }
 
     private static boolean isDuplicateKeyException(Throwable e) {
         return e instanceof DuplicateKeyException ||
-                (e instanceof MongoWriteException && ((MongoWriteException)e).getError().getCategory() == ErrorCategory.DUPLICATE_KEY);
+                (e instanceof MongoWriteException && ((MongoWriteException)e).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) ||
+                (e instanceof MongoBulkWriteException && ((MongoBulkWriteException)e)
+                        .getWriteErrors()
+                        .stream()
+                        .map(BulkWriteError::getCategory)
+                        .anyMatch(ErrorCategory.DUPLICATE_KEY::equals));
     }
 
     private Notification<S> notificationFromDocument(Document document) {

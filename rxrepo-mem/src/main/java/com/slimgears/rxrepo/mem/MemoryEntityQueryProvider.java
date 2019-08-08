@@ -16,6 +16,7 @@ import io.reactivex.*;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
 import org.slf4j.Logger;
@@ -23,39 +24,35 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implements EntityQueryProvider<K, S> {
+public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implements EntityQueryProvider<K, S>, AutoCloseable {
     private final static Logger log = LoggerFactory.getLogger(MemoryEntityQueryProvider.class);
     private final MetaClassWithKey<K, S> metaClass;
     private final MetaObjectResolver objectResolver;
     private final Map<K, AtomicReference<S>> objects = new ConcurrentHashMap<>();
     private final Subject<Notification<S>> notificationSubject = PublishSubject.create();
     private final Lazy<List<PropertyMeta<S, ?>>> referenceProperties;
-    private final Scheduler notificationScheduler;
-    private final Scheduler updateScheduler;
+    private final Lazy<ExecutorService> notificationExecutor = Lazy.of(Executors::newSingleThreadExecutor);
+    private final Lazy<Scheduler> notificationScheduler = Lazy.of(() -> Schedulers.from(notificationExecutor.get()));
 
     private MemoryEntityQueryProvider(MetaClassWithKey<K, S> metaClass,
-                                      MetaObjectResolver objectResolver,
-                                      Scheduler notificationScheduler,
-                                      Scheduler updateScheduler) {
+                                      MetaObjectResolver objectResolver) {
         this.metaClass = metaClass;
         this.objectResolver = objectResolver;
         this.referenceProperties = Lazy.of(() -> Streams
                 .fromIterable(metaClass.properties())
                 .filter(PropertyMetas::isReference)
                 .collect(ImmutableList.toImmutableList()));
-        this.notificationScheduler = notificationScheduler;
-        this.updateScheduler = updateScheduler;
     }
 
-    static <K, S extends HasMetaClassWithKey<K, S>> EntityQueryProvider<K, S> create(
+    static <K, S extends HasMetaClassWithKey<K, S>> MemoryEntityQueryProvider<K, S> create(
             MetaClassWithKey<K, S> metaClass,
-            MetaObjectResolver objectResolver,
-            Scheduler notificationScheduler,
-            Scheduler updateScheduler) {
-        return new MemoryEntityQueryProvider<>(metaClass, objectResolver, notificationScheduler, updateScheduler);
+            MetaObjectResolver objectResolver) {
+        return new MemoryEntityQueryProvider<>(metaClass, objectResolver);
     }
 
     @Override
@@ -74,8 +71,7 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
                             notificationSubject.onNext(notification);
                             log.debug("Published notification: {}", notification);
                         }
-                    })
-                    .subscribeOn(updateScheduler);
+                    });
         });
     }
 
@@ -157,7 +153,7 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
         return notificationSubject
                 .doOnSubscribe(d -> log.debug("Subscribed!!!"))
                 .doOnNext(n -> log.debug("Notification: {}", n))
-                .observeOn(notificationScheduler)
+                .observeOn(notificationScheduler.get())
                 .compose(src -> Optional.ofNullable(query.mapping())
                         .map(Expressions::compile)
                         .map(m -> src.map(nn -> nn.map(m)))
@@ -178,7 +174,7 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
 
     @Override
     public Single<Integer> update(UpdateInfo<K, S> update) {
-        return Single.just(0);
+        return Single.error(() -> new UnsupportedOperationException("Not supported yet"));
     }
 
     @Override
@@ -238,5 +234,11 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
 
     Maybe<S> find(K key) {
         return Maybe.fromCallable(() -> objects.get(key)).map(AtomicReference::get);
+    }
+
+    @Override
+    public void close() {
+        notificationExecutor.ifExists(ExecutorService::shutdown);
+        notificationScheduler.ifExists(Scheduler::shutdown);
     }
 }

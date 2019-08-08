@@ -8,44 +8,41 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
-import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Optionals;
-import com.slimgears.util.stream.Streams;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static com.slimgears.util.stream.Streams.ofType;
 
 public class SqlQueryProvider implements QueryProvider {
     private final static Logger log = LoggerFactory.getLogger(SqlQueryProvider.class);
     private final static String aggregationField = "__aggregation";
     private final SqlStatementProvider statementProvider;
     private final SqlStatementExecutor statementExecutor;
-    private final SqlExpressionGenerator expressionGenerator;
     private final SchemaProvider schemaProvider;
     private final ReferenceResolver referenceResolver;
 
     SqlQueryProvider(SqlStatementProvider statementProvider,
                      SqlStatementExecutor statementExecutor,
-                     SqlExpressionGenerator expressionGenerator,
                      SchemaProvider schemaProvider,
                      ReferenceResolver referenceResolver) {
         this.statementProvider = statementProvider;
         this.statementExecutor = statementExecutor;
-        this.expressionGenerator = expressionGenerator;
         this.schemaProvider = schemaProvider;
         this.referenceResolver = referenceResolver;
+    }
+
+    @Override
+    public <K, S extends HasMetaClassWithKey<K, S>> Completable insert(Iterable<S> entities) {
+        return Observable.fromIterable(entities)
+                .flatMapSingle(this::insert)
+                .ignoreElements();
     }
 
     @Override
@@ -83,11 +80,14 @@ public class SqlQueryProvider implements QueryProvider {
 
     private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
         SqlStatement statement = statementProvider.forInsertOrUpdate(metaClass, propertyResolver, referenceResolver);
+        return insertOrUpdate(metaClass, statement);
+    }
+
+    private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, SqlStatement statement) {
         return schemaProvider.createOrUpdate(metaClass)
                 .doOnSubscribe(d -> log.trace("Ensuring class {}", metaClass.simpleName()))
                 .doOnError(e -> log.trace("Error when updating class: {}", metaClass.simpleName(), e))
                 .doOnComplete(() -> log.trace("Class updated {}", metaClass.simpleName()))
-                .andThen(updateReferences(metaClass, propertyResolver))
                 .andThen(statementExecutor
                         .executeCommandReturnEntries(statement)
                         .map(pr -> pr.toObject(metaClass))
@@ -102,44 +102,7 @@ public class SqlQueryProvider implements QueryProvider {
     private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insert(S entity) {
         MetaClassWithKey<K, S> metaClass = entity.metaClass();
         SqlStatement statement = statementProvider.forInsert(entity, referenceResolver);
-        return schemaProvider.createOrUpdate(metaClass)
-                .doOnSubscribe(d -> log.trace("Ensuring class {}", metaClass.simpleName()))
-                .doOnError(e -> log.trace("Error when updating class: {}", metaClass.simpleName(), e))
-                .doOnComplete(() -> log.trace("Class updated {}", metaClass.simpleName()))
-                .andThen(updateReferences(entity))
-                .andThen(statementExecutor
-                        .executeCommandReturnEntries(statement)
-                        .map(pr -> pr.toObject(metaClass))
-                        .doOnSubscribe(d -> log.trace("Executing statement: {}", statement.statement()))
-                        .doOnError(e -> log.trace("Failed to execute statement: {}", statement.statement(), e))
-                        .doOnComplete(() -> log.trace("Execution complete: {}", statement.statement()))
-                        .doOnNext(obj -> log.trace("Updated {}", obj))
-                        .take(1)
-                        .singleOrError());
-    }
-
-    private <K, S extends HasMetaClassWithKey<K, S>> Completable updateReferences(S entity) {
-        return updateReferences(entity.metaClass(), PropertyResolver.fromObject(entity));
-    }
-
-    @SuppressWarnings("unchecked")
-    private <K, S extends HasMetaClassWithKey<K, S>> Completable updateReferences(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
-        List<HasMetaClassWithKey> references = Streams.fromIterable(metaClass.properties())
-                .filter(PropertyMetas::isReference)
-                .flatMap(prop -> Optional
-                        .ofNullable(propertyResolver.getProperty(prop))
-                        .map(Stream::of)
-                        .orElseGet(Stream::empty))
-                .flatMap(ofType(HasMetaClassWithKey.class))
-                .collect(Collectors.toList());
-
-        return Observable.fromIterable(references)
-                .concatMapSingle(this::insertOrUpdate)
-                .doOnSubscribe(d -> log.trace("Updating {} {} references", references.size(), metaClass.simpleName()))
-                .doOnNext(obj -> log.trace("Updated object {} (referenced from {})", obj, metaClass.simpleName()))
-                .doOnError(e -> log.trace("Failed to update object {} references: {}", metaClass.simpleName(), e))
-                .doOnComplete(() -> log.trace("All {} {} references were updated", references.size(), metaClass.simpleName()))
-                .ignoreElements();
+        return insertOrUpdate(metaClass, statement);
     }
 
     @Override

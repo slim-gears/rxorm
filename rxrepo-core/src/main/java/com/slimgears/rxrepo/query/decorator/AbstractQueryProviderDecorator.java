@@ -22,6 +22,11 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
     }
 
     @Override
+    public <K, S extends HasMetaClassWithKey<K, S>> Completable insert(Iterable<S> entities) {
+        return underlyingProvider.insert(entities);
+    }
+
+    @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
         return underlyingProvider.insertOrUpdate(entity);
     }
@@ -44,6 +49,11 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return underlyingProvider.aggregate(query, aggregator);
+    }
+
+    @Override
+    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
+        return underlyingProvider.liveAggregate(query, aggregator);
     }
 
     @Override

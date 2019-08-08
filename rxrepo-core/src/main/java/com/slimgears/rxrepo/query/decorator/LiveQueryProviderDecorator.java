@@ -15,7 +15,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
         super(upstream);
     }
 
-    public static QueryProvider.Decorator decorator() {
+    public static QueryProvider.Decorator create() {
         return LiveQueryProviderDecorator::new;
     }
 

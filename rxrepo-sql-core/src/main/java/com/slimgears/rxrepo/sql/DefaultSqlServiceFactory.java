@@ -19,7 +19,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     private final Lazy<SqlExpressionGenerator> expressionGenerator;
     private final Lazy<SqlAssignmentGenerator> assignmentGenerator;
     private final Lazy<QueryProvider> queryProvider;
-    private final Scheduler scheduler;
     private final Completable shutdownSignal;
 
     private DefaultSqlServiceFactory(
@@ -29,7 +28,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             @Nonnull Function<SqlServiceFactory, SchemaProvider> schemaProvider,
             @Nonnull Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
             @Nonnull Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator,
-            @Nonnull Scheduler scheduler,
             @Nonnull Completable shutdownSignal) {
 
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
@@ -38,12 +36,10 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         this.schemaProvider = Lazy.of(() -> CacheSchemaProviderDecorator.decorate(schemaProvider.apply(this)));
         this.expressionGenerator = Lazy.of(() -> expressionGenerator.apply(this));
         this.assignmentGenerator = Lazy.of(() -> assignmentGenerator.apply(this));
-        this.scheduler = scheduler;
         this.shutdownSignal = shutdownSignal;
         this.queryProvider = Lazy.of(() -> new SqlQueryProvider(
                 statementProvider(),
                 statementExecutor(),
-                expressionGenerator(),
                 schemaProvider(),
                 referenceResolver()));
     }
@@ -71,11 +67,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     @Override
     public SqlAssignmentGenerator assignmentGenerator() {
         return assignmentGenerator.get();
-    }
-
-    @Override
-    public Scheduler scheduler() {
-        return scheduler;
     }
 
     @Override
@@ -149,12 +140,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         }
 
         @Override
-        public SqlServiceFactory.Builder scheduler(Scheduler scheduler) {
-            this.scheduler = scheduler;
-            return this;
-        }
-
-        @Override
         public SqlServiceFactory.Builder shutdownSignal(Completable shutdown) {
             this.shutdownSignal = shutdown;
             return this;
@@ -169,7 +154,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                     requireNonNull(schemaProvider),
                     requireNonNull(expressionGenerator),
                     requireNonNull(assignmentGenerator),
-                    scheduler,
                     shutdownSignal);
         }
     }

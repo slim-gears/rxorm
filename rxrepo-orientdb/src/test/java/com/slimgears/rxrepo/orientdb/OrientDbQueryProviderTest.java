@@ -2,7 +2,6 @@ package com.slimgears.rxrepo.orientdb;
 
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.test.AbstractRepositoryTest;
-import io.reactivex.schedulers.Schedulers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -27,7 +26,6 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
                 .debounceTimeoutMillis(1000)
                 .type(dbType)
                 .name(dbName)
-                .scheduler(Schedulers.single())
                 .build();
     }
 

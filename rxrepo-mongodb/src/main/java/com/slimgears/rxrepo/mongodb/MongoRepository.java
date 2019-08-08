@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.mongodb;
 
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
+import com.slimgears.rxrepo.query.decorator.SchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.generic.MoreStrings;
@@ -21,8 +22,9 @@ public class MongoRepository {
 
         private Builder() {
             decorate(
-                    LiveQueryProviderDecorator.decorator(),
-                    UpdateReferencesFirstQueryProviderDecorator.decorator());
+                    SchedulingQueryProviderDecorator.createDefault(),
+                    LiveQueryProviderDecorator.create(),
+                    UpdateReferencesFirstQueryProviderDecorator.create());
         }
 
         public Builder dbName(String dbName) {

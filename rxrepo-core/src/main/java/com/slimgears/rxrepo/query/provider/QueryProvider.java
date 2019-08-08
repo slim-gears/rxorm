@@ -25,6 +25,12 @@ public interface QueryProvider extends AutoCloseable {
     <K, S extends HasMetaClassWithKey<K, S>> Completable drop(MetaClassWithKey<K, S> metaClass);
     Completable dropAll();
 
+    default <K, S extends HasMetaClassWithKey<K, S>> Completable insert(Iterable<S> entities) {
+        return Observable.fromIterable(entities)
+                .concatMapEager(e -> insertOrUpdate(e).toObservable())
+                .ignoreElements();
+    }
+
     default <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
         K key = HasMetaClassWithKey.keyOf(entity);
         return insertOrUpdate(entity.metaClass(), key, val -> val

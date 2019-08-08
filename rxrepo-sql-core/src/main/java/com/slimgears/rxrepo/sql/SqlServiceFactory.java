@@ -4,10 +4,11 @@ import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfigModel;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import io.reactivex.Completable;
-import io.reactivex.Scheduler;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import static com.slimgears.rxrepo.query.provider.QueryProvider.Decorator.of;
 
 public interface SqlServiceFactory {
     SqlStatementProvider statementProvider();
@@ -15,7 +16,6 @@ public interface SqlServiceFactory {
     SchemaProvider schemaProvider();
     SqlExpressionGenerator expressionGenerator();
     SqlAssignmentGenerator assignmentGenerator();
-    Scheduler scheduler();
     Completable shutdownSignal();
     ReferenceResolver referenceResolver();
     QueryProvider queryProvider();
@@ -33,7 +33,6 @@ public interface SqlServiceFactory {
         public abstract Builder referenceResolver(Function<SqlServiceFactory, ReferenceResolver> referenceResolver);
         public abstract Builder expressionGenerator(Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator);
         public abstract Builder assignmentGenerator(Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator);
-        public abstract Builder scheduler(Scheduler scheduler);
         public abstract Builder shutdownSignal(Completable shutdown);
         public abstract SqlServiceFactory build();
 
@@ -41,8 +40,8 @@ public interface SqlServiceFactory {
             return Repository.fromProvider(this.decorator.apply(build().queryProvider()), config, decorators);
         }
 
-        public final SqlServiceFactory.Builder decorate(QueryProvider.Decorator decorator) {
-            this.decorator = this.decorator.andThen(decorator);
+        public final SqlServiceFactory.Builder decorate(QueryProvider.Decorator... decorators) {
+            this.decorator = this.decorator.andThen(of(decorators));
             return this;
         }
 
