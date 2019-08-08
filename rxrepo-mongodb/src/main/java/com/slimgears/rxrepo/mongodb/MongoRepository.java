@@ -12,6 +12,7 @@ public class MongoRepository {
         return new Builder();
     }
 
+    @SuppressWarnings("WeakerAccess")
     public static class Builder {
         private String dbName = "repository";
         private String host = "localhost";
@@ -52,7 +53,7 @@ public class MongoRepository {
             return this;
         }
 
-        Builder decorate(QueryProvider.Decorator... decorators) {
+        public Builder decorate(QueryProvider.Decorator... decorators) {
             decorator = QueryProvider.Decorator.of(this.decorator, QueryProvider.Decorator.of(decorators));
             return this;
         }
