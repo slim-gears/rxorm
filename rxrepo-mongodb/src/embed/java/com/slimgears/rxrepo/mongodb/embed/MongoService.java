@@ -102,8 +102,7 @@ public class MongoService implements AutoCloseable {
                 }
             }
         } catch (IOException e) {
-            MongodProcess process = this.process.get();
-            process.stop();
+            Optional.ofNullable(this.process.get()).ifPresent(MongodProcess::stop);
             throw new RuntimeException(e);
         }
 
@@ -144,7 +143,7 @@ public class MongoService implements AutoCloseable {
         public void progress(String label, int percent) {
             int roundPercent = Math.round(percent / progressGranularity) * progressGranularity;
             if (lastPercent.get() != roundPercent) {
-                log.debug("{} download progress: {}% done", label, roundPercent);
+                log.info("{} download progress: {}% done", label, roundPercent);
                 lastPercent.set(roundPercent);
             }
         }

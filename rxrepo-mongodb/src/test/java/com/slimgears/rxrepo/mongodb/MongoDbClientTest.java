@@ -11,7 +11,6 @@ import com.slimgears.rxrepo.test.*;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
 import org.bson.Document;
 import org.junit.*;
@@ -22,6 +21,7 @@ import java.util.List;
 
 import static com.slimgears.rxrepo.test.Products.createMany;
 import static com.slimgears.rxrepo.test.Products.createOne;
+import static com.slimgears.rxrepo.test.TestUtils.countExactly;
 
 public class MongoDbClientTest {
     private static AutoCloseable mongoProcess;
@@ -102,17 +102,13 @@ public class MongoDbClientTest {
                 .fromPublisher(collection.insertOne(product))
                 .blockingAwait();
 
-        testObserver
-                .awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
-                .assertNoTimeout();
+        testObserver.assertOf(countExactly(1));
 
         Completable
                 .fromPublisher(collection.updateOne(MongoPipeline.filterFor(product), new Document("$set", product.toBuilder().price(product.price() + 1).build())))
                 .blockingAwait();
 
-        testObserver
-                .awaitCount(2, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 10000)
-                .assertNoTimeout();
+        testObserver.assertOf(countExactly(2));
     }
 
     @Test @Ignore
