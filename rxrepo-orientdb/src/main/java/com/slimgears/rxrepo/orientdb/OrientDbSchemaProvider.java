@@ -94,7 +94,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
                 .map(PropertyMeta::name)
                 .toArray(String[]::new);
 
-        if (textFields.length > 0) {
+        if (OrientDbRepository.Properties.isLuceneEnabled() && textFields.length > 0) {
             try {
                 oClass.createIndex(className + ".textIndex", "FULLTEXT", null, null, "LUCENE", textFields);
             } catch (OIndexException e) {

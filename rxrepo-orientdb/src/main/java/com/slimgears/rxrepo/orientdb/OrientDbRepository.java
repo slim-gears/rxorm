@@ -169,4 +169,13 @@ public class OrientDbRepository {
                         UpdateReferencesFirstQueryProviderDecorator.create(),
                         LiveQueryProviderDecorator.create());
     }
+
+    @SuppressWarnings("WeakerAccess")
+    public static class Properties {
+        public static final String disableLucene = "rxrepo.orientdb.doNotUseLuceneIndex";
+
+        public static boolean isLuceneEnabled() {
+            return System.getProperty(OrientDbRepository.Properties.disableLucene) == null;
+        }
+    }
 }
