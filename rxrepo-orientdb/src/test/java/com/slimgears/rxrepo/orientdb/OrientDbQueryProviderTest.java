@@ -19,7 +19,7 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
     public static OrientDbRepository.Type[] params() {
         return new OrientDbRepository.Type[] {
                 OrientDbRepository.Type.Memory,
-                /*OrientDbRepository.Type.Persistent*/};
+                OrientDbRepository.Type.Persistent};
     }
 
     @Override
