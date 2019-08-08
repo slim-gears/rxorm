@@ -9,7 +9,6 @@ import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.RepositoryConfigModelBuilder;
 import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
-import com.slimgears.rxrepo.query.decorator.SchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
@@ -108,7 +107,10 @@ public class OrientDbRepository {
                     session -> Optional.ofNullable(sessions.remove(session))
                             .ifPresent(CompletableSubject::onComplete))
                     .shutdownSignal(shutdownSubject)
-                    .decorate(decorator)
+                    .decorate(
+                            decorator,
+                            UpdateReferencesFirstQueryProviderDecorator.create(),
+                            LiveQueryProviderDecorator.create())
                     .decorate(OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName))
                     .buildRepository(configBuilder.build())
                     .onClose(repo -> {
@@ -163,11 +165,7 @@ public class OrientDbRepository {
                 .expressionGenerator(OrientDbSqlExpressionGenerator::new)
                 .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                 .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
-                .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
-                .decorate(
-                        SchedulingQueryProviderDecorator.createDefault(),
-                        UpdateReferencesFirstQueryProviderDecorator.create(),
-                        LiveQueryProviderDecorator.create());
+                .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()));
     }
 
     @SuppressWarnings("WeakerAccess")

@@ -1,7 +1,9 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.query.decorator.SchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.test.AbstractRepositoryTest;
+import io.reactivex.schedulers.Schedulers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -15,7 +17,9 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
 
     @Parameterized.Parameters
     public static OrientDbRepository.Type[] params() {
-        return new OrientDbRepository.Type[] {OrientDbRepository.Type.Memory, OrientDbRepository.Type.Persistent};
+        return new OrientDbRepository.Type[] {
+                OrientDbRepository.Type.Memory,
+                /*OrientDbRepository.Type.Persistent*/};
     }
 
     @Override
@@ -26,6 +30,10 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
                 .debounceTimeoutMillis(1000)
                 .type(dbType)
                 .name(dbName)
+                .decorate(SchedulingQueryProviderDecorator.create(
+                        Schedulers.single(),
+                        Schedulers.single(),
+                        Schedulers.from(Runnable::run)))
                 .build();
     }
 

@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.query;
 
+import com.slimgears.rxrepo.query.decorator.MandatoryPropertiesQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -21,7 +22,9 @@ public class DefaultRepository implements Repository {
     private final Map<MetaClassWithKey<?, ?>, EntitySet<?, ?>> entitySetMap = new HashMap<>();
 
     DefaultRepository(QueryProvider queryProvider, RepositoryConfigModel config) {
-        this.queryProvider = queryProvider;
+        this.queryProvider = QueryProvider.Decorator.of(
+                MandatoryPropertiesQueryProviderDecorator.create())
+                .apply(queryProvider);
         this.config = Optional.ofNullable(config).orElse(defaultConfig);
     }
 

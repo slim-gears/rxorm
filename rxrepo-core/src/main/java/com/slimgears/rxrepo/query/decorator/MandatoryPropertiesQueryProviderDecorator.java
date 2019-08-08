@@ -13,47 +13,39 @@ import com.slimgears.util.stream.Streams;
 import io.reactivex.Observable;
 
 import javax.annotation.Nullable;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class MandatoryPropertiesQueryProviderDecorator implements QueryProvider.Decorator {
+public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProviderDecorator {
+    private final static Map<Class<?>, List<PropertyExpression<?, ?, ?>>> mandatoryPropertiesCache = new ConcurrentHashMap<>();
+
+    private MandatoryPropertiesQueryProviderDecorator(QueryProvider underlyingProvider) {
+        super(underlyingProvider);
+    }
+
+    public static QueryProvider.Decorator create() {
+        return MandatoryPropertiesQueryProviderDecorator::new;
+    }
+
     @Override
-    public QueryProvider apply(QueryProvider queryProvider) {
-        return decorate(queryProvider);
+    public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
+        return query.properties().isEmpty()
+                ? super.query(query)
+                : super.query(query.toBuilder()
+                        .apply(includeProperties(query.properties(), TypeTokens.asClass(query.objectType())))
+                        .build());
     }
 
-    public static QueryProvider decorate(QueryProvider queryProvider) {
-        return new Decorator(queryProvider);
-    }
-
-    private static class Decorator extends AbstractQueryProviderDecorator {
-        private Decorator(QueryProvider underlyingProvider) {
-            super(underlyingProvider);
-        }
-
-        @Override
-        public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
-            return query.properties().isEmpty()
-                    ? super.query(query)
-                    : super.query(query.toBuilder()
-                            .apply(includeProperties(query.properties(), TypeTokens.asClass(query.objectType())))
-                            .build());
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <K, S extends HasMetaClassWithKey<K, S>, T> Consumer<QueryInfo.Builder<K, S, T>> includeProperties(Collection<PropertyExpression<T, ?, ?>> properties, Class<? extends T> cls) {
+    private static <K, S extends HasMetaClassWithKey<K, S>, T> Consumer<QueryInfo.Builder<K, S, T>> includeProperties(Collection<PropertyExpression<T, ?, ?>> properties, Class<T> cls) {
         return builder -> {
             Stream<PropertyExpression<T, ?, ?>> includedProperties = properties.stream()
                     .flatMap(MandatoryPropertiesQueryProviderDecorator::parentProperties);
 
             if (HasMetaClass.class.isAssignableFrom(cls)) {
-                MetaClass<T> metaClass = MetaClasses.forClass((Class)cls);
-                includedProperties = Stream.concat(includedProperties, mandatoryProperties(metaClass));
+                includedProperties = Stream.concat(includedProperties, mandatoryProperties(cls));
             }
 
             Collection<? extends PropertyExpression<T, ?, ?>> requiredProperties = includedProperties
@@ -64,7 +56,17 @@ public class MandatoryPropertiesQueryProviderDecorator implements QueryProvider.
         };
     }
 
-    private static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(MetaClass<S> metaClass) {
+    @SuppressWarnings("unchecked")
+    private static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(Class<S> cls) {
+        return mandatoryPropertiesCache.computeIfAbsent(
+                cls,
+                mc -> mandatoryPropertiesNotCached(MetaClasses.forClassUnchecked(cls))
+                        .collect(Collectors.toList()))
+                .stream()
+                .map(p -> (PropertyExpression<S, ?, ?>)p);
+    }
+
+    private static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryPropertiesNotCached(MetaClass<S> metaClass) {
         return mandatoryProperties(ObjectExpression.arg(metaClass.asType()), metaClass);
     }
 

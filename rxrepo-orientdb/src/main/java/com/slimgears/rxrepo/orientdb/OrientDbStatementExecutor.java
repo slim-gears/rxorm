@@ -19,8 +19,6 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -29,7 +27,6 @@ import static com.slimgears.util.generic.LazyString.lazy;
 
 class OrientDbStatementExecutor implements SqlStatementExecutor {
     private final static Logger log = LoggerFactory.getLogger(OrientDbStatementExecutor.class);
-    private final static long timeoutMillis = 10000;
     private final OrientDbSessionProvider sessionProvider;
     private final Completable shutdown;
 
@@ -63,20 +60,14 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                     finally {
                         logStatement("Executed command", statement);
                     }
-                })
-                .timeout(timeoutMillis,
-                        TimeUnit.MILLISECONDS,
-                        Observable.error(new TimeoutException("Timeout when executing: " + toString(statement))));
+                });
     }
 
     @Override
     public Single<Integer> executeCommandReturnCount(SqlStatement statement) {
         return executeCommandReturnEntries(statement)
                 .map(res -> ((Long)res.getProperty("count", Long.class)).intValue())
-                .first(0)
-                .timeout(timeoutMillis,
-                        TimeUnit.MILLISECONDS,
-                        Single.error(new TimeoutException("Timeout when executing: " + toString(statement))));
+                .first(0);
     }
 
     @Override
@@ -112,14 +103,13 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
         return Observable.<OResult>create(
                 emitter -> sessionProvider.withSession(dbSession -> {
                     OResultSet resultSet = resultSetSupplier.apply(dbSession);
-                    emitter.setCancellable(resultSet::close);
                     resultSet.stream()
                             .peek(res -> log.trace("Received: {}", res))
                             .forEach(emitter::onNext);
+                    resultSet.close();
                     emitter.onComplete();
                 }))
-                .map(res -> OResultPropertyResolver.create(sessionProvider, res))
-                .timeout(timeoutMillis, TimeUnit.MILLISECONDS);
+                .map(res -> OResultPropertyResolver.create(sessionProvider, res));
     }
 
     private void logStatement(String title, SqlStatement statement) {
