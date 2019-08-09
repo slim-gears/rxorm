@@ -8,8 +8,6 @@ import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.stream.Safe;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
-import io.reactivex.Scheduler;
-import io.reactivex.schedulers.Schedulers;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,11 +21,6 @@ public class MemoryQueryProvider extends AbstractEntityQueryProviderAdapter impl
         MemoryEntityQueryProvider<K, S> provider = MemoryEntityQueryProvider.create(metaClass, this);
         closeableList.add(provider);
         return provider;
-    }
-
-    @Override
-    protected Scheduler scheduler() {
-        return Schedulers.computation();
     }
 
     @Override

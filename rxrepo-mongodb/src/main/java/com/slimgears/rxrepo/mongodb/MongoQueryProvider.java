@@ -18,15 +18,12 @@ import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
-import io.reactivex.Scheduler;
-import io.reactivex.schedulers.Schedulers;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MongoQueryProvider extends AbstractEntityQueryProviderAdapter {
     private final MongoClient client;
     private final MongoDatabase database;
-    private final Scheduler scheduler = Schedulers.io();
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
 
     MongoQueryProvider(String connectionString, String dbName) {
@@ -53,14 +50,8 @@ public class MongoQueryProvider extends AbstractEntityQueryProviderAdapter {
     }
 
     @Override
-    protected Scheduler scheduler() {
-        return scheduler;
-    }
-
-    @Override
     protected Completable dropAllProviders() {
-        return Completable.fromPublisher(database.drop())
-                .subscribeOn(scheduler);
+        return Completable.fromPublisher(database.drop());
     }
 
     private class ObjectResolver implements MetaObjectResolver {

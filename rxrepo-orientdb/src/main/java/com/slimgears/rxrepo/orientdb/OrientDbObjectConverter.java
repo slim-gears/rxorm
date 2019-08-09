@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.orientdb;
 
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.record.impl.ODocument;
+import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClass;
@@ -11,6 +12,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 class OrientDbObjectConverter {
+    static SqlStatement toOrientDb(SqlStatement statement) {
+        return statement.mapArgs(OrientDbObjectConverter::toOrientDbObject);
+    }
+
     static Object[] toOrientDbObjects(Object[] objects) {
         Object[] newArgs = new Object[objects.length];
         for (int i = 0; i < objects.length; ++i) {
@@ -31,7 +36,7 @@ class OrientDbObjectConverter {
 
         HasMetaClass<?> hasMetaClass = (HasMetaClass)obj;
         MetaClass<?> metaClass = hasMetaClass.metaClass();
-        OElement oElement = new ODocument(OrientDbSchemaProvider.toClassName(metaClass));
+        OElement oElement = new ODocument();
         metaClass.properties().forEach(p -> {
             oElement.setProperty(p.name(), toOrientDbObject(((PropertyMeta)p).getValue(obj)));
             if (p.type().isSubtypeOf(HasMetaClass.class) && !p.type().isSubtypeOf(HasMetaClassWithKey.class)) {

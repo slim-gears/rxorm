@@ -15,7 +15,6 @@ import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
-import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +37,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
     @Override
     public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
         return Completable
-                .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass)))
-                .subscribeOn(Schedulers.single());
+                .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass)));
     }
 
     @Override
@@ -47,8 +45,12 @@ class OrientDbSchemaProvider implements SchemaProvider {
         return toClassName(metaClass);
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> OClass createClass(ODatabaseDocument dbSession, MetaClass<T> metaClass) {
+    private OClass getOrCreateClass(ODatabaseDocument dbSession, MetaClass<?> metaClass) {
+        return Optional.ofNullable(dbSession.getClass(toClassName(metaClass)))
+                .orElseGet(() -> createClass(dbSession, metaClass));
+    }
+
+    private OClass createClass(ODatabaseDocument dbSession, MetaClass<?> metaClass) {
         String className = toClassName(metaClass);
         log.debug("Creating class: {}", className);
         OClass oClass = dbSession.createClassIfNotExist(className);
@@ -106,7 +108,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
         return oClass;
     }
 
-    private static <T> void addIndex(OClass oClass, PropertyMeta<T, ?> propertyMeta, boolean unique) {
+    private static void addIndex(OClass oClass, PropertyMeta<?, ?> propertyMeta, boolean unique) {
         log.trace(">> {}: Adding property {} index", oClass.getName(), propertyMeta.name());
         OClass.INDEX_TYPE indexType = unique ? OClass.INDEX_TYPE.UNIQUE_HASH_INDEX : OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX;
         String propertyName = PropertyMetas.isEmbedded(propertyMeta)
@@ -170,7 +172,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
                         : OType.ANY);
     }
 
-    static String toClassName(MetaClass<?> metaClass) {
+    private static String toClassName(MetaClass<?> metaClass) {
         return toClassName(metaClass.asType());
     }
 

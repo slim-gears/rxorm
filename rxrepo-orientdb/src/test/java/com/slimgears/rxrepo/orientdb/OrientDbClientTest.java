@@ -23,7 +23,7 @@ import org.junit.Test;
 import java.util.function.Supplier;
 
 public class OrientDbClientTest {
-    private static final String dbUrl = "embedded:testDb";
+    private static final String dbUrl = "embedded:db";
     private final static String dbName = "testDb";
 
     @Test
@@ -36,7 +36,7 @@ public class OrientDbClientTest {
     }
 
     private OrientDB createClient(String dbName) {
-        OrientDB db = new OrientDB("embedded:test", OrientDBConfig.defaultConfig());
+        OrientDB db = new OrientDB(dbUrl, OrientDBConfig.defaultConfig());
         db.createIfNotExists(dbName, ODatabaseType.PLOCAL);
         ODatabaseDocument session = db.open(dbName, "admin", "admin");
         session.createClassIfNotExist("MyClass");
@@ -53,7 +53,7 @@ public class OrientDbClientTest {
     }
 
     private void rawDbTest(Consumer<ODatabaseSession> test) throws Exception {
-        try (OrientDB dbClient = new OrientDB("embedded:testDbServer", OrientDBConfig.defaultConfig())) {
+        try (OrientDB dbClient = new OrientDB(dbUrl, OrientDBConfig.defaultConfig())) {
             dbClient.create(dbName, ODatabaseType.MEMORY);
             try (ODatabaseSession dbSession = dbClient.open(dbName, "admin", "admin")) {
                 test.accept(dbSession);

@@ -1,8 +1,7 @@
 package com.slimgears.rxrepo.sql;
 
-import com.slimgears.util.stream.Streams;
-
 import java.util.Arrays;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public interface SqlStatement {
@@ -10,6 +9,12 @@ public interface SqlStatement {
 
     String statement();
     Object[] args();
+
+    default SqlStatement mapArgs(Function<Object, Object> argMapper) {
+        return args().length > 0
+                ? create(statement(), Arrays.stream(args()).map(argMapper).toArray(Object[]::new))
+                : this;
+    }
 
     default SqlStatement withArgs(Object... args) {
         return create(statement(), args);

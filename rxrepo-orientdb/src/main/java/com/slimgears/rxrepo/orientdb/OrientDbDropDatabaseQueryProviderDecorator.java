@@ -24,11 +24,12 @@ class OrientDbDropDatabaseQueryProviderDecorator extends AbstractQueryProviderDe
 
     @Override
     public Completable dropAll() {
-        return Completable.fromAction(() -> {
-            OrientDB client = clientSupplier.get();
-            if (client.exists(dbName)) {
-                client.drop(dbName);
-            }
-        });
+        return Completable
+                .fromAction(() -> {
+                    OrientDB client = clientSupplier.get();
+                    if (client.exists(dbName)) {
+                        client.drop(dbName);
+                    }
+                });
     }
 }

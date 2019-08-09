@@ -161,7 +161,7 @@ public class OrientDbRepository {
         OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(sessionProvider, sessionCloser);
         return SqlServiceFactory.builder()
                 .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
-                .statementExecutor(svc -> new OrientDbStatementExecutor(dbSessionProvider, svc.shutdownSignal()))
+                .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider, svc.shutdownSignal())))
                 .expressionGenerator(OrientDbSqlExpressionGenerator::new)
                 .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                 .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))

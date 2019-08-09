@@ -1,7 +1,6 @@
 package com.slimgears.rxrepo.sql;
 
-import com.google.common.reflect.TypeToken;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
+import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
@@ -35,16 +34,16 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
     public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
         return cache.computeIfAbsent(
                 tableName(metaClass),
-                tn -> Completable.defer(() -> createOrUpdateWithReferences(metaClass)).cache());
+                tn -> createOrUpdateWithReferences(metaClass).cache());
     }
 
-    @SuppressWarnings("unchecked")
     private <T> Completable createOrUpdateWithReferences(MetaClass<T> metaClass) {
-        Completable references = Observable.fromIterable(metaClass.properties())
-                .filter(p -> p.type().isSubtypeOf(HasMetaClass.class))
+        Completable references = Observable
+                .fromIterable(metaClass.properties())
+                .filter(PropertyMetas::isReference)
                 .map(PropertyMeta::type)
                 .concatMapCompletable(token -> {
-                    MetaClass<?> meta = (MetaClass<?>)MetaClasses.forToken((TypeToken)token);
+                    MetaClass<?> meta = MetaClasses.forTokenUnchecked(token);
                     String tableName = tableName(meta);
                     return !cache.containsKey(tableName)
                             ? createOrUpdate(meta)

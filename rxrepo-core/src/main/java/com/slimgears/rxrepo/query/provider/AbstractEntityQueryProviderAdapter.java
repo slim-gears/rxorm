@@ -5,7 +5,10 @@ import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import io.reactivex.*;
+import io.reactivex.Completable;
+import io.reactivex.Maybe;
+import io.reactivex.Observable;
+import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
 import java.util.Map;
@@ -32,8 +35,7 @@ public abstract class AbstractEntityQueryProviderAdapter implements QueryProvide
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
-        return entities(query.metaClass()).query(query)
-                .subscribeOn(scheduler());
+        return entities(query.metaClass()).query(query);
     }
 
     @Override
@@ -44,22 +46,19 @@ public abstract class AbstractEntityQueryProviderAdapter implements QueryProvide
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return entities(query.metaClass())
-                .aggregate(query, aggregator)
-                .subscribeOn(scheduler());
+                .aggregate(query, aggregator);
     }
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> update(UpdateInfo<K, S> update) {
         return entities(update.metaClass())
-                .update(update)
-                .subscribeOn(scheduler());
+                .update(update);
     }
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> delete) {
         return entities(delete.metaClass())
-                .delete(delete)
-                .subscribeOn(scheduler());
+                .delete(delete);
     }
 
     @Override
@@ -87,5 +86,4 @@ public abstract class AbstractEntityQueryProviderAdapter implements QueryProvide
 
     protected abstract Completable dropAllProviders();
     protected abstract <K, S extends HasMetaClassWithKey<K, S>> EntityQueryProvider<K, S> createProvider(MetaClassWithKey<K, S> metaClass);
-    protected abstract Scheduler scheduler();
 }

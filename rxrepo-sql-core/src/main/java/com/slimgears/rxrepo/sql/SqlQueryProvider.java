@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.sql;
 
+import com.google.common.collect.Iterables;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.CollectionExpression;
@@ -40,9 +41,16 @@ public class SqlQueryProvider implements QueryProvider {
 
     @Override
     public <K, S extends HasMetaClassWithKey<K, S>> Completable insert(Iterable<S> entities) {
-        return Observable.fromIterable(entities)
-                .flatMapSingle(this::insert)
-                .ignoreElements();
+        return Optional
+                .ofNullable(Iterables.getFirst(entities, null))
+                .map(HasMetaClassWithKey::metaClass)
+                .map(meta -> schemaProvider.createOrUpdate(meta)
+                        .doOnSubscribe(d -> log.debug("Beginning creating class {}", meta.simpleName()))
+                        .doOnComplete(() -> log.debug("Finished creating class {}", meta.simpleName()))
+                        .andThen(Observable.fromIterable(entities)
+                                .flatMapSingle(this::insert)
+                                .ignoreElements()))
+                .orElseGet(Completable::complete);
     }
 
     @Override
