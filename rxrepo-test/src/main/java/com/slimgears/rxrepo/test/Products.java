@@ -3,7 +3,7 @@ package com.slimgears.rxrepo.test;
 import org.mockito.internal.util.collections.Iterables;
 
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -40,8 +40,8 @@ public class Products {
 
         Date startDate = Date.from(LocalDate
                 .of(2000, 1, 1)
-                .atStartOfDay()
-                .toInstant(ZoneOffset.UTC));
+                .atStartOfDay(ZoneId.of("UTC"))
+                .toInstant());
 
         return IntStream.range(0, count)
                 .mapToObj(i -> Product.builder()

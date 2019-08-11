@@ -18,8 +18,6 @@ import org.junit.rules.MethodRule;
 import org.junit.rules.TestName;
 import org.junit.rules.Timeout;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -650,22 +648,24 @@ public abstract class AbstractRepositoryTest {
 
     @Test
     public void testAggregateMinDate() {
+        List<Product> productList = ImmutableList.copyOf(Products.createMany(10));
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
-        products.update(Products.createMany(10)).ignoreElement().blockingAwait();
+        products.update(productList).ignoreElement().blockingAwait();
         Date maxDate = products.query()
                 .select(Product.$.productionDate)
                 .aggregate(Aggregator.max())
                 .blockingGet();
+
+        Date expectedMinDate = productList.get(0).productionDate();
+        Date expectedMaxDate = productList.get(productList.size() - 1).productionDate();
 
         Date minDate = products.query()
                 .select(Product.$.productionDate)
                 .aggregate(Aggregator.min())
                 .blockingGet();
 
-        DateFormat dateFormat = new SimpleDateFormat();
-        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-        Assert.assertEquals("10/01/00 00:00", dateFormat.format(maxDate));
-        Assert.assertEquals("01/01/00 00:00", dateFormat.format(minDate));
+        Assert.assertEquals(expectedMaxDate, maxDate);
+        Assert.assertEquals(expectedMinDate, minDate);
     }
 
     @Test
