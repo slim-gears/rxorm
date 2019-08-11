@@ -8,6 +8,7 @@ import com.slimgears.util.autovalue.annotations.Key;
 import com.slimgears.util.autovalue.annotations.UseCopyAnnotator;
 
 import javax.annotation.Nullable;
+import java.util.Date;
 import java.util.List;
 
 @AutoValuePrototype
@@ -28,4 +29,5 @@ public interface ProductPrototype {
     @Nullable List<String> aliases();
     @Nullable List<UniqueId> relatedIds();
     @Nullable Vendor vendor();
+    @Nullable Date productionDate();
 }

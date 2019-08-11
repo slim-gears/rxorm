@@ -115,16 +115,11 @@ public class Expressions {
                 .put(Expression.Type.ToLower, Expressions.<String, String>fromUnary(s -> s != null ? s.toLowerCase() : null))
                 .put(Expression.Type.ToUpper, Expressions.<String, String>fromUnary(s -> s != null ? s.toUpperCase() : null))
                 .put(Expression.Type.Trim, Expressions.<String, String>fromUnary(s -> s != null ? s.trim() : null))
-                .put(Expression.Type.Count, Expressions.<Collection, Long>fromUnary(col -> Optional.ofNullable(col).map(Collection::size).map(val -> (long)val).orElse(0L)))
-                .put(Expression.Type.Average, notSupported())
-                .put(Expression.Type.Min, notSupported())
-                .put(Expression.Type.Max, notSupported())
-                .put(Expression.Type.Sum, Expressions.<Collection<Number>, Number>fromUnary(col -> Optional
-                        .ofNullable(col)
-                        .map(Collection::stream)
-                        .orElseGet(Stream::empty)
-                        .reduce(GenericMath::add)
-                        .orElse(null)))
+                .put(Expression.Type.Count, Expressions.fromUnary(count()))
+                .put(Expression.Type.Average, Expressions.fromUnary(average()))
+                .put(Expression.Type.Min, Expressions.fromUnary(min()))
+                .put(Expression.Type.Max, Expressions.fromUnary(max()))
+                .put(Expression.Type.Sum, Expressions.fromUnary(sum()))
                 .put(Expression.Type.SearchText, Expressions.<Object, String, Boolean>fromBinary((obj, str) -> obj != null && obj.toString().contains(getStringOrEmpty(str)))) //obj != null and str == null returns true.
                 .put(Expression.Type.ValueIn, Expressions.fromBinary((Object obj, Collection<Object> collection) -> obj != null && collection != null && collection.contains(obj)))
                 .put(Expression.Type.IsNull, Expressions.fromUnary(Objects::isNull))
@@ -179,15 +174,58 @@ public class Expressions {
         }
     }
 
+    private static <T> Function<Collection<T>, T> min() {
+        return c -> Optional
+                .ofNullable(c)
+                .flatMap(cc -> cc.stream().min(Comparator.nullsFirst(Expressions::compare)))
+                .orElse(null);
+    }
+
+    private static <T> Function<Collection<T>, T> max() {
+        return c -> Optional
+                .ofNullable(c)
+                .flatMap(cc -> cc.stream().max(Comparator.nullsFirst(Expressions::compare)))
+                .orElse(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> int compare(T left, T right) {
+        return left instanceof Comparable && right instanceof Comparable
+                ? ((Comparable<T>)left).compareTo(right)
+                : left.toString().compareTo(right.toString());
+    }
+
+    private static Function<Collection<?>, Long> count() {
+        return c -> Optional.ofNullable(c).map(cc -> (long)cc.size()).orElse(0L);
+    }
+
+    private static <N extends Number> Function<Collection<N>, Double> average() {
+        Function<Collection<N>, N> sumFunc = sum();
+        Function<Collection<?>, Long> countFunc = count();
+        return col -> {
+            long count = countFunc.apply(col);
+            return count > 0 ? sumFunc.apply(col).doubleValue() / count : 0.0;
+        };
+    }
+
+    private static <N extends Number> Function<Collection<N>, N> sum() {
+        return col -> Optional
+                .ofNullable(col)
+                .map(Collection::stream)
+                .orElseGet(Stream::empty)
+                .reduce(GenericMath::add)
+                .orElse(null);
+    }
+
     private static BiFunction<String, String, String> concat() {
         return (s1, s2) -> getStringOrEmpty(s1) + getStringOrEmpty(s2);
     }
 
-    private static Function<String, Number> length() {
+    private static Function<String, Integer> length() {
         return s -> Optional.ofNullable(s).map(String::length).orElse(0);
     }
 
-    private static Function<Number, Number> negate() {
+    private static <N extends Number> Function<N, N> negate() {
         return num -> num != null ? GenericMath.negate(num) : null;
     }
 
@@ -219,11 +257,11 @@ public class Expressions {
         return (s1, s2) -> (s1 == null && s2 == null) || (s1 != null && s2 != null && s1.matches(s2));
     }
 
-    private static BiFunction<Number, Number, Number> numericBinariesWithDefaultNumbers(BiFunction<Number, Number, Number> func, Number defaultValue1, Number defaultValue2) {
+    private static <N extends Number> BiFunction<N, N, N> numericBinariesWithDefaultNumbers(BiFunction<N, N, N> func, N defaultValue1, N defaultValue2) {
         return (n1, n2) -> func.apply(getNumberOrDefault(n1, defaultValue1), getNumberOrDefault(n2, defaultValue2));
     }
 
-    private static Number getNumberOrDefault(Number num, Number defaultValue){
+    private static <N extends Number> N getNumberOrDefault(N num, N defaultValue){
         return Optional.ofNullable(num).orElse(defaultValue);
     }
 

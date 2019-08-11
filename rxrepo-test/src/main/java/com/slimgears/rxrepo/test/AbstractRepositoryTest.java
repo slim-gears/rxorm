@@ -18,10 +18,9 @@ import org.junit.rules.MethodRule;
 import org.junit.rules.TestName;
 import org.junit.rules.Timeout;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -647,6 +646,38 @@ public abstract class AbstractRepositoryTest {
                 .test()
                 .awaitCount(1)
                 .assertValue(l -> l.size() == 2);
+    }
+
+    @Test
+    public void testAggregateMinDate() {
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        products.update(Products.createMany(10)).ignoreElement().blockingAwait();
+        Date maxDate = products.query()
+                .select(Product.$.productionDate)
+                .aggregate(Aggregator.max())
+                .blockingGet();
+
+        Date minDate = products.query()
+                .select(Product.$.productionDate)
+                .aggregate(Aggregator.min())
+                .blockingGet();
+
+        DateFormat dateFormat = new SimpleDateFormat();
+        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        Assert.assertEquals("10/01/00 00:00", dateFormat.format(maxDate));
+        Assert.assertEquals("01/01/00 00:00", dateFormat.format(minDate));
+    }
+
+    @Test
+    public void testAggregateAveragePrice() {
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        products.update(Products.createMany(10)).ignoreElement().blockingAwait();
+        double averagePrice = products.query()
+                .select(Product.$.price)
+                .aggregate(Aggregator.average())
+                .blockingGet();
+
+        Assert.assertEquals(116.2, averagePrice, 0.0001);
     }
 
     @Test

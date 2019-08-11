@@ -26,7 +26,8 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
     @Override
     protected ExpressionTextGenerator.Builder createBuilder() {
         return super.createBuilder()
-                .add(Expression.Type.AsString, "%s.asString()");
+                .add(Expression.Type.AsString, "%s.asString()")
+                .add(Expression.Type.Average, "AVG(%s.convert('double'))");
     }
 
     @Override

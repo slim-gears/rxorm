@@ -4,7 +4,6 @@ import com.google.common.collect.Streams;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.rxrepo.util.ExpressionTextGenerator;
 import com.slimgears.util.stream.Lazy;
 
@@ -49,7 +48,7 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
                 .add(Expression.Type.ToUpper, "UPPER(%s)")
                 .add(Expression.Type.Trim, "TRIM(%s)")
                 .add(Expression.Type.Count, "COUNT(%s)")
-                .add(Expression.Type.Average, "AVERAGE(%s)")
+                .add(Expression.Type.Average, "AVG(CAST(%s as double))")
                 .add(Expression.Type.Min, "MIN(%s)")
                 .add(Expression.Type.Max, "MAX(%s)")
                 .add(Expression.Type.Sum, "SUM(%s)")

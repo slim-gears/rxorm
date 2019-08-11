@@ -2,7 +2,11 @@ package com.slimgears.rxrepo.test;
 
 import org.mockito.internal.util.collections.Iterables;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -34,6 +38,11 @@ public class Products {
                         Stream.of((Vendor)null))
                 .collect(Collectors.toList());
 
+        Date startDate = Date.from(LocalDate
+                .of(2000, 1, 1)
+                .atStartOfDay()
+                .toInstant(ZoneOffset.UTC));
+
         return IntStream.range(0, count)
                 .mapToObj(i -> Product.builder()
                         .key(UniqueId.productId(i))
@@ -42,6 +51,7 @@ public class Products {
                         .inventory(inventories.get(i % inventories.size()))
                         .vendor(vendors.get(i % vendors.size()))
                         .price(100 + (i % 7)*(i % 11) + i % 13)
+                        .productionDate(new Date(startDate.getTime() + TimeUnit.DAYS.toMillis(i)))
                         .build())
                 .collect(Collectors.toList());
     }

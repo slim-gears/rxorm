@@ -14,6 +14,7 @@ import com.mongodb.reactivestreams.client.AggregatePublisher;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import com.slimgears.rxrepo.encoding.MetaClassFieldMapper;
+import com.slimgears.rxrepo.encoding.MetaDocument;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
@@ -35,6 +36,7 @@ import io.reactivex.Single;
 import io.reactivex.functions.Function;
 import org.bson.*;
 import org.bson.codecs.Codec;
+import org.bson.codecs.Decoder;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
 import org.bson.codecs.configuration.CodecRegistry;
@@ -152,15 +154,13 @@ class MongoEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implement
 
     @Override
     public <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        AggregatePublisher<Document> publisher = objectCollection.get()
-                .aggregate(MongoPipeline.aggregationPipeline(query, aggregator));
+        AggregatePublisher<MetaDocument> publisher = objectCollection.get()
+                .aggregate(MongoPipeline.aggregationPipeline(query, aggregator), MetaDocument.class);
 
         TypeToken<R> resultType = aggregator.objectType(query.objectType());
         return Observable.fromPublisher(publisher)
                 .doOnNext(doc -> log.debug("Retrieved document: {}", doc))
-                .map(doc -> doc.get(MongoPipeline.aggregationField))
-                .doOnNext(doc -> log.debug("Aggregation result: {}", doc))
-                .map(obj -> toObject(obj, resultType))
+                .map(doc -> doc.get(MongoPipeline.aggregationField, resultType))
                 .firstElement();
     }
 
@@ -276,9 +276,19 @@ class MongoEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implement
         if (object instanceof Document) {
             return objectFromDocument((Document)object, type);
         }
-        return type.getRawType().isInstance(object)
-                ? TypeTokens.asClass(type).cast(object)
-                : null;
+
+        if (type.getRawType().isInstance(object)) {
+            return TypeTokens.asClass(type).cast(object);
+        }
+
+        Codec<T> codec = codecRegistry.get(TypeTokens.asClass(type));
+        BsonDocument bson = toBson(new Document().append("value", object));
+        BsonReader reader = bson.asBsonReader();
+        reader.readStartDocument();
+        reader.readName();
+        T res = codec.decode(reader, DecoderContext.builder().build());
+        reader.readEndDocument();
+        return res;
     }
 
     private Maybe<Notification<S>> notificationFromChangeDocument(ChangeStreamDocument<Document> changeDoc) {
@@ -335,5 +345,37 @@ class MongoEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implement
         BsonReader reader = bsonDoc.asBsonReader();
         Codec<T> codec = codecRegistry.get(TypeTokens.asClass(objectType));
         return codec.decode(reader, DecoderContext.builder().build());
+    }
+
+    private <T> T fromAggregation(BsonDocument doc, TypeToken<T> type) {
+        Decoder<T> decoder = codecRegistry.get(TypeTokens.asClass(type));
+        return new AggregationResultDecoder<>(decoder).decode(doc.asBsonReader(), AggregationResultDecoder.defaultContext);
+    }
+
+    static class AggregationResultDecoder<T> implements Decoder<T>  {
+        private final static DecoderContext defaultContext = DecoderContext.builder().build();
+        private final Decoder<T> typeDecoder;
+
+        AggregationResultDecoder(Decoder<T> typeDecoder) {
+            this.typeDecoder = typeDecoder;
+        }
+
+        @Override
+        public T decode(BsonReader reader, DecoderContext decoderContext) {
+            reader.readStartDocument();
+            String name;
+            T value = null;
+            do {
+                name = reader.readName();
+                if (name.equals(MongoPipeline.aggregationField)) {
+                    value = typeDecoder.decode(reader, decoderContext);
+                } else {
+                    reader.skipValue();
+                }
+            } while (reader.getCurrentBsonType() != BsonType.END_OF_DOCUMENT);
+            reader.readEndDocument();
+            return value;
+        }
+
     }
 }

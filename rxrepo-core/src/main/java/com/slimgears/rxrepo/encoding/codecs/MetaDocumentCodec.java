@@ -58,7 +58,7 @@ public class MetaDocumentCodec implements MetaCodec<MetaDocument> {
         return context.reader().readValue();
     }
 
-    @AutoService(Provider.class)
+    @AutoService(MetaCodecProvider.class)
     public static class Provider implements MetaCodecProvider {
 
         @SuppressWarnings("unchecked")
