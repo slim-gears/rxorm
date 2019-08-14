@@ -36,7 +36,7 @@ public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecor
     }
 
     public static QueryProvider.Decorator createDefault() {
-        return create(Schedulers.io(), Schedulers.io(), Schedulers.from(Runnable::run));
+        return create(Schedulers.computation(), Schedulers.computation(), Schedulers.from(Runnable::run));
     }
 
     @Override
