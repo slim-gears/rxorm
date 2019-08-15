@@ -4,6 +4,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.slimgears.rxrepo.expressions.Aggregator;
+import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.query.EntitySet;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.NotificationPrototype;
@@ -352,6 +353,28 @@ public abstract class AbstractRepositoryTest {
                 .await()
                 .assertNoErrors()
                 .assertValueCount(1);
+    }
+
+    @Test
+    public void testQueryWithEmptyMapping() {
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+        Iterable<Product> products = Products.createMany(10);
+        productSet.update(products).ignoreElement().blockingAwait();
+        productSet.query()
+                .where(Product.$.name.startsWith("Product"))
+                .select(ObjectExpression.arg(Product.class))
+                .retrieve()
+                .test()
+                .assertOf(countExactly(10));
+
+        productSet.query()
+                .where(Product.$.name.startsWith("Product"))
+                .limit(1)
+                .observeAsList()
+                .take(1)
+                .test()
+                .assertOf(countExactly(1))
+                .assertValue(l -> l.size() == 1);
     }
 
     @Test @Ignore
