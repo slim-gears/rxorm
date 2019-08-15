@@ -66,12 +66,25 @@ public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
         return liveSelect().queryAndObserve(properties);
     }
 
+    @SafeVarargs
+    public final Single<List<S>> retrieveAsList(PropertyExpression<S, ?, ?>... properties) {
+        return retrieve(properties).toList();
+    }
+
+
     public final Single<List<S>> retrieveAsList() {
-        return retrieve().toList();
+        //noinspection unchecked
+        return retrieveAsList(new PropertyExpression[0]);
+    }
+
+    @SafeVarargs
+    public final Observable<List<S>> observeAsList(PropertyExpression<S, ?, ?>... properties) {
+        return liveSelect().properties(properties).observeAs(Notifications.toList());
     }
 
     public final Observable<List<S>> observeAsList() {
-        return observeAs(Notifications.toList());
+        //noinspection unchecked
+        return observeAsList(new PropertyExpression[0]);
     }
 
     public final <R> Observable<R> observeAs(QueryTransformer<K, S, S, R> transformer) {
