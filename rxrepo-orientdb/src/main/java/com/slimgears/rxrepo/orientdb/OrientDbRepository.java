@@ -118,7 +118,10 @@ public class OrientDbRepository {
                         if (!Observable.fromIterable(sessions.values())
                                 .flatMapCompletable(Functions.identity())
                                 .blockingAwait(4, TimeUnit.SECONDS)) {
-                            sessions.keySet().forEach(ODatabaseDocument::close);
+                            sessions.keySet().forEach(dbSession -> {
+                                dbSession.activateOnCurrentThread();
+                                dbSession.close();
+                            });
                         }
                         dbClient.close();
                     });

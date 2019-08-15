@@ -50,7 +50,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
                 .orElseGet(() -> createClass(dbSession, metaClass));
     }
 
-    private OClass createClass(ODatabaseDocument dbSession, MetaClass<?> metaClass) {
+    private synchronized OClass createClass(ODatabaseDocument dbSession, MetaClass<?> metaClass) {
         String className = toClassName(metaClass);
         log.debug("Creating class: {}", className);
         OClass oClass = dbSession.createClassIfNotExist(className);
