@@ -751,6 +751,46 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
+    public void testObserveAsListWithProperties() {
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        products.update(Products.createMany(10)).ignoreElement().blockingAwait();
+        products.query()
+                .orderBy(Product.$.name)
+                .limit(3)
+                .skip(2)
+                .observeAsList(Product.$.key, Product.$.name)
+                .doOnNext(l -> {
+                    System.out.println("List received: ");
+                    l.forEach(System.out::println);
+                })
+                .test()
+                .assertOf(countAtLeast(1))
+                .assertValue(l -> l.size() == 3)
+                .assertValue(l -> Objects.isNull(l.get(0).type()))
+                .assertValue(l -> Objects.equals(l.get(0).name(), "Product 2"))
+                .assertValue(l -> Objects.equals(l.get(2).name(), "Product 4"));
+    }
+
+    @Test
+    public void testORetrieveAsListWithProperties() throws InterruptedException {
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        products.update(Products.createMany(10)).ignoreElement().blockingAwait();
+        products.query()
+                .orderBy(Product.$.name)
+                .limit(3)
+                .skip(2)
+                .retrieveAsList(Product.$.key, Product.$.name)
+                .test()
+                .await()
+                .assertNoErrors()
+                .assertComplete()
+                .assertValue(l -> l.size() == 3)
+                .assertValue(l -> Objects.isNull(l.get(0).type()))
+                .assertValue(l -> Objects.equals(l.get(0).name(), "Product 2"))
+                .assertValue(l -> Objects.equals(l.get(2).name(), "Product 4"));
+    }
+
+    @Test
     public void testLiveQueryWithProjection() throws InterruptedException {
         repository.entities(Product.metaClass)
                 .update(Products.createMany(10))
