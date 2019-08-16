@@ -11,6 +11,8 @@ import com.slimgears.rxrepo.query.NotificationPrototype;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
+import com.slimgears.util.test.logging.LogLevel;
+import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.CompletableSubject;
@@ -704,6 +706,19 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
+    public void testFilterByDate() throws InterruptedException {
+        List<Product> productList = ImmutableList.copyOf(Products.createMany(10));
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        products.update(productList).ignoreElement().blockingAwait();
+        products.query()
+                .where(Product.$.productionDate.lessOrEqual(productList.get(4).productionDate()))
+                .retrieve()
+                .test()
+                .await()
+                .assertValueCount(5);
+    }
+
+    @Test
     public void testQueryByNestedEmbeddedObject() throws InterruptedException {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
         products.update(Products.createMany(20)).ignoreElement().blockingAwait();
@@ -882,5 +897,41 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(10, NotificationPrototype::isModify)
                 .assertValueAt(10, n -> ProductPrototype.Type.ComputeHardware.equals(requireNonNull(n.oldValue()).type()))
                 .assertValueAt(10, n -> ProductPrototype.Type.ComputerSoftware.equals(requireNonNull(n.newValue()).type()));
+    }
+
+    @Test @UseLogLevel(LogLevel.TRACE)
+    public void testRetrieveWithReferenceProperty() {
+        TestObserver<Product> productTestObserver = repository.entities(Product.metaClass)
+                .query()
+                .limit(1)
+                .liveSelect()
+                .properties(Product.$.inventory)
+                .observe()
+                .filter(Notification::isCreate)
+                .map(Notification::newValue)
+                .take(1)
+                .test();
+
+        productTestObserver.assertValueCount(0);
+
+        repository.entities(Product.metaClass)
+                .update(Products.createMany(10))
+                .ignoreElement()
+                .blockingAwait();
+
+        productTestObserver
+                .assertOf(countExactly(1))
+                .assertValue(p -> p.inventory() != null);
+
+        repository.entities(Product.metaClass)
+                .query()
+                .limit(1)
+                .select()
+                .properties(Product.$.inventory)
+                .retrieve()
+                .take(1)
+                .test()
+                .assertOf(countExactly(1))
+                .assertValue(p -> p.inventory() != null);
     }
 }

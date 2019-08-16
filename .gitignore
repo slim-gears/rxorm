@@ -15,4 +15,5 @@ gradle-app.setting
 out/
 .idea/
 *.iml
-
+reports/
+.mongo/

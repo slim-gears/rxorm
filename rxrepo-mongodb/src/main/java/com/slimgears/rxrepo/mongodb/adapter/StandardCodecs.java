@@ -10,10 +10,10 @@ import org.bson.codecs.configuration.CodecRegistry;
 public class StandardCodecs {
     public static CodecRegistry registry() {
         return CodecRegistries.fromProviders(
-                new ValueCodecProvider(),
                 new DocumentCodecProvider(),
+                new MetaCodecAdapter.Provider(),
+                new ValueCodecProvider(),
                 new BsonValueCodecProvider(),
-                new DBRefCodecProvider(),
-                new MetaCodecAdapter.Provider());
+                new DBRefCodecProvider());
     }
 }
