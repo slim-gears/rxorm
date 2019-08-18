@@ -232,9 +232,12 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
         return propertyMap.values();
     }
 
-    private static <S, T, V> void eliminateParents(Map<PropertyMeta<?, ?>, PropertyExpression<S, ?, ?>> properties, PropertyExpression<S, T, V> property) {
+    private <S, T, V> void eliminateParents(Map<PropertyMeta<?, ?>, PropertyExpression<S, ?, ?>> properties, PropertyExpression<S, T, V> property) {
         if (property.target() instanceof PropertyExpression) {
             PropertyExpression<S, ?, ?> parentProperty = (PropertyExpression<S, ?, ?>)property.target();
+            log.trace("Removing parent property: {} of {}",
+                    lazy(() -> sqlExpressionGenerator.toSqlExpression(parentProperty)),
+                    lazy(() -> sqlExpressionGenerator.toSqlExpression(property)));
             properties.remove(parentProperty.property());
             eliminateParents(properties, parentProperty);
         }

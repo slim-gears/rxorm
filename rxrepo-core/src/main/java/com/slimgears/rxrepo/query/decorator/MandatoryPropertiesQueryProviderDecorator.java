@@ -4,6 +4,7 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClass;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProviderDecorator {
+    private final static Map<PropertyExpression<?, ?, ?>, List<PropertyExpression<?, ?, ?>>> relatedMandatoryPropertiesCache = new ConcurrentHashMap<>();
     private final static Map<Class<?>, List<PropertyExpression<?, ?, ?>>> mandatoryPropertiesCache = new ConcurrentHashMap<>();
 
     private MandatoryPropertiesQueryProviderDecorator(QueryProvider underlyingProvider) {
@@ -42,7 +44,8 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
     private static <K, S extends HasMetaClassWithKey<K, S>, T> Consumer<QueryInfo.Builder<K, S, T>> includeProperties(Collection<PropertyExpression<T, ?, ?>> properties, Class<T> cls) {
         return builder -> {
             Stream<PropertyExpression<T, ?, ?>> includedProperties = properties.stream()
-                    .flatMap(MandatoryPropertiesQueryProviderDecorator::parentProperties);
+                    .flatMap(MandatoryPropertiesQueryProviderDecorator::mandatoryProperties)
+                    .distinct();
 
             if (HasMetaClass.class.isAssignableFrom(cls)) {
                 includedProperties = Stream.concat(includedProperties, mandatoryProperties(cls));
@@ -57,17 +60,37 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
     }
 
     @SuppressWarnings("unchecked")
+    private static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(PropertyExpression<S, ?, ?> exp) {
+        return relatedMandatoryPropertiesCache.computeIfAbsent(
+                exp,
+                MandatoryPropertiesQueryProviderDecorator::mandatoryPropertiesNotCached)
+                        .stream()
+                        .map(p -> (PropertyExpression<S, ?, ?>)p);
+    }
+
+    @SuppressWarnings("unchecked")
     private static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(Class<S> cls) {
         return mandatoryPropertiesCache.computeIfAbsent(
                 cls,
-                mc -> mandatoryPropertiesNotCached(MetaClasses.forClassUnchecked(cls))
-                        .collect(Collectors.toList()))
-                .stream()
-                .map(p -> (PropertyExpression<S, ?, ?>)p);
+                MandatoryPropertiesQueryProviderDecorator::mandatoryPropertiesNotCached)
+                        .stream()
+                        .map(p -> (PropertyExpression<S, ?, ?>)p);
     }
 
-    private static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryPropertiesNotCached(MetaClass<S> metaClass) {
-        return mandatoryProperties(ObjectExpression.arg(metaClass.asType()), metaClass);
+    private static <S> List<PropertyExpression<?, ?, ?>> mandatoryPropertiesNotCached(PropertyExpression<S, ?, ?> exp) {
+        return Stream.concat(
+                Stream.of(exp),
+                parentProperties(exp)
+                        .filter(p -> PropertyMetas.hasMetaClass(p.property()))
+                        .flatMap(p -> mandatoryProperties(p, MetaClasses.forTokenUnchecked(p.objectType()))))
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    private static <S> List<PropertyExpression<?, ?, ?>> mandatoryPropertiesNotCached(Class<S> cls) {
+        MetaClass<S> metaClass = MetaClasses.forClassUnchecked(cls);
+        return mandatoryProperties(ObjectExpression.arg(metaClass.asType()), metaClass)
+                .collect(Collectors.toList());
     }
 
     @SuppressWarnings("unchecked")
@@ -76,11 +99,10 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
                 .filter(p -> !p.hasAnnotation(Nullable.class))
                 .flatMap(p -> {
                     PropertyExpression<S, T, ?> propertyExpression = PropertyExpression.ofObject(target, p);
-                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>) Optional.of(TypeTokens.asClass(p.type()))
-                            .filter(HasMetaClass.class::isAssignableFrom)
-                            .map(cls -> (Class) cls)
-                            .map(MetaClasses::forClass)
-                            .map(meta -> mandatoryProperties(propertyExpression, (MetaClass) meta))
+                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>) Optional.of(p.type())
+                            .filter(PropertyMetas::hasMetaClass)
+                            .map(MetaClasses::forTokenUnchecked)
+                            .map(meta -> mandatoryProperties(propertyExpression, (MetaClass)meta))
                             .orElseGet(Stream::empty);
                     return Stream.concat(Stream.of(propertyExpression), stream);
                 });
