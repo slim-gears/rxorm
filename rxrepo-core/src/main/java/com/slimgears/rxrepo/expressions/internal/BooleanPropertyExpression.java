@@ -5,11 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import com.slimgears.rxrepo.expressions.BooleanExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 
 @AutoValue
-public abstract class BooleanPropertyExpression<S, T> implements PropertyExpression<S, T, Boolean>, BooleanExpression<S> {
+public abstract class BooleanPropertyExpression<S, T> extends AbstractPropertyExpression<S, T, Boolean>
+        implements BooleanExpression<S> {
     @JsonCreator
     public static <S, T> BooleanPropertyExpression<S, T> create(
             @JsonProperty("type") Type type,

@@ -1,28 +1,34 @@
 package com.slimgears.rxrepo.util;
 
+import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import javax.annotation.Nullable;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
 public class PropertyExpressions {
+    private final static Map<PropertyExpression<?, ?, ?>, Collection<PropertyExpression<?, ?, ?>>> relatedMandatoryPropertiesCache = new ConcurrentHashMap<>();
+    private final static Map<TypeToken<?>, Collection<PropertyExpression<?, ?, ?>>> mandatoryPropertiesCache = new ConcurrentHashMap<>();
+    private final static Map<PropertyExpression<?, ?, ?>, Collection<PropertyExpression<?, ?, ?>>> parentProperties = new ConcurrentHashMap<>();
+
     public static String toPath(PropertyExpression<?, ?, ?> propertyExpression) {
-        if (propertyExpression.target() instanceof PropertyExpression) {
-            return toPath((PropertyExpression<?, ?, ?>)propertyExpression.target()) + "." + propertyExpression.property().name();
-        } else {
-            return propertyExpression.property().name();
-        }
+        return Optional.of(propertyExpression.target())
+                .flatMap(Optionals.ofType(PropertyExpression.class))
+                .map(PropertyExpression::path)
+                .map(p -> p + "." + propertyExpression.property().name())
+                .orElseGet(propertyExpression.property()::name);
     }
 
     public static <T> Stream<PropertyExpression<T, ?, ?>> propertiesOf(TypeToken<T> type) {
@@ -45,7 +51,6 @@ public class PropertyExpressions {
     }
 
     public static <S, T> Stream<PropertyExpression<S, ?, ?>> propertiesOf(ObjectExpression<S, T> target) {
-        MetaClass<T> metaClass = MetaClasses.forTokenUnchecked(target.objectType());
         List<PropertyExpression<S, T, ?>> ownProps = ownPropertiesOf(target)
                 .collect(Collectors.toList());
 
@@ -58,6 +63,10 @@ public class PropertyExpressions {
 
     public static <T> PropertyExpression<T, ?, ?> fromPath(TypeToken<T> origin, String path) {
         return createExpressionFromPath(ObjectExpression.arg(origin), path);
+    }
+
+    public static <T> PropertyExpression<T, ?, ?> fromPath(Class<T> origin, String path) {
+        return fromPath(TypeToken.of(origin), path);
     }
 
     @SuppressWarnings("unchecked")
@@ -86,4 +95,72 @@ public class PropertyExpressions {
         int pos = path.indexOf('.');
         return pos >= 0 ? path.substring(0, pos) : path;
     }
+
+    public static boolean propertyEquals(PropertyExpression<?, ?, ?> property, Object other) {
+        return Optional.ofNullable(other)
+                .filter(p -> property.hashCode() == p.hashCode())
+                .flatMap(Optionals.ofType(PropertyExpression.class))
+                .map(p -> Objects.equals(property.target(), p.target()) &&
+                          Objects.equals(property.property(), p.property()))
+                .orElse(false);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(PropertyExpression<S, ?, ?> exp) {
+        return relatedMandatoryPropertiesCache.computeIfAbsent(
+                exp,
+                PropertyExpressions::mandatoryPropertiesNotCached)
+                .stream()
+                .map(p -> (PropertyExpression<S, ?, ?>)p);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(TypeToken<S> typeToken) {
+        return mandatoryPropertiesCache.computeIfAbsent(
+                typeToken,
+                PropertyExpressions::mandatoryPropertiesNotCached)
+                .stream()
+                .map(p -> (PropertyExpression<S, ?, ?>)p);
+    }
+
+    private static <S> Collection<PropertyExpression<?, ?, ?>> mandatoryPropertiesNotCached(PropertyExpression<S, ?, ?> exp) {
+        return Stream.concat(Stream.of(exp), parentProperties(exp)
+                .filter(p -> PropertyMetas.hasMetaClass(p.property()))
+                .flatMap(p -> mandatoryProperties(p, MetaClasses.forTokenUnchecked(p.objectType()))))
+                .collect(Collectors.toCollection(Sets::newLinkedHashSet));
+    }
+
+    private static <S> Collection<PropertyExpression<?, ?, ?>> mandatoryPropertiesNotCached(TypeToken<S> typeToken) {
+        MetaClass<S> metaClass = MetaClasses.forTokenUnchecked(typeToken);
+        return mandatoryProperties(ObjectExpression.arg(metaClass.asType()), metaClass)
+                .collect(Collectors.toCollection(Sets::newLinkedHashSet));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <S, T> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(ObjectExpression<S, T> target, MetaClass<T> metaClass) {
+        return Streams.fromIterable(metaClass.properties())
+                .filter(p -> !p.hasAnnotation(Nullable.class))
+                .flatMap(p -> {
+                    PropertyExpression<S, T, ?> propertyExpression = PropertyExpression.ofObject(target, p);
+                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>) Optional.of(p.type())
+                            .filter(PropertyMetas::hasMetaClass)
+                            .map(MetaClasses::forTokenUnchecked)
+                            .map(meta -> mandatoryProperties(propertyExpression, (MetaClass)meta))
+                            .orElseGet(Stream::empty);
+                    return Stream.concat(Stream.of(propertyExpression), stream);
+                });
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <S, T, V> Stream<PropertyExpression<S, ?, ?>> parentProperties(PropertyExpression<S, T, V> property) {
+        return ((Collection<PropertyExpression<S, ?, ?>>)(Collection<?>)parentProperties.computeIfAbsent(property, p -> parentPropertiesNonCached(property).collect(Collectors.toList())))
+                .stream();
+    }
+
+    private static <S, T, V> Stream<PropertyExpression<S, ?, ?>> parentPropertiesNonCached(PropertyExpression<S, T, V> property) {
+        return (property.target() instanceof PropertyExpression)
+                ? Stream.concat(Stream.of(property), parentProperties((PropertyExpression<S, ?, ?>)property.target()))
+                : Stream.of(property);
+    }
 }
+

@@ -33,7 +33,7 @@ import static java.util.Objects.requireNonNull;
 public abstract class AbstractRepositoryTest {
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
-    @Rule public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
+    @Rule public final Timeout timeout = new Timeout(40, TimeUnit.SECONDS);
 
     private Repository repository;
 
@@ -333,7 +333,7 @@ public abstract class AbstractRepositoryTest {
                 .assertValueCount(113);
     }
 
-    @Test
+    @Test @UseLogLevel(LogLevel.TRACE)
     public void testInsertThenSearch() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = Products.createMany(100);

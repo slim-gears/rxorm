@@ -1,28 +1,26 @@
 package com.slimgears.rxrepo.query.decorator;
 
-import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.rxrepo.util.PropertyMetas;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClass;
-import com.slimgears.util.autovalue.annotations.MetaClasses;
-import com.slimgears.util.reflect.TypeTokens;
-import com.slimgears.util.stream.Streams;
 import io.reactivex.Observable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.slimgears.util.generic.LazyString.lazy;
+
 public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProviderDecorator {
-    private final static Map<PropertyExpression<?, ?, ?>, List<PropertyExpression<?, ?, ?>>> relatedMandatoryPropertiesCache = new ConcurrentHashMap<>();
-    private final static Map<Class<?>, List<PropertyExpression<?, ?, ?>>> mandatoryPropertiesCache = new ConcurrentHashMap<>();
+    private final static Logger log = LoggerFactory.getLogger(MandatoryPropertiesQueryProviderDecorator.class);
 
     private MandatoryPropertiesQueryProviderDecorator(QueryProvider underlyingProvider) {
         super(underlyingProvider);
@@ -37,80 +35,26 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
         return query.properties().isEmpty()
                 ? super.query(query)
                 : super.query(query.toBuilder()
-                        .apply(includeProperties(query.properties(), TypeTokens.asClass(query.objectType())))
+                        .apply(includeProperties(query.properties(), query.objectType()))
                         .build());
     }
 
-    private static <K, S extends HasMetaClassWithKey<K, S>, T> Consumer<QueryInfo.Builder<K, S, T>> includeProperties(Collection<PropertyExpression<T, ?, ?>> properties, Class<T> cls) {
+    private static <K, S extends HasMetaClassWithKey<K, S>, T> Consumer<QueryInfo.Builder<K, S, T>> includeProperties(Collection<PropertyExpression<T, ?, ?>> properties, TypeToken<T> typeToken) {
         return builder -> {
             Stream<PropertyExpression<T, ?, ?>> includedProperties = properties.stream()
-                    .flatMap(MandatoryPropertiesQueryProviderDecorator::mandatoryProperties)
+                    .flatMap(PropertyExpressions::mandatoryProperties)
                     .distinct();
 
-            if (HasMetaClass.class.isAssignableFrom(cls)) {
-                includedProperties = Stream.concat(includedProperties, mandatoryProperties(cls));
+            if (PropertyMetas.hasMetaClass(typeToken)) {
+                includedProperties = Stream.concat(includedProperties, PropertyExpressions.mandatoryProperties(typeToken));
             }
 
-            Collection<? extends PropertyExpression<T, ?, ?>> requiredProperties = includedProperties
-                    .collect(Collectors.toMap(PropertyExpression::property, p -> p, (a, b) -> a, LinkedHashMap::new))
-                    .values();
+            Collection<PropertyExpression<T, ?, ?>> props = includedProperties.collect(Collectors.toCollection(Sets::newLinkedHashSet));
+            log.trace("Requested properties: [{}], Final properties: [{}]",
+                    lazy(() -> properties.stream().map(PropertyExpressions::toPath).collect(Collectors.joining(", "))),
+                    lazy(() -> props.stream().map(PropertyExpressions::toPath).collect(Collectors.joining(", "))));
 
-            builder.propertiesAddAll(requiredProperties);
+            builder.propertiesAddAll(props);
         };
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(PropertyExpression<S, ?, ?> exp) {
-        return relatedMandatoryPropertiesCache.computeIfAbsent(
-                exp,
-                MandatoryPropertiesQueryProviderDecorator::mandatoryPropertiesNotCached)
-                        .stream()
-                        .map(p -> (PropertyExpression<S, ?, ?>)p);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(Class<S> cls) {
-        return mandatoryPropertiesCache.computeIfAbsent(
-                cls,
-                MandatoryPropertiesQueryProviderDecorator::mandatoryPropertiesNotCached)
-                        .stream()
-                        .map(p -> (PropertyExpression<S, ?, ?>)p);
-    }
-
-    private static <S> List<PropertyExpression<?, ?, ?>> mandatoryPropertiesNotCached(PropertyExpression<S, ?, ?> exp) {
-        return Stream.concat(
-                Stream.of(exp),
-                parentProperties(exp)
-                        .filter(p -> PropertyMetas.hasMetaClass(p.property()))
-                        .flatMap(p -> mandatoryProperties(p, MetaClasses.forTokenUnchecked(p.objectType()))))
-                .distinct()
-                .collect(Collectors.toList());
-    }
-
-    private static <S> List<PropertyExpression<?, ?, ?>> mandatoryPropertiesNotCached(Class<S> cls) {
-        MetaClass<S> metaClass = MetaClasses.forClassUnchecked(cls);
-        return mandatoryProperties(ObjectExpression.arg(metaClass.asType()), metaClass)
-                .collect(Collectors.toList());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <S, T> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(ObjectExpression<S, T> target, MetaClass<T> metaClass) {
-        return Streams.fromIterable(metaClass.properties())
-                .filter(p -> !p.hasAnnotation(Nullable.class))
-                .flatMap(p -> {
-                    PropertyExpression<S, T, ?> propertyExpression = PropertyExpression.ofObject(target, p);
-                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>) Optional.of(p.type())
-                            .filter(PropertyMetas::hasMetaClass)
-                            .map(MetaClasses::forTokenUnchecked)
-                            .map(meta -> mandatoryProperties(propertyExpression, (MetaClass)meta))
-                            .orElseGet(Stream::empty);
-                    return Stream.concat(Stream.of(propertyExpression), stream);
-                });
-    }
-
-    private static <S, T, V> Stream<PropertyExpression<S, ?, ?>> parentProperties(PropertyExpression<S, T, V> property) {
-        return (property.target() instanceof PropertyExpression)
-                ? Stream.concat(Stream.of(property), parentProperties((PropertyExpression<S, ?, ?>)property.target()))
-                : Stream.of(property);
     }
 }

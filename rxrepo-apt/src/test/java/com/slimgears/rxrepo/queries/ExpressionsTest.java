@@ -4,6 +4,7 @@ import com.slimgears.rxrepo.annotations.Filterable;
 import com.slimgears.rxrepo.annotations.Indexable;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.util.Expressions;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -440,5 +441,10 @@ public class ExpressionsTest {
                 .compile(TestEntity.$.optionalRefEntity.text);
 
         Assert.assertNull(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testPropertyExpressionEquality() {
+        Assert.assertEquals(TestEntity.$.refEntity.id, PropertyExpressions.fromPath(TestEntity.class, "refEntity.id"));
     }
 }
