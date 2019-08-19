@@ -419,7 +419,7 @@ public abstract class AbstractRepositoryTest {
                 });
     }
 
-    @Test
+    @Test @UseLogLevel(LogLevel.TRACE)
     public void testPartialRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = Products.createMany(10);

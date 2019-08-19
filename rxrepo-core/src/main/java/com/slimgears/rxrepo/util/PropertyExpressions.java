@@ -126,26 +126,27 @@ public class PropertyExpressions {
     private static <S> Collection<PropertyExpression<?, ?, ?>> mandatoryPropertiesNotCached(PropertyExpression<S, ?, ?> exp) {
         return Stream.concat(Stream.of(exp), parentProperties(exp)
                 .filter(p -> PropertyMetas.hasMetaClass(p.property()))
-                .flatMap(p -> mandatoryProperties(p, MetaClasses.forTokenUnchecked(p.objectType()))))
+                .flatMap(p -> mandatoryProperties(p, MetaClasses.forTokenUnchecked(p.objectType()), new HashSet<>())))
                 .collect(Collectors.toCollection(Sets::newLinkedHashSet));
     }
 
     private static <S> Collection<PropertyExpression<?, ?, ?>> mandatoryPropertiesNotCached(TypeToken<S> typeToken) {
         MetaClass<S> metaClass = MetaClasses.forTokenUnchecked(typeToken);
-        return mandatoryProperties(ObjectExpression.arg(metaClass.asType()), metaClass)
+        return mandatoryProperties(ObjectExpression.arg(metaClass.asType()), metaClass, new HashSet<>())
                 .collect(Collectors.toCollection(Sets::newLinkedHashSet));
     }
 
     @SuppressWarnings("unchecked")
-    private static <S, T> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(ObjectExpression<S, T> target, MetaClass<T> metaClass) {
+    private static <S, T> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(ObjectExpression<S, T> target, MetaClass<T> metaClass, Set<PropertyExpression<S, ?, ?>> visitedProperties) {
         return Streams.fromIterable(metaClass.properties())
                 .filter(p -> !p.hasAnnotation(Nullable.class))
-                .flatMap(p -> {
-                    PropertyExpression<S, T, ?> propertyExpression = PropertyExpression.ofObject(target, p);
-                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>) Optional.of(p.type())
+                .map(p -> PropertyExpression.ofObject(target, p))
+                .filter(visitedProperties::add)
+                .flatMap(propertyExpression -> {
+                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>) Optional.of(propertyExpression.objectType())
                             .filter(PropertyMetas::hasMetaClass)
                             .map(MetaClasses::forTokenUnchecked)
-                            .map(meta -> mandatoryProperties(propertyExpression, (MetaClass)meta))
+                            .map(meta -> mandatoryProperties(propertyExpression, (MetaClass)meta, visitedProperties))
                             .orElseGet(Stream::empty);
                     return Stream.concat(Stream.of(propertyExpression), stream);
                 });
@@ -157,10 +158,14 @@ public class PropertyExpressions {
                 .stream();
     }
 
+    @SuppressWarnings("unchecked")
     private static <S, T, V> Stream<PropertyExpression<S, ?, ?>> parentPropertiesNonCached(PropertyExpression<S, T, V> property) {
-        return (property.target() instanceof PropertyExpression)
-                ? Stream.concat(Stream.of(property), parentProperties((PropertyExpression<S, ?, ?>)property.target()))
-                : Stream.of(property);
+        return Optional
+                .of(property.target())
+                .flatMap(Optionals.ofType(PropertyExpression.class))
+                .map(t -> (PropertyExpression<S, ?, ?>)t)
+                .map(t -> Stream.concat(Stream.of(t), parentPropertiesNonCached(t)))
+                .orElseGet(Stream::empty);
     }
 }
 

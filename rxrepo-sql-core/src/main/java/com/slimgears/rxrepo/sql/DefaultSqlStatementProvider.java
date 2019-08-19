@@ -5,6 +5,7 @@ import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.*;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -217,28 +218,20 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
 
     private <T> Collection<PropertyExpression<T, ?, ?>> eliminateRedundantProperties(Collection<PropertyExpression<T, ?, ?>> properties) {
         log.trace("Requested properties: {}", lazy(() -> properties.stream()
-                .map(sqlExpressionGenerator::toSqlExpression)
+                .map(PropertyExpression::path)
                 .collect(Collectors.joining(", "))));
 
         Set<PropertyExpression<T, ?, ?>> propertySet = Sets.newLinkedHashSet(properties);
 
-        properties.forEach(p -> eliminateParents(propertySet, p));
+        properties.stream()
+                .flatMap(PropertyExpressions::parentProperties)
+                .peek(p -> log.trace("Removing property {}", p.path()))
+                .forEach(propertySet::remove);
 
-        log.trace("Filtered properties: {}", lazy(() -> propertySet.stream()
-                .map(sqlExpressionGenerator::toSqlExpression)
+        log.trace("Filtered properties: [{}]", lazy(() -> propertySet.stream()
+                .map(PropertyExpression::path)
                 .collect(Collectors.joining(", "))));
 
         return propertySet;
-    }
-
-    private <S, T, V> void eliminateParents(Set<PropertyExpression<S, ?, ?>> properties, PropertyExpression<S, T, V> property) {
-        if (property.target() instanceof PropertyExpression) {
-            PropertyExpression<S, ?, ?> parentProperty = (PropertyExpression<S, ?, ?>)property.target();
-            log.trace("Removing parent property: {} of {}",
-                    lazy(parentProperty::path),
-                    lazy(property::path));
-            properties.remove(parentProperty);
-            eliminateParents(properties, parentProperty);
-        }
     }
 }
