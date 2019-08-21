@@ -106,7 +106,7 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
 
         Set<String> paths = Streams
                 .fromIterable(properties)
-                .map(PropertyExpressions::toPath)
+                .map(PropertyExpressions::pathOf)
                 .collect(Collectors.toSet());
 
         return obj -> Optional
@@ -123,7 +123,7 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
                 .collect(Collectors.toList());
 
         ownProperties.stream()
-                .filter(p -> !propertiesToRetain.contains(currentPrefix + PropertyExpressions.toPath(p)))
+                .filter(p -> !propertiesToRetain.contains(currentPrefix + PropertyExpressions.pathOf(p)))
                 .map(PropertyExpression::property)
                 .filter(p -> !PropertyMetas.isMandatory(p))
                 .filter(p -> !PropertyMetas.hasMetaClass(p))

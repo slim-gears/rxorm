@@ -9,17 +9,22 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
+import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
+import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Optionals;
+import com.slimgears.util.stream.Streams;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class SqlQueryProvider implements QueryProvider {
     private final static Logger log = LoggerFactory.getLogger(SqlQueryProvider.class);
@@ -128,8 +133,7 @@ public class SqlQueryProvider implements QueryProvider {
         Function<PropertyResolver, Maybe<T>> mapper = Optional
                 .ofNullable(mapping)
                 .flatMap(Optionals.ofType(PropertyExpression.class))
-                .map(e -> (PropertyExpression<?, ?, T>)e)
-                .map(this::toPropertyPath)
+                .map(PropertyExpression::path)
                 .<Function<PropertyResolver, Maybe<T>>>map(path -> pr -> Optional
                         .ofNullable(pr.getProperty(path, TypeTokens.asClass(objectType)))
                         .map(obj -> obj instanceof PropertyResolver
@@ -139,12 +143,6 @@ public class SqlQueryProvider implements QueryProvider {
                         .orElseGet(Maybe::empty))
                 .orElse(pr -> Maybe.fromCallable(() -> pr.toObject(objectType)));
         return src -> src.flatMapMaybe(mapper);
-    }
-
-    private String toPropertyPath(PropertyExpression<?, ?, ?> propertyExpression) {
-        return propertyExpression.target() instanceof PropertyExpression
-                ? toPropertyPath((PropertyExpression<?, ?, ?>)propertyExpression.target()) + "." + propertyExpression.property().name()
-                : propertyExpression.property().name();
     }
 
     @Override
@@ -200,5 +198,20 @@ public class SqlQueryProvider implements QueryProvider {
             SqlStatement statement = statementProvider.forDrop();
             return statementExecutor.executeCommand(statement);
         });
+    }
+
+    private static <S extends HasMetaClass<S>> boolean isEmptyObject(S object) {
+        AtomicReference<PropertyMeta<S, ?>> nonNullProperty = new AtomicReference<>();
+        if (Streams.fromIterable(object.metaClass().properties())
+                .filter(p -> p.getValue(object) != null)
+                .peek(nonNullProperty::set)
+                .limit(2)
+                .count() > 1) {
+            return false;
+        }
+
+        return Optional.ofNullable(nonNullProperty.get())
+                .map(PropertyMetas::isKey)
+                .orElse(true);
     }
 }

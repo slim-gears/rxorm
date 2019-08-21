@@ -89,7 +89,7 @@
     public static class ReferencePropertyExpression<__S, __T#foreach ($tp in $sourceClass.typeParams()), $tp.fullDeclaration()#end> extends Expressions<__S#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> implements $[com.slimgears.rxrepo.expressions.PropertyExpression]<__S, __T, $targetClass.simpleName()#typeParams($sourceClass)> {
         private final $[com.slimgears.rxrepo.expressions.ObjectExpression]<__S, __T> target;
         private final $[com.slimgears.util.autovalue.annotations.PropertyMeta]<__T, $targetClass.simpleName()#typeParams($sourceClass)> property;
-        private final $[com.slimgears.util.stream.Lazy]<String> lazyPath = Lazy.of(() -> $[com.slimgears.rxrepo.util.PropertyExpressions].toPath(this));
+        private final $[com.slimgears.util.stream.Lazy]<String> lazyPath = Lazy.of(() -> $[com.slimgears.rxrepo.util.PropertyExpressions].pathOf(this));
         private final $[com.slimgears.util.stream.Lazy]<Integer> lazyHash = Lazy.of(() -> $[java.util.Objects].hash(this.target(), this.property()));
 
         private ReferencePropertyExpression(ObjectExpression<__S, __T> target, PropertyMeta<__T, $targetClass.simpleName()#typeParams($sourceClass)> property) {

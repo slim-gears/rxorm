@@ -5,6 +5,7 @@ import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.util.autovalue.annotations.MetaClass;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.stream.Optionals;
@@ -23,12 +24,31 @@ public class PropertyExpressions {
     private final static Map<TypeToken<?>, Collection<PropertyExpression<?, ?, ?>>> mandatoryPropertiesCache = new ConcurrentHashMap<>();
     private final static Map<PropertyExpression<?, ?, ?>, Collection<PropertyExpression<?, ?, ?>>> parentProperties = new ConcurrentHashMap<>();
 
-    public static String toPath(PropertyExpression<?, ?, ?> propertyExpression) {
-        return Optional.of(propertyExpression.target())
-                .flatMap(Optionals.ofType(PropertyExpression.class))
+    public static String pathOf(PropertyExpression<?, ?, ?> propertyExpression) {
+        return Optional.ofNullable(parentOf(propertyExpression))
                 .map(PropertyExpression::path)
                 .map(p -> p + "." + propertyExpression.property().name())
                 .orElseGet(propertyExpression.property()::name);
+    }
+
+    public static boolean hasParent(PropertyExpression<?, ?, ?> propertyExpression) {
+        return propertyExpression.target() instanceof PropertyExpression;
+    }
+
+    public static <K, S> PropertyExpression<S, S, K> keyOf(MetaClassWithKey<K, S> metaClass) {
+        return PropertyExpression.ofObject(metaClass.keyProperty());
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> PropertyExpression<T, ?, ?> parentOf(PropertyExpression<T, ?, ?> property) {
+        return (PropertyExpression<T, ?, ?>) Optional.of(property.target())
+                .flatMap(Optionals.ofType(PropertyExpression.class))
+                .orElse(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> PropertyExpression<T, T, ?> rootOf(PropertyExpression<T, ?, ?> property) {
+        return hasParent(property) ? rootOf(parentOf(property)) : (PropertyExpression<T, T, ?>)property;
     }
 
     public static <T> Stream<PropertyExpression<T, ?, ?>> propertiesOf(TypeToken<T> type) {
@@ -158,14 +178,10 @@ public class PropertyExpressions {
                 .stream();
     }
 
-    @SuppressWarnings("unchecked")
     private static <S, T, V> Stream<PropertyExpression<S, ?, ?>> parentPropertiesNonCached(PropertyExpression<S, T, V> property) {
         return Optional
-                .of(property.target())
-                .flatMap(Optionals.ofType(PropertyExpression.class))
-                .map(t -> (PropertyExpression<S, ?, ?>)t)
+                .ofNullable(parentOf(property))
                 .map(t -> Stream.concat(Stream.of(t), parentPropertiesNonCached(t)))
                 .orElseGet(Stream::empty);
     }
 }
-

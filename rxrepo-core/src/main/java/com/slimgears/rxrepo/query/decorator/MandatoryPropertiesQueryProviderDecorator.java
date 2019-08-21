@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.query.decorator;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.util.PropertyExpressions;
@@ -39,6 +40,15 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
                         .build());
     }
 
+    @Override
+    public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
+        return query.properties().isEmpty()
+                ? super.liveQuery(query)
+                : super.liveQuery(query.toBuilder()
+                        .apply(includeProperties(query.properties(), query.objectType()))
+                        .build());
+    }
+
     private static <K, S extends HasMetaClassWithKey<K, S>, T> Consumer<QueryInfo.Builder<K, S, T>> includeProperties(Collection<PropertyExpression<T, ?, ?>> properties, TypeToken<T> typeToken) {
         return builder -> {
             Stream<PropertyExpression<T, ?, ?>> includedProperties = properties.stream()
@@ -51,8 +61,8 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
 
             Collection<PropertyExpression<T, ?, ?>> props = includedProperties.collect(Collectors.toCollection(Sets::newLinkedHashSet));
             log.trace("Requested properties: [{}], Final properties: [{}]",
-                    lazy(() -> properties.stream().map(PropertyExpressions::toPath).collect(Collectors.joining(", "))),
-                    lazy(() -> props.stream().map(PropertyExpressions::toPath).collect(Collectors.joining(", "))));
+                    lazy(() -> properties.stream().map(PropertyExpressions::pathOf).collect(Collectors.joining(", "))),
+                    lazy(() -> props.stream().map(PropertyExpressions::pathOf).collect(Collectors.joining(", "))));
 
             builder.propertiesAddAll(props);
         };
