@@ -266,6 +266,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                 .build();
 
                         return queryProvider.aggregate(observeQuery, Aggregator.count())
+                                .defaultIfEmpty(0L)
                                 .map(AtomicLong::new)
                                 .flatMapObservable(count -> {
                                     ObservableTransformer<List<Notification<T>>, R> transformer = queryTransformer.transformer(retrieveQuery, count);
