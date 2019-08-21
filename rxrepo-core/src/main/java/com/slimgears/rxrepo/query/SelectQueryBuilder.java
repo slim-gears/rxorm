@@ -2,7 +2,6 @@ package com.slimgears.rxrepo.query;
 
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
@@ -10,7 +9,7 @@ import io.reactivex.Single;
 import java.util.List;
 
 @SuppressWarnings("WeakerAccess")
-public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
+public abstract class SelectQueryBuilder<K, S>
     implements QueryBuilder<SelectQueryBuilder<K, S>, K, S> {
     public abstract SelectQueryBuilder<K, S> skip(long skip);
 

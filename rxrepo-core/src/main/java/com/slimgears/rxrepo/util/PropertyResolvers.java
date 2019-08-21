@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 import static com.slimgears.util.stream.Optionals.ofType;
 
 class PropertyResolvers {
-    static <T extends HasMetaClass<T>> T toObject(PropertyResolver resolver, MetaClass<T> metaClass) {
+    static <T> T toObject(PropertyResolver resolver, MetaClass<T> metaClass) {
         BuilderPrototype<T, ?> builder = metaClass.createBuilder();
         Streams.fromIterable(resolver.propertyNames())
                 .map(metaClass::getProperty)
@@ -86,12 +86,15 @@ class PropertyResolvers {
         };
     }
 
-    static <T extends HasMetaClass<T>> PropertyResolver fromObject(T obj) {
+    private static <T extends HasMetaClass<T>> PropertyResolver fromObject(T obj) {
+        return fromObject(obj.metaClass(), obj);
+    }
+
+    static <T> PropertyResolver fromObject(MetaClass<T> metaClass, T obj) {
         if (obj == null) {
             return empty();
         }
 
-        MetaClass<T> metaClass = obj.metaClass();
         List<String> propertyNames = Streams
                 .fromIterable(metaClass.properties())
                 .map(PropertyMeta::name)

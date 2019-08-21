@@ -5,12 +5,11 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Single;
 
 import java.util.Collection;
 
-public interface EntityUpdateQuery<K, S extends HasMetaClassWithKey<K, S>>
+public interface EntityUpdateQuery<K, S>
             extends QueryBuilder<EntityUpdateQuery<K, S>, K, S> {
 
     <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> set(PropertyExpression<S, T, V> property, ObjectExpression<S, V> value);

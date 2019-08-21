@@ -3,7 +3,6 @@ package com.slimgears.rxrepo.mem;
 import com.slimgears.rxrepo.encoding.MetaObjectResolver;
 import com.slimgears.rxrepo.query.provider.AbstractEntityQueryProviderAdapter;
 import com.slimgears.rxrepo.query.provider.EntityQueryProvider;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.stream.Safe;
 import io.reactivex.Completable;
@@ -17,7 +16,7 @@ public class MemoryQueryProvider extends AbstractEntityQueryProviderAdapter impl
     private final List<AutoCloseable> closeableList = Collections.synchronizedList(new ArrayList<>());
 
     @Override
-    protected <K, S extends HasMetaClassWithKey<K, S>> EntityQueryProvider<K, S> createProvider(MetaClassWithKey<K, S> metaClass) {
+    protected <K, S> EntityQueryProvider<K, S> createProvider(MetaClassWithKey<K, S> metaClass) {
         MemoryEntityQueryProvider<K, S> provider = MemoryEntityQueryProvider.create(metaClass, this);
         closeableList.add(provider);
         return provider;
@@ -29,7 +28,7 @@ public class MemoryQueryProvider extends AbstractEntityQueryProviderAdapter impl
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> resolve(MetaClassWithKey<K, S> metaClass, K key) {
+    public <K, S> Maybe<S> resolve(MetaClassWithKey<K, S> metaClass, K key) {
         return ((MemoryEntityQueryProvider<K, S>)entities(metaClass)).find(key);
     }
 

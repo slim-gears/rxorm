@@ -126,7 +126,7 @@ public class MetaClassCodec<T> implements MetaCodec<T> {
                 .ifPresent(val -> propertyMeta.setValue(builder, val));
     }
 
-    private <K, S extends HasMetaClassWithKey<K, S>> S readReference(MetaContext.Reader context, MetaClassWithKey<K, S> metaClass) {
+    private <K, S> S readReference(MetaContext.Reader context, MetaClassWithKey<K, S> metaClass) {
         return Optional.ofNullable(readValue(context, metaClass.keyProperty().type()))
                 .flatMap(key -> resolver.resolve(metaClass, key).map(Optional::of).blockingGet(Optional.empty()))
                 .orElse(null);

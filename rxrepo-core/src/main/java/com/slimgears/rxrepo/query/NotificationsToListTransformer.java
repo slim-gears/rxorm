@@ -3,7 +3,7 @@ package com.slimgears.rxrepo.query;
 import com.google.common.collect.ImmutableList;
 import com.slimgears.rxrepo.query.provider.SortingInfo;
 import com.slimgears.rxrepo.query.provider.SortingInfos;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Observable;
 import io.reactivex.ObservableSource;
 import io.reactivex.ObservableTransformer;
@@ -15,35 +15,40 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, T>> implements ObservableTransformer<List<Notification<T>>, List<T>> {
+public class NotificationsToListTransformer<K, T> implements ObservableTransformer<List<Notification<T>>, List<T>> {
     private final @Nullable Long limit;
     private final AtomicLong firstItemIndex;
     private final AtomicReference<T> firstItem = new AtomicReference<>();
     private final Comparator<T> comparator;
     private final Map<K, T> map = Collections.synchronizedMap(new HashMap<>());
+    private final MetaClassWithKey<K, T> metaClass;
 
 
-    private NotificationsToListTransformer(ImmutableList<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos,
+    private NotificationsToListTransformer(MetaClassWithKey<K, T> metaClass,
+                                           ImmutableList<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos,
                                            @Nullable Long limit,
                                            AtomicLong firstItemIndex) {
+        this.metaClass = metaClass;
         this.limit = limit;
         this.firstItemIndex = firstItemIndex;
         this.comparator = Optional
                 .ofNullable(SortingInfos.toComparator(sortingInfos))
-                .orElseGet(() -> Comparator.<T, String>comparing((item -> item.metaClass().keyOf(item).toString())));
+                .orElseGet(() -> Comparator.<T, String>comparing((item -> metaClass.keyOf(item).toString())));
     }
 
-    public static <K, T extends HasMetaClassWithKey<K, T>> NotificationsToListTransformer<K, T> create(
+    public static <K, T> NotificationsToListTransformer<K, T> create(
+            MetaClassWithKey<K, T> metaClass,
             ImmutableList<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos,
             @Nullable Long limit,
             AtomicLong firstItemIndex) {
-        return new NotificationsToListTransformer<>(sortingInfos, limit, firstItemIndex);
+        return new NotificationsToListTransformer<>(metaClass, sortingInfos, limit, firstItemIndex);
     }
 
-    public static <K, S extends HasMetaClassWithKey<K, S>> NotificationsToListTransformer<K, S> create(
+    public static <K, S> NotificationsToListTransformer<K, S> create(
+            MetaClassWithKey<K, S> metaClass,
             ImmutableList<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos,
             @Nullable Long limit) {
-        return create(sortingInfos, limit, new AtomicLong());
+        return create(metaClass, sortingInfos, limit, new AtomicLong());
     }
 
     @Override
@@ -85,7 +90,7 @@ public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, 
                         .sorted(comparator)
                         .skip(l))
                 .orElse(Stream.empty())
-                .map(val -> val.metaClass().keyProperty().getValue(val))
+                .map(val -> metaClass.keyProperty().getValue(val))
                 .collect(Collectors.toList())
                 .forEach(map::remove);
     }
@@ -96,7 +101,7 @@ public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, 
                         .stream()
                         .filter(val -> comparator.compare(m, val) > 0))
                 .orElse(Stream.empty())
-                .map(val -> val.metaClass().keyProperty().getValue(val))
+                .map(val -> metaClass.keyProperty().getValue(val))
                 .collect(Collectors.toList())
                 .forEach(map::remove);
     }
@@ -124,11 +129,11 @@ public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, 
     private void onNotification(Notification<T> notification) {
         if (notification.isDelete()) {
             Optional.ofNullable(notification.oldValue())
-                    .map(val -> val.metaClass().keyProperty().getValue(val))
+                    .map(val -> metaClass.keyProperty().getValue(val))
                     .ifPresent(map::remove);
         } else {
             Optional.ofNullable(notification.newValue())
-                    .map(val -> val.metaClass().keyProperty().getValue(val))
+                    .map(val -> metaClass.keyProperty().getValue(val))
                     .ifPresent(key -> map.put(key, notification.newValue()));
         }
     }

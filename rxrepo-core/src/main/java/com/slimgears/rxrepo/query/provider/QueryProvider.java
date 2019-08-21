@@ -2,8 +2,8 @@ package com.slimgears.rxrepo.query.provider;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClasses;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
@@ -15,31 +15,31 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
 
 public interface QueryProvider extends AutoCloseable {
-    <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater);
-    <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query);
-    <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query);
-    <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator);
+    <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater);
+    <K, S, T> Observable<T> query(QueryInfo<K, S, T> query);
+    <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query);
+    <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator);
 
-    <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> update(UpdateInfo<K, S> update);
-    <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> delete);
-    <K, S extends HasMetaClassWithKey<K, S>> Completable drop(MetaClassWithKey<K, S> metaClass);
+    <K, S> Single<Integer> update(UpdateInfo<K, S> update);
+    <K, S> Single<Integer> delete(DeleteInfo<K, S> delete);
+    <K, S> Completable drop(MetaClassWithKey<K, S> metaClass);
     Completable dropAll();
 
-    default <K, S extends HasMetaClassWithKey<K, S>> Completable insert(Iterable<S> entities) {
+    default <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
         return Observable.fromIterable(entities)
-                .concatMapEager(e -> insertOrUpdate(e).toObservable())
+                .concatMapEager(e -> insertOrUpdate(metaClass, e).toObservable())
                 .ignoreElements();
     }
 
-    default <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
-        K key = HasMetaClassWithKey.keyOf(entity);
-        return insertOrUpdate(entity.metaClass(), key, val -> val
-                .map(e -> e.merge(entity))
+    default <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
+        K key = metaClass.keyOf(entity);
+        return insertOrUpdate(metaClass, key, val -> val
+                .map(e -> MetaClasses.merge(metaClass, e, entity))
                 .switchIfEmpty(Maybe.just(entity)))
                 .toSingle();
     }
 
-    default <K, S extends HasMetaClassWithKey<K, S>, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
+    default <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return liveQuery(query).debounce(500, TimeUnit.MILLISECONDS).switchMapMaybe(n -> aggregate(query, aggregator));
     }
 

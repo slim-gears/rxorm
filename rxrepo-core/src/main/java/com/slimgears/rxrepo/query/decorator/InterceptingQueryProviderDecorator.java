@@ -4,7 +4,6 @@ import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.query.provider.QueryPublisher;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
 import io.reactivex.disposables.Disposable;
@@ -34,16 +33,16 @@ public class InterceptingQueryProviderDecorator implements QueryProvider.Decorat
         }
 
         @Override
-        public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
+        public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
             return super.query(query).compose(applyOnQuery(query));
         }
 
         @Override
-        public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
+        public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
             return super.liveQuery(query).compose(applyOnLiveQuery(query));
         }
 
-        private <K, S extends HasMetaClassWithKey<K, S>, T> ObservableTransformer<T, T> applyOnQuery(QueryInfo<K, S, T> queryInfo) {
+        private <K, S, T> ObservableTransformer<T, T> applyOnQuery(QueryInfo<K, S, T> queryInfo) {
             return source -> {
                 AtomicReference<Observable<T>> observable = new AtomicReference<>(source);
                 queryListeners.forEach(l -> observable.updateAndGet(o -> l.onQuery(queryInfo, o)));
@@ -51,7 +50,7 @@ public class InterceptingQueryProviderDecorator implements QueryProvider.Decorat
             };
         }
 
-        private <K, S extends HasMetaClassWithKey<K, S>, T> ObservableTransformer<Notification<T>, Notification<T>> applyOnLiveQuery(QueryInfo<K, S, T> queryInfo) {
+        private <K, S, T> ObservableTransformer<Notification<T>, Notification<T>> applyOnLiveQuery(QueryInfo<K, S, T> queryInfo) {
             return source -> {
                 AtomicReference<Observable<Notification<T>>> observable = new AtomicReference<>(source);
                 queryListeners.forEach(l -> observable.updateAndGet(o -> l.onLiveQuery(queryInfo, o)));

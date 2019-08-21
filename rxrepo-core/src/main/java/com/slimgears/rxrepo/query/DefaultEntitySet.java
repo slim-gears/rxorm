@@ -9,7 +9,6 @@ import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
 import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.rx.Maybes;
 import com.slimgears.util.rx.Observables;
@@ -30,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet<K, S> {
+public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     private final static Logger log = LoggerFactory.getLogger(DefaultEntitySet.class);
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
@@ -44,7 +43,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
         this.config = config;
     }
 
-    static <K, S extends HasMetaClassWithKey<K, S>> DefaultEntitySet<K, S> create(
+    static <K, S> DefaultEntitySet<K, S> create(
             QueryProvider queryProvider,
             MetaClassWithKey<K, S> metaClass,
             RepositoryConfigModel config) {
@@ -341,11 +340,11 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
     @Override
     public Single<S> update(S entity) {
-        return queryProvider.insert(Collections.singleton(entity))
+        return queryProvider.insert(metaClass, Collections.singleton(entity))
                 .andThen(Single.just(entity))
                 .onErrorResumeNext(e ->
                         isConcurrencyException(e)
-                        ? Single.defer(() -> queryProvider.insertOrUpdate(entity))
+                        ? Single.defer(() -> queryProvider.insertOrUpdate(metaClass, entity))
                                 .compose(Singles.backOffDelayRetry(
                                         DefaultEntitySet::isConcurrencyException,
                                         Duration.ofMillis(config.retryInitialDurationMillis()),
@@ -355,7 +354,7 @@ public class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements
 
     @Override
     public Single<List<S>> update(Iterable<S> entities) {
-        return queryProvider.insert(entities)
+        return queryProvider.insert(metaClass, entities)
                 .andThen(Single.<List<S>>fromCallable(() -> ImmutableList.copyOf(entities)))
                 .onErrorResumeNext(e -> isConcurrencyException(e)
                         ? Single.defer(() -> Observable

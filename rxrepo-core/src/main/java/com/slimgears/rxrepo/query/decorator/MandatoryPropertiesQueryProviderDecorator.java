@@ -8,7 +8,6 @@ import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.rxrepo.util.PropertyMetas;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Observable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +31,7 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
         return query.properties().isEmpty()
                 ? super.query(query)
                 : super.query(query.toBuilder()
@@ -41,7 +40,7 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         return query.properties().isEmpty()
                 ? super.liveQuery(query)
                 : super.liveQuery(query.toBuilder()
@@ -49,7 +48,7 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
                         .build());
     }
 
-    private static <K, S extends HasMetaClassWithKey<K, S>, T> Consumer<QueryInfo.Builder<K, S, T>> includeProperties(Collection<PropertyExpression<T, ?, ?>> properties, TypeToken<T> typeToken) {
+    private static <K, S, T> Consumer<QueryInfo.Builder<K, S, T>> includeProperties(Collection<PropertyExpression<T, ?, ?>> properties, TypeToken<T> typeToken) {
         return builder -> {
             Stream<PropertyExpression<T, ?, ?>> includedProperties = properties.stream()
                     .flatMap(PropertyExpressions::mandatoryProperties)

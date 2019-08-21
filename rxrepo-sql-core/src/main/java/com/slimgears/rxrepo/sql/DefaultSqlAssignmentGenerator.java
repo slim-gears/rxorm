@@ -26,7 +26,7 @@ public class DefaultSqlAssignmentGenerator implements SqlAssignmentGenerator {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <K, T extends HasMetaClassWithKey<K, T>> Function<String, Stream<String>> toAssignment(
+    public <K, T> Function<String, Stream<String>> toAssignment(
             MetaClassWithKey<K, T> metaClass,
             PropertyResolver propertyResolver,
             ReferenceResolver referenceResolver) {

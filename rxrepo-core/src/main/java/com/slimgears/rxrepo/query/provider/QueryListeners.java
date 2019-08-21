@@ -1,20 +1,19 @@
 package com.slimgears.rxrepo.query.provider;
 
 import com.slimgears.rxrepo.query.Notification;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Observable;
 
 public class QueryListeners {
     private static final QueryPublisher.OnQueryListener emptyOnQuery = new QueryPublisher.OnQueryListener() {
         @Override
-        public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> onQuery(QueryInfo<K, S, T> queryInfo, Observable<T> queryResult) {
+        public <K, S, T> Observable<T> onQuery(QueryInfo<K, S, T> queryInfo, Observable<T> queryResult) {
             return queryResult;
         }
     };
 
     private static final QueryPublisher.OnLiveQueryListener emptyOnLiveQuery = new QueryPublisher.OnLiveQueryListener() {
         @Override
-        public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> onLiveQuery(QueryInfo<K, S, T> queryInfo, Observable<Notification<T>> notifications) {
+        public <K, S, T> Observable<Notification<T>> onLiveQuery(QueryInfo<K, S, T> queryInfo, Observable<Notification<T>> notifications) {
             return notifications;
         }
     };
@@ -24,12 +23,12 @@ public class QueryListeners {
     public static QueryPublisher.QueryListener create(QueryPublisher.OnQueryListener onQueryListener, QueryPublisher.OnLiveQueryListener onLiveQueryListener) {
         return new QueryPublisher.QueryListener() {
             @Override
-            public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> onLiveQuery(QueryInfo<K, S, T> queryInfo, Observable<Notification<T>> notifications) {
+            public <K, S, T> Observable<Notification<T>> onLiveQuery(QueryInfo<K, S, T> queryInfo, Observable<Notification<T>> notifications) {
                 return onLiveQueryListener.onLiveQuery(queryInfo, notifications);
             }
 
             @Override
-            public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> onQuery(QueryInfo<K, S, T> queryInfo, Observable<T> queryResult) {
+            public <K, S, T> Observable<T> onQuery(QueryInfo<K, S, T> queryInfo, Observable<T> queryResult) {
                 return onQueryListener.onQuery(queryInfo, queryResult);
             }
         };

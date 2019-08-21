@@ -14,7 +14,6 @@ import com.slimgears.rxrepo.mongodb.adapter.StandardCodecs;
 import com.slimgears.rxrepo.query.provider.AbstractEntityQueryProviderAdapter;
 import com.slimgears.rxrepo.query.provider.EntityQueryProvider;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
@@ -45,7 +44,7 @@ public class MongoQueryProvider extends AbstractEntityQueryProviderAdapter {
     }
 
     @Override
-    protected <K, S extends HasMetaClassWithKey<K, S>> EntityQueryProvider<K, S> createProvider(MetaClassWithKey<K, S> metaClass) {
+    protected <K, S> EntityQueryProvider<K, S> createProvider(MetaClassWithKey<K, S> metaClass) {
         return new MongoEntityQueryProvider<>(metaClass, database, MongoFieldMapper.instance);
     }
 
@@ -56,7 +55,7 @@ public class MongoQueryProvider extends AbstractEntityQueryProviderAdapter {
 
     private class ObjectResolver implements MetaObjectResolver {
         @Override
-        public <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> resolve(MetaClassWithKey<K, S> metaClass, K key) {
+        public <K, S> Maybe<S> resolve(MetaClassWithKey<K, S> metaClass, K key) {
             if (isClosed.get()) {
                 return Maybe.empty();
             }

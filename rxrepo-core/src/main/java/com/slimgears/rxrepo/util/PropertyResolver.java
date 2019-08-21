@@ -27,7 +27,7 @@ public interface PropertyResolver {
         return PropertyResolvers.empty();
     }
 
-    default <T extends HasMetaClass<T>> T toObject(MetaClass<T> metaClass) {
+    default <T> T toObject(MetaClass<T> metaClass) {
         return PropertyResolvers.toObject(this, metaClass);
     }
 
@@ -47,7 +47,7 @@ public interface PropertyResolver {
         }
     }
 
-    static <T extends HasMetaClass<T>> PropertyResolver fromObject(T obj) {
-        return PropertyResolvers.fromObject(obj);
+    static <T> PropertyResolver fromObject(MetaClass<T> metaClass, T obj) {
+        return PropertyResolvers.fromObject(metaClass, obj);
     }
 }

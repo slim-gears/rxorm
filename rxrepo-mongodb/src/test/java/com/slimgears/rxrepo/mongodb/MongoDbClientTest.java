@@ -111,7 +111,7 @@ public class MongoDbClientTest {
         testObserver.assertOf(countExactly(1));
 
         Completable
-                .fromPublisher(collection.updateOne(MongoPipeline.filterFor(product), new Document("$set", product.toBuilder().price(product.price() + 1).build())))
+                .fromPublisher(collection.updateOne(MongoPipeline.filterFor(Product.metaClass, product), new Document("$set", product.toBuilder().price(product.price() + 1).build())))
                 .blockingAwait();
 
         testObserver.assertOf(countExactly(2));

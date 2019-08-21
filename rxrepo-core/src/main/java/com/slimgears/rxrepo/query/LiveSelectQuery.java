@@ -2,7 +2,6 @@ package com.slimgears.rxrepo.query;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Observable;
 import io.reactivex.functions.IntFunction;
 
@@ -10,7 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 
-public abstract class LiveSelectQuery<K, S extends HasMetaClassWithKey<K, S>, T> {
+public abstract class LiveSelectQuery<K, S, T> {
     public abstract Observable<T> first();
     public abstract Observable<List<T>> toList();
     public abstract LiveSelectQuery<K, S, T> properties(Iterable<PropertyExpression<T, ?, ?>> properties);

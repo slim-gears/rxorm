@@ -7,7 +7,6 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.rxrepo.util.PropertyResolver;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.stream.Optionals;
@@ -39,7 +38,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T> SqlStatement forQuery(QueryInfo<K, S, T> queryInfo) {
+    public <K, S, T> SqlStatement forQuery(QueryInfo<K, S, T> queryInfo) {
         return statement(() -> of(
                 selectClause(queryInfo),
                 fromClause(queryInfo),
@@ -50,7 +49,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> SqlStatement forAggregation(QueryInfo<K, S, T> queryInfo, ObjectExpression<T, R> aggregation, String projectedName) {
+    public <K, S, T, R> SqlStatement forAggregation(QueryInfo<K, S, T> queryInfo, ObjectExpression<T, R> aggregation, String projectedName) {
         return statement(() -> of(
                 selectClause(queryInfo, aggregation, projectedName),
                 fromClause(queryInfo),
@@ -58,7 +57,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forUpdate(UpdateInfo<K, S> updateInfo) {
+    public <K, S> SqlStatement forUpdate(UpdateInfo<K, S> updateInfo) {
         return statement(() -> of(
                 "update",
                 schemaProvider.tableName(updateInfo.metaClass()),
@@ -72,7 +71,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forDelete(DeleteInfo<K, S> deleteInfo) {
+    public <K, S> SqlStatement forDelete(DeleteInfo<K, S> deleteInfo) {
         return statement(() -> of(
                 "delete",
                 fromClause(deleteInfo),
@@ -81,7 +80,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forInsertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver, ReferenceResolver resolver) {
+    public <K, S> SqlStatement forInsertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver, ReferenceResolver resolver) {
         PropertyMeta<S, K> keyProperty = metaClass.keyProperty();
 
         return statement(() -> of(
@@ -100,7 +99,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forDrop(MetaClassWithKey<K, S> metaClass) {
+    public <K, S> SqlStatement forDrop(MetaClassWithKey<K, S> metaClass) {
         return statement(() -> of("drop", "table", schemaProvider.tableName(metaClass)));
     }
 
@@ -110,7 +109,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> SqlStatement forInsert(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver, ReferenceResolver resolver) {
+    public <K, S> SqlStatement forInsert(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver, ReferenceResolver resolver) {
         return statement(() -> of(
                         "insert",
                         "into",
@@ -130,7 +129,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
     }
 
     @SuppressWarnings("unchecked")
-    private <K, S extends HasMetaClassWithKey<K, S>, T, Q extends HasMapping<S, T> & HasEntityMeta<K, S> & HasProperties<T>> String selectClause(Q queryInfo) {
+    private <K, S, T, Q extends HasMapping<S, T> & HasEntityMeta<K, S> & HasProperties<T>> String selectClause(Q queryInfo) {
         ObjectExpression<S, T> expression = Optional
                 .ofNullable(queryInfo.mapping())
                 .orElse(ObjectExpression.arg((TypeToken)queryInfo.metaClass().asType()));
@@ -143,7 +142,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                 .orElse(selectOperator);
     }
 
-    private <K, S extends HasMetaClassWithKey<K, S>, T, R, Q extends HasMapping<S, T> & HasEntityMeta<K, S> & HasProperties<T>> String selectClause(Q statement, ObjectExpression<T, R> aggregation, String projectedName) {
+    private <K, S, T, R, Q extends HasMapping<S, T> & HasEntityMeta<K, S> & HasProperties<T>> String selectClause(Q statement, ObjectExpression<T, R> aggregation, String projectedName) {
         return concat(
                 "select",
                 Optional.ofNullable(statement.mapping())
@@ -167,7 +166,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                 .orElse("");
     }
 
-    private <K, S extends HasMetaClassWithKey<K, S>, Q extends HasEntityMeta<K, S>> String fromClause(Q statement) {
+    private <K, S, Q extends HasEntityMeta<K, S>> String fromClause(Q statement) {
         return "from " + schemaProvider.tableName(statement.metaClass());
     }
 

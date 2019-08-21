@@ -29,7 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implements EntityQueryProvider<K, S>, AutoCloseable {
+public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoCloseable {
     private final static Logger log = LoggerFactory.getLogger(MemoryEntityQueryProvider.class);
     private final MetaClassWithKey<K, S> metaClass;
     private final MetaObjectResolver objectResolver;
@@ -49,10 +49,15 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
                 .collect(ImmutableList.toImmutableList()));
     }
 
-    static <K, S extends HasMetaClassWithKey<K, S>> MemoryEntityQueryProvider<K, S> create(
+    static <K, S> MemoryEntityQueryProvider<K, S> create(
             MetaClassWithKey<K, S> metaClass,
             MetaObjectResolver objectResolver) {
         return new MemoryEntityQueryProvider<>(metaClass, objectResolver);
+    }
+
+    @Override
+    public MetaClassWithKey<K, S> metaClass() {
+        return metaClass;
     }
 
     @Override
@@ -185,7 +190,7 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
                 .map(AtomicReference::get)
                 .filter(predicate)
                 .compose(ob -> Optional.ofNullable(delete.limit()).map(ob::take).orElse(ob))
-                .map(HasMetaClassWithKey::keyOf)
+                .map(metaClass::keyOf)
                 .filter(key -> Optional
                         .ofNullable(objects.remove(key))
                         .map(AtomicReference::get)
@@ -204,11 +209,12 @@ public class MemoryEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> i
         return Completable.fromAction(objects::clear);
     }
 
+    @SuppressWarnings("unchecked")
     private Single<S> applyReferences(S entity) {
         if (referenceProperties.get().isEmpty()) {
             return Single.just(entity);
         }
-        MetaBuilder<S> builder = entity.toBuilder();
+        MetaBuilder<S> builder = ((HasMetaClass<S>)entity).toBuilder();
         return Observable.fromIterable(referenceProperties.get())
                 .flatMapMaybe(p -> retrieveReference(entity, p))
                 .doOnNext(c -> c.accept(builder))

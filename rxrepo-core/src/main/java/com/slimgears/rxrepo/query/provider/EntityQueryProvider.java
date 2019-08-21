@@ -2,7 +2,8 @@ package com.slimgears.rxrepo.query.provider;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClasses;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
@@ -11,7 +12,8 @@ import io.reactivex.functions.Function;
 
 import java.util.concurrent.TimeUnit;
 
-public interface EntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> {
+public interface EntityQueryProvider<K, S> {
+    MetaClassWithKey<K, S> metaClass();
     Maybe<S> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> entityUpdater);
     <T> Observable<T> query(QueryInfo<K, S, T> query);
     <T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query);
@@ -27,9 +29,9 @@ public interface EntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> {
     }
 
     default Single<S> insertOrUpdate(S entity) {
-        K key = HasMetaClassWithKey.keyOf(entity);
+        K key = metaClass().keyOf(entity);
         return insertOrUpdate(key, val -> val
-                .map(e -> e.merge(entity))
+                .map(e -> MetaClasses.merge(metaClass(), e, entity))
                 .switchIfEmpty(Maybe.just(entity)))
                 .toSingle();
     }

@@ -1,13 +1,12 @@
 package com.slimgears.rxrepo.query;
 
 import com.slimgears.rxrepo.query.provider.QueryProvider;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 
 import java.util.function.Consumer;
 
 public interface Repository extends AutoCloseable {
-    <K, T extends HasMetaClassWithKey<K, T>> EntitySet<K, T> entities(MetaClassWithKey<K, T> meta);
+    <K, T> EntitySet<K, T> entities(MetaClassWithKey<K, T> meta);
 
     void close();
     void clearAndClose();
@@ -17,7 +16,7 @@ public interface Repository extends AutoCloseable {
 
         return new Repository() {
             @Override
-            public <K, T extends HasMetaClassWithKey<K, T>> EntitySet<K, T> entities(MetaClassWithKey<K, T> meta) {
+            public <K, T> EntitySet<K, T> entities(MetaClassWithKey<K, T> meta) {
                 return self.entities(meta);
             }
 

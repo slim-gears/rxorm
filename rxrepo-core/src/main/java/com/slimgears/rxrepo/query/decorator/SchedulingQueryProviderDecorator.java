@@ -6,7 +6,6 @@ import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
@@ -40,32 +39,32 @@ public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecor
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Completable insert(Iterable<S> entities) {
-        return super.insert(entities).subscribeOn(updateScheduler);
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return super.insert(metaClass, entities).subscribeOn(updateScheduler);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+    public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return super.insertOrUpdate(metaClass, key, entityUpdater).subscribeOn(updateScheduler);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
-        return super.insertOrUpdate(entity).subscribeOn(updateScheduler);
+    public <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
+        return super.insertOrUpdate(metaClass, entity).subscribeOn(updateScheduler);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> update(UpdateInfo<K, S> update) {
+    public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
         return super.update(update).subscribeOn(updateScheduler);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> delete) {
+    public <K, S> Single<Integer> delete(DeleteInfo<K, S> delete) {
         return super.delete(delete).subscribeOn(updateScheduler);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Completable drop(MetaClassWithKey<K, S> metaClass) {
+    public <K, S> Completable drop(MetaClassWithKey<K, S> metaClass) {
         return super.drop(metaClass).subscribeOn(updateScheduler);
     }
 
@@ -75,22 +74,22 @@ public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecor
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
         return super.query(query).subscribeOn(queryScheduler);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
+    public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return super.aggregate(query, aggregator).subscribeOn(queryScheduler);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         return super.liveQuery(query).subscribeOn(notificationScheduler);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
+    public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return super.liveAggregate(query, aggregator).subscribeOn(notificationScheduler);
     }
 }

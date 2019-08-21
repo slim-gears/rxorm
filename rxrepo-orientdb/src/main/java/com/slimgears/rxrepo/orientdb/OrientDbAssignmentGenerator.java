@@ -5,7 +5,6 @@ import com.slimgears.rxrepo.sql.ReferenceResolver;
 import com.slimgears.rxrepo.sql.SqlExpressionGenerator;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 
@@ -23,7 +22,7 @@ class OrientDbAssignmentGenerator extends DefaultSqlAssignmentGenerator {
     }
 
     @Override
-    public <K, T extends HasMetaClassWithKey<K, T>> Function<String, Stream<String>> toAssignment(
+    public <K, T> Function<String, Stream<String>> toAssignment(
             MetaClassWithKey<K, T> metaClass,
             PropertyResolver propertyResolver,
             ReferenceResolver referenceResolver) {
@@ -33,7 +32,7 @@ class OrientDbAssignmentGenerator extends DefaultSqlAssignmentGenerator {
                 enhanceAssignmentForAsStringIndex(metaClass, propertyResolver, prop));
     }
 
-    private <K, T extends HasMetaClassWithKey<K, T>> Stream<String> enhanceAssignmentForAsStringIndex(MetaClassWithKey<K, T> metaClass, PropertyResolver propertyResolver, String propertyName) {
+    private <K, T> Stream<String> enhanceAssignmentForAsStringIndex(MetaClassWithKey<K, T> metaClass, PropertyResolver propertyResolver, String propertyName) {
         PropertyMeta<T, ?> propertyMeta = metaClass.getProperty(propertyName);
         if (propertyMeta != null && PropertyMetas.isEmbedded(propertyMeta)) {
             Object val = propertyResolver.getProperty(propertyMeta);

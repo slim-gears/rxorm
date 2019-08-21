@@ -87,7 +87,7 @@ public class SqlStatementProviderTest {
 
         ReferenceResolver referenceResolverMock = Mockito.mock(ReferenceResolver.class);
         when(referenceResolverMock.toReferenceValue(Objects.requireNonNull(product.inventory()))).thenReturn(SqlStatement.of("#31:23"));
-        SqlStatement statement = statementProvider.forInsertOrUpdate(product, referenceResolverMock);
+        SqlStatement statement = statementProvider.forInsertOrUpdate(Product.metaClass, product, referenceResolverMock);
         Assert.assertEquals(
                 "update Product " +
                         "set `id` = ?, `name` = ?, `inventory` = (#31:23), `type` = ?, `price` = ? " +
