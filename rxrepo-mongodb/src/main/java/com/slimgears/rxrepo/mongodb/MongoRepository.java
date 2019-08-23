@@ -13,7 +13,7 @@ public class MongoRepository {
     }
 
     public static class Builder {
-        private int maxConcurrentRequests = Runtime.getRuntime().availableProcessors() * 4;
+        private int maxConcurrentRequests = Runtime.getRuntime().availableProcessors() * 12;
         private String dbName = "repository";
         private String host = "localhost";
         private int port = 27017;
