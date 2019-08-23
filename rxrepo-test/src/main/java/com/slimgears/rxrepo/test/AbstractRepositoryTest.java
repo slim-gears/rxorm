@@ -21,6 +21,7 @@ import org.junit.rules.MethodRule;
 import org.junit.rules.TestName;
 import org.junit.rules.Timeout;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -79,7 +80,7 @@ public abstract class AbstractRepositoryTest {
                 .assertNoErrors();
 
         productUpdatesTest
-                .assertOf(countAtLeast(200));
+                .assertOf(countAtLeast(200, Duration.ofSeconds(40)));
 
         productSet.delete().where(Product.$.key.id.betweenExclusive(100, 130))
                 .execute()
@@ -89,7 +90,7 @@ public abstract class AbstractRepositoryTest {
                 .assertValue(29);
 
         productUpdatesTest
-                .assertOf(countAtLeast(220))
+                .assertOf(countAtLeast(220, Duration.ofSeconds(40)))
                 .assertValueAt(219, Notification::isDelete)
                 .assertNoErrors();
 

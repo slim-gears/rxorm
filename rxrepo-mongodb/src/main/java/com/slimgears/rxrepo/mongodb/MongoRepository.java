@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.mongodb;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.decorator.LimitConcurrentOperationsQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
+import com.slimgears.rxrepo.query.decorator.SchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.generic.MoreStrings;
@@ -13,7 +14,7 @@ public class MongoRepository {
     }
 
     public static class Builder {
-        private int maxConcurrentRequests = Runtime.getRuntime().availableProcessors() * 12;
+        private int maxConcurrentRequests = defaultMaxConcurrentRequests();
         private String dbName = "repository";
         private String host = "localhost";
         private int port = 27017;
@@ -66,7 +67,7 @@ public class MongoRepository {
                     LiveQueryProviderDecorator.create(),
                     decorator,
                     UpdateReferencesFirstQueryProviderDecorator.create(),
-//                    SchedulingQueryProviderDecorator.createDefault(),
+                    SchedulingQueryProviderDecorator.createDefault(),
                     LimitConcurrentOperationsQueryProviderDecorator.create(maxConcurrentRequests));
         }
 
@@ -75,5 +76,9 @@ public class MongoRepository {
                     ? MoreStrings.format("mongodb://{}:{}@{}:{}/?maxPoolSize=200", user, password, host, port)
                     : MoreStrings.format("mongodb://{}:{}/?maxPoolSize=200", host, port);
         }
+    }
+
+    private static int defaultMaxConcurrentRequests() {
+        return Math.min(400, Math.max(16, Runtime.getRuntime().availableProcessors() * 8));
     }
 }
