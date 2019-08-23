@@ -33,7 +33,7 @@ import static java.util.Objects.requireNonNull;
 public abstract class AbstractRepositoryTest {
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
-    @Rule public final Timeout timeout = new Timeout(40, TimeUnit.SECONDS);
+    @Rule public final Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
 
     private Repository repository;
 
@@ -933,5 +933,14 @@ public abstract class AbstractRepositoryTest {
                 .test()
                 .assertOf(countExactly(1))
                 .assertValue(p -> p.inventory() != null);
+    }
+
+    @Test @UseLogLevel(LogLevel.DEBUG)
+    public void testLargeUpdate() throws InterruptedException {
+        repository.entities(Product.metaClass).update(Products.createMany(2000))
+                .ignoreElement()
+                .test()
+                .await()
+                .assertNoErrors();
     }
 }

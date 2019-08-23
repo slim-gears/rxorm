@@ -20,7 +20,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
 
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-        return underlyingProvider.liveQuery(QueryInfo.<K, S, S>builder()
+        return super.liveQuery(QueryInfo.<K, S, S>builder()
                         .metaClass(query.metaClass())
                         .build())
                 .compose(Notifications.applyQuery(query));

@@ -1,8 +1,8 @@
 package com.slimgears.rxrepo.mongodb;
 
 import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.query.decorator.LimitConcurrentOperationsQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
-import com.slimgears.rxrepo.query.decorator.SchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.generic.MoreStrings;
@@ -12,8 +12,8 @@ public class MongoRepository {
         return new Builder();
     }
 
-    @SuppressWarnings("WeakerAccess")
     public static class Builder {
+        private int maxConcurrentRequests = Runtime.getRuntime().availableProcessors() * 4;
         private String dbName = "repository";
         private String host = "localhost";
         private int port = 27017;
@@ -22,10 +22,11 @@ public class MongoRepository {
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
 
         private Builder() {
-            decorate(
-                    SchedulingQueryProviderDecorator.createDefault(),
-                    LiveQueryProviderDecorator.create(),
-                    UpdateReferencesFirstQueryProviderDecorator.create());
+        }
+
+        public Builder maxConcurrentRequests(int maxConcurrentRequests) {
+            this.maxConcurrentRequests = maxConcurrentRequests;
+            return this;
         }
 
         public Builder dbName(String dbName) {
@@ -61,8 +62,12 @@ public class MongoRepository {
         public Repository build() {
             String connectionString = createConnectionString();
             QueryProvider queryProvider = new MongoQueryProvider(connectionString, dbName);
-            queryProvider = decorator.apply(queryProvider);
-            return Repository.fromProvider(queryProvider);
+            return Repository.fromProvider(queryProvider,
+                    LiveQueryProviderDecorator.create(),
+                    decorator,
+                    UpdateReferencesFirstQueryProviderDecorator.create(),
+//                    SchedulingQueryProviderDecorator.createDefault(),
+                    LimitConcurrentOperationsQueryProviderDecorator.create(maxConcurrentRequests));
         }
 
         private String createConnectionString() {

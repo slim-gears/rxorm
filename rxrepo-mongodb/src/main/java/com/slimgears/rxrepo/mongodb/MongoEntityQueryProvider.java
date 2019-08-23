@@ -89,6 +89,7 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S> {
 
         return Completable
                 .fromPublisher(objectCollection.get().insertMany(documents))
+                .doOnSubscribe(d -> log.debug("Inserting {} documents", documents.size()))
                 .doOnComplete(() -> log.debug("Insert of {} documents complete", documents.size()))
                 .onErrorResumeNext(e -> Completable.error(convertError(e)));
     }

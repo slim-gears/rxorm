@@ -14,7 +14,7 @@ import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
 public class AbstractQueryProviderDecorator implements QueryProvider {
-    @SuppressWarnings("WeakerAccess") protected final QueryProvider underlyingProvider;
+    private final QueryProvider underlyingProvider;
 
     protected AbstractQueryProviderDecorator(QueryProvider underlyingProvider) {
         this.underlyingProvider = underlyingProvider;
