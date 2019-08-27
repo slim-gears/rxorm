@@ -80,11 +80,9 @@ public class SqlQueryProvider implements QueryProvider {
                     S oldObj = pr.toObject(metaClass);
                     return entityUpdater
                             .apply(Maybe.just(oldObj))
-                            .filter(newObj -> !newObj.equals(oldObj))
                             .map(newObj -> pr.mergeWith(PropertyResolver.fromObject(metaClass, newObj)))
                             .filter(newPr -> !pr.equals(newPr))
-                            .flatMap(newPr -> insertOrUpdate(metaClass, newPr).toMaybe())
-                            .switchIfEmpty(Maybe.just(oldObj));
+                            .flatMap(newPr -> insertOrUpdate(metaClass, newPr).toMaybe());
                 })
                 .switchIfEmpty(Maybe.defer(() -> entityUpdater
                         .apply(Maybe.empty())

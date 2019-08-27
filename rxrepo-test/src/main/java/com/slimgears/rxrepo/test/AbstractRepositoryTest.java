@@ -14,6 +14,7 @@ import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
+import io.reactivex.Observable;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.CompletableSubject;
 import org.junit.*;
@@ -278,6 +279,29 @@ public abstract class AbstractRepositoryTest {
                 .await()
                 .assertNoErrors()
                 .assertValue(p -> "Product 0 Updated name #1 Updated name #2".equals(p.name()));
+    }
+
+    @Test
+    //@UseLogLevel(UseLogLevel.Level.FINEST)
+    public void testFilteredAtomicUpdate() throws InterruptedException {
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+
+        productSet.update(Products.createMany(1)).test().await().assertNoErrors();
+        productSet
+                .update(UniqueId.productId(0), prod -> prod
+                        .flatMap(p -> Maybe.just(p.toBuilder().name("Product " + p.key().id() + " Updated name").build())))
+                .test()
+                .await()
+                .assertComplete()
+                .assertValueCount(1);
+
+        productSet
+                .update(UniqueId.productId(0), prod -> prod
+                        .flatMap(p -> Maybe.just(p.toBuilder().name("Product " + p.key().id() + " Updated name").build())))
+                .test()
+                .await()
+                .assertComplete()
+                .assertValueCount(1);
     }
 
     @Test
@@ -938,10 +962,12 @@ public abstract class AbstractRepositoryTest {
 
     @Test @UseLogLevel(LogLevel.DEBUG)
     public void testLargeUpdate() throws InterruptedException {
-        repository.entities(Product.metaClass).update(Products.createMany(2000))
-                .ignoreElement()
+        Observable.fromIterable(Products.createMany(2000))
+                .flatMapSingle(repository.entities(Product.metaClass)::update)
+                .ignoreElements()
                 .test()
                 .await()
-                .assertNoErrors();
+                .assertNoErrors()
+                .assertComplete();
     }
 }

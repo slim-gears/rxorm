@@ -3,7 +3,6 @@ package com.slimgears.rxrepo.mongodb;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.decorator.LimitConcurrentOperationsQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
-import com.slimgears.rxrepo.query.decorator.SchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.generic.MoreStrings;
@@ -67,7 +66,6 @@ public class MongoRepository {
                     LiveQueryProviderDecorator.create(),
                     decorator,
                     UpdateReferencesFirstQueryProviderDecorator.create(),
-                    SchedulingQueryProviderDecorator.createDefault(),
                     LimitConcurrentOperationsQueryProviderDecorator.create(maxConcurrentRequests));
         }
 

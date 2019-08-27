@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.mongodb;
 
 import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.query.decorator.SchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.test.AbstractRepositoryTest;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
@@ -27,6 +28,8 @@ public class MongoQueryProviderTest extends AbstractRepositoryTest {
     protected Repository createRepository() {
         return MongoRepository.builder()
                 .port(MongoTestUtils.port)
+                .maxConcurrentRequests(200)
+                .decorate(SchedulingQueryProviderDecorator.createDefault())
                 .build();
     }
 }

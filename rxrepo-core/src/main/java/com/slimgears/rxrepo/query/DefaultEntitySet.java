@@ -369,7 +369,13 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
 
     @Override
     public Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
-        return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, updater))
+        Function<Maybe<S>, Maybe<S>> filteredUpdater = maybe -> {
+            AtomicReference<S> entity = new AtomicReference<>();
+            return updater.apply(maybe.doOnSuccess(entity::set))
+                    .filter(e -> !Objects.equals(entity.get(), e))
+                    .switchIfEmpty(Maybe.fromCallable(entity::get));
+        };
+        return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, filteredUpdater))
                 .compose(Maybes.backOffDelayRetry(
                         DefaultEntitySet::isConcurrencyException,
                         Duration.ofMillis(config.retryInitialDurationMillis()),
