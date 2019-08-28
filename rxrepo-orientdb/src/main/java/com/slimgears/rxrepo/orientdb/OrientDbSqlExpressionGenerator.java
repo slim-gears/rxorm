@@ -41,6 +41,7 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
         String searchText = ((ConstantExpression<?, String>)expression.right()).value();
         String wildcard = searchTextToWildcard(searchText);
         return String.format("(search_index('" + OrientDbSchemaProvider.toClassName(argType) + ".textIndex', %s) = true)", visitor.apply(ConstantExpression.of(wildcard)));
+        //return String.format("SEARCH_CLASS(%s) = true", visitor.apply(ConstantExpression.of(wildcard)));
     }
 
     private String onVisitBinaryExpression(Function<? super ObjectExpression<?, ?>, String> visitor, BooleanBinaryOperationExpression<?, ?, ?> expression, Supplier<String> visitedExpression) {
@@ -82,9 +83,11 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
     }
 
     private String searchTextToWildcard(String searchText) {
-        return Arrays
+        searchText = searchText.replaceAll("([:+*()\\[\\]{}])", "?");
+        searchText = Arrays
                 .stream(searchText.split("\\s"))
-                .map(t -> "+" + t + "*")
-                .collect(Collectors.joining(" "));
+                .map(t -> "+*" + t + "*")
+                .collect(Collectors.joining(" && "));
+        return searchText;
     }
 }

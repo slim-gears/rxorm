@@ -15,7 +15,7 @@ import java.util.function.Function;
 
 public class MetaClassCodec<T> implements MetaCodec<T> {
     private final MetaClass<T> metaClass;
-    private final Lazy<Optional<Function<T, String>>> textSupplier;
+    private final Lazy<Optional<Function<Object, String>>> textSupplier;
     private final MetaObjectResolver resolver;
     private final boolean alwaysEmbedNested;
 

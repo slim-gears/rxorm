@@ -53,57 +53,53 @@ public interface ObjectExpression<S, T> extends Expression {
         return in(ConstantExpression.of(values));
     }
 
-    default <R> ObjectExpression<S, R> compose(ObjectExpression<T, R> expression) {
-        return ComposedExpression.ofObject(this, expression);
-    }
-
-    default <R, C extends Collection<R>> CollectionExpression<S, R, C> compose(CollectionExpression<T, R, C> expression) {
-        return ComposedExpression.ofCollection(this, expression);
-    }
-
-    default <R extends Comparable<R>> ComparableExpression<S, R> compose(ComparableExpression<T, R> expression) {
-        return ComposedExpression.ofComparable(this, expression);
-    }
-
-    default <N extends Number & Comparable<N>> NumericExpression<S, N> compose(NumericExpression<T, N> expression) {
-        return ComposedExpression.ofNumeric(this, expression);
-    }
-
-    default BooleanExpression<S> compose(BooleanExpression<T> expression) {
-        return ComposedExpression.ofBoolean(this, expression);
-    }
-
-    default StringExpression<S> compose(StringExpression<T> expression) {
-        return ComposedExpression.ofString(this, expression);
-    }
-
-    default <V> ObjectExpression<S, V> ref(ObjectPropertyExpression<S, T, V> expression) {
-        return PropertyExpression.ofObject(this, expression.property());
-    }
-
-    default <V extends Comparable<V>> ComparableExpression<S, V> ref(ComparablePropertyExpression<?, T, V> expression) {
-        return PropertyExpression.ofComparable(this, expression.property());
-    }
-
-    default <V extends Number & Comparable<V>> NumericExpression<S, V> ref(NumericPropertyExpression<?, T, V> expression) {
-        return PropertyExpression.ofNumeric(this, expression.property());
-    }
-
-    default BooleanExpression<S> ref(BooleanPropertyExpression<?, T> expression) {
-        return PropertyExpression.ofBoolean(this, expression.property());
-    }
-
-    default StringExpression<S> ref(StringPropertyExpression<?, T> expression) {
-        return PropertyExpression.ofString(this, expression.property());
-    }
-
-    default <E, C extends Collection<E>> CollectionExpression<S, E, C> ref(CollectionPropertyExpression<?, T, E, C> expression) {
-        return PropertyExpression.ofCollection(this, expression.property());
-    }
-
-    default BooleanExpression<S> searchText(String pattern) {
-        return BooleanBinaryOperationExpression.create(Type.SearchText, this, ConstantExpression.of(pattern));
-    }
+//    default <R> ObjectExpression<S, R> compose(ObjectExpression<T, R> expression) {
+//        return ComposedExpression.ofObject(this, expression);
+//    }
+//
+//    default <R, C extends Collection<R>> CollectionExpression<S, R, C> compose(CollectionExpression<T, R, C> expression) {
+//        return ComposedExpression.ofCollection(this, expression);
+//    }
+//
+//    default <R extends Comparable<R>> ComparableExpression<S, R> compose(ComparableExpression<T, R> expression) {
+//        return ComposedExpression.ofComparable(this, expression);
+//    }
+//
+//    default <N extends Number & Comparable<N>> NumericExpression<S, N> compose(NumericExpression<T, N> expression) {
+//        return ComposedExpression.ofNumeric(this, expression);
+//    }
+//
+//    default BooleanExpression<S> compose(BooleanExpression<T> expression) {
+//        return ComposedExpression.ofBoolean(this, expression);
+//    }
+//
+//    default StringExpression<S> compose(StringExpression<T> expression) {
+//        return ComposedExpression.ofString(this, expression);
+//    }
+//
+//    default <V> ObjectExpression<S, V> ref(ObjectPropertyExpression<S, T, V> expression) {
+//        return PropertyExpression.ofObject(this, expression.property());
+//    }
+//
+//    default <V extends Comparable<V>> ComparableExpression<S, V> ref(ComparablePropertyExpression<?, T, V> expression) {
+//        return PropertyExpression.ofComparable(this, expression.property());
+//    }
+//
+//    default <V extends Number & Comparable<V>> NumericExpression<S, V> ref(NumericPropertyExpression<?, T, V> expression) {
+//        return PropertyExpression.ofNumeric(this, expression.property());
+//    }
+//
+//    default BooleanExpression<S> ref(BooleanPropertyExpression<?, T> expression) {
+//        return PropertyExpression.ofBoolean(this, expression.property());
+//    }
+//
+//    default StringExpression<S> ref(StringPropertyExpression<?, T> expression) {
+//        return PropertyExpression.ofString(this, expression.property());
+//    }
+//
+//    default <E, C extends Collection<E>> CollectionExpression<S, E, C> ref(CollectionPropertyExpression<?, T, E, C> expression) {
+//        return PropertyExpression.ofCollection(this, expression.property());
+//    }
 
     static <S> ObjectExpression<S, S> arg(TypeToken<S> type) {
         return ObjectArgumentExpression.create(Type.Argument, type);

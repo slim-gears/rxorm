@@ -53,7 +53,7 @@ public class PropertyExpressions {
 
     public static <T> Stream<PropertyExpression<T, ?, ?>> propertiesOf(TypeToken<T> type) {
         return PropertyMetas.hasMetaClass(type)
-                ? propertiesOf(ObjectExpression.arg(type))
+                ? propertiesOf(ObjectExpression.arg(type), new HashSet<>())
                 : Stream.empty();
     }
 
@@ -70,15 +70,16 @@ public class PropertyExpressions {
                 .map(prop -> PropertyExpression.ofObject(target, prop));
     }
 
-    public static <S, T> Stream<PropertyExpression<S, ?, ?>> propertiesOf(ObjectExpression<S, T> target) {
+    private static <S, T> Stream<PropertyExpression<S, ?, ?>> propertiesOf(ObjectExpression<S, T> target, Set<PropertyMeta<?, ?>> visitedProps) {
         List<PropertyExpression<S, T, ?>> ownProps = ownPropertiesOf(target)
+                .filter(p -> visitedProps.add(p.property()))
                 .collect(Collectors.toList());
 
         return Stream.concat(
                 ownProps.stream(),
                 ownProps.stream()
                         .filter(p -> PropertyMetas.hasMetaClass(p.objectType()))
-                        .flatMap(PropertyExpressions::propertiesOf));
+                        .flatMap(p -> propertiesOf(p, visitedProps)));
     }
 
     public static <T> PropertyExpression<T, ?, ?> fromPath(TypeToken<T> origin, String path) {

@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.util;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
+import com.slimgears.rxrepo.encoding.MetaClassSearchableFields;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ExpressionVisitor;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
@@ -14,6 +15,7 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
@@ -120,7 +122,7 @@ public class Expressions {
                 .put(Expression.Type.Min, Expressions.fromUnary(min()))
                 .put(Expression.Type.Max, Expressions.fromUnary(max()))
                 .put(Expression.Type.Sum, Expressions.fromUnary(sum()))
-                .put(Expression.Type.SearchText, Expressions.<Object, String, Boolean>fromBinary((obj, str) -> obj != null && obj.toString().contains(getStringOrEmpty(str)))) //obj != null and str == null returns true.
+                .put(Expression.Type.SearchText, Expressions.fromBinary(searchText()))
                 .put(Expression.Type.ValueIn, Expressions.fromBinary((Object obj, Collection<Object> collection) -> obj != null && collection != null && collection.contains(obj)))
                 .put(Expression.Type.IsNull, Expressions.fromUnary(Objects::isNull))
                 .build();
@@ -267,6 +269,16 @@ public class Expressions {
 
     private static String getStringOrEmpty(String s){
         return Optional.ofNullable(s).orElse("");
+    }
+
+    private static BiFunction<Object, String, Boolean> searchText() {
+        return (obj, str) -> Optional.ofNullable(obj)
+                .map(MetaClassSearchableFields::searchableTextFromObject)
+                .map(text -> {
+                    Pattern pattern = Pattern.compile(SearchTextUtils.searchTextToRegex(getStringOrEmpty(str)), Pattern.CASE_INSENSITIVE);
+                    return pattern.matcher(text).find();
+                })
+                .orElse(false);
     }
 
     private static BiFunction<String, String, Boolean> contains() {

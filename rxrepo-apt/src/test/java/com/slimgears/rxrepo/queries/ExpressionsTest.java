@@ -70,7 +70,7 @@ public class ExpressionsTest {
                 .refEntity(TestRefEntity.Filter.builder().id(fromGreaterOrEqual(8)).build())
                 .number(fromLessThan(5))
                 .text(fromContains("ity 1"))
-                .searchText("ity")
+                .searchText("En ty 1")
                 .build();
 
         Function<TestEntity, Boolean> func = filter.toExpression(ObjectExpression.arg(TestEntity.class))
@@ -414,7 +414,7 @@ public class ExpressionsTest {
     @Test
     public void testSearchTextWithNull1() {
         Function<TestEntity, Boolean> exp = Expressions
-                .compile(TestEntity.$.address.searchText("Ad"));
+                .compile(TestEntity.$.searchText("Ad"));
 
         Assert.assertFalse(exp.apply(testEntity1));
     }

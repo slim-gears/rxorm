@@ -7,6 +7,7 @@ import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OProperty;
 import com.orientechnologies.orient.core.metadata.schema.OType;
+import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.serialization.serializer.binary.impl.OLinkSerializer;
 import com.slimgears.rxrepo.annotations.Indexable;
 import com.slimgears.rxrepo.annotations.Searchable;
@@ -98,7 +99,12 @@ class OrientDbSchemaProvider implements SchemaProvider {
 
         if (OrientDbRepository.Properties.isLuceneEnabled() && textFields.length > 0) {
             try {
-                oClass.createIndex(className + ".textIndex", "FULLTEXT", null, null, "LUCENE", textFields);
+                ODocument metaData = new ODocument();
+                metaData.setProperty("allowLeadingWildcard", true);
+                //metaData.setProperty("analyzer", "org.apache.lucene.analysis.core.WhitespaceAnalyzer");
+                metaData.setProperty("analyzer", "org.apache.lucene.analysis.core.KeywordAnalyzer");
+
+                oClass.createIndex(className + ".textIndex", "FULLTEXT", null, metaData, "LUCENE", textFields);
             } catch (OIndexException e) {
                 log.warn("Full text creation index failed", e);
             }

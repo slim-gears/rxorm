@@ -220,7 +220,7 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    //@UseLogLevel(UseLogLevel.Level.FINEST)
+    //@UseLogLevel(LogLevel.TRACE)
     public void testInsertThenLiveSelectCountShouldReturnCount() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = Products.createMany(200);
@@ -240,11 +240,11 @@ public abstract class AbstractRepositoryTest {
                 .execute()
                 .test()
                 .await()
-                .assertValue(111);
+                .assertValue(119);
 
         countObserver
                 .assertOf(countAtLeast(2))
-                .assertValueAt(1, 89L);
+                .assertValueAt(1, 81L);
     }
 
     @Test
@@ -373,9 +373,10 @@ public abstract class AbstractRepositoryTest {
 
         productSet
                 .query()
-                .where(Product.$.searchText("Product 31"))
+                .where(Product.$.searchText("Product 31 ComputeHardware"))
                 .select()
-                .retrieve(Product.$.key, Product.$.name, Product.$.price, Product.$.inventory.id, Product.$.inventory.name)
+                .retrieve(Product.$.key, Product.$.name, Product.$.price, Product.$.type, Product.$.inventory.id, Product.$.inventory.name)
+                .doOnNext(System.out::println)
                 .test()
                 .await()
                 .assertNoErrors()
@@ -969,5 +970,25 @@ public abstract class AbstractRepositoryTest {
                 .await()
                 .assertNoErrors()
                 .assertComplete();
+    }
+
+    @Test
+    public void testSearchWithSpecialSymbols() throws InterruptedException {
+        repository.entities(Product.metaClass).update(Products
+                .createOne()
+                .toBuilder()
+                .name("Product 1 with special symbols, for example: colon, coma & ampersand")
+                .build())
+                .ignoreElement()
+                .blockingAwait();
+
+        repository.entities(Product.metaClass)
+                .query()
+                .where(Product.$.searchText("example : colon"))
+                .retrieve()
+                .test()
+                .await()
+                .assertNoErrors()
+                .assertValueCount(1);
     }
 }
