@@ -47,6 +47,7 @@ public class MongoDbClientTest {
         mongoClient = MongoClients
                 .create(MongoClientSettings
                         .builder()
+                        .applyToConnectionPoolSettings(b -> b.maxSize(200))
                         .codecRegistry(StandardCodecs.registry())
                         .applyConnectionString(MongoTestUtils.connectionString)
                         .build());

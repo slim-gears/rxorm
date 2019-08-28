@@ -61,7 +61,7 @@ public class MongoRepository {
 
         public Repository build() {
             String connectionString = createConnectionString();
-            QueryProvider queryProvider = new MongoQueryProvider(connectionString, dbName);
+            QueryProvider queryProvider = new MongoQueryProvider(connectionString, dbName, maxConcurrentRequests * 2);
             return Repository.fromProvider(queryProvider,
                     LiveQueryProviderDecorator.create(),
                     decorator,
@@ -71,12 +71,12 @@ public class MongoRepository {
 
         private String createConnectionString() {
             return user != null && password != null
-                    ? MoreStrings.format("mongodb://{}:{}@{}:{}/?maxPoolSize=200", user, password, host, port)
-                    : MoreStrings.format("mongodb://{}:{}/?maxPoolSize=200", host, port);
+                    ? MoreStrings.format("mongodb://{}:{}@{}:{}", user, password, host, port)
+                    : MoreStrings.format("mongodb://{}:{}", host, port);
         }
     }
 
     private static int defaultMaxConcurrentRequests() {
-        return Math.min(400, Math.max(16, Runtime.getRuntime().availableProcessors() * 8));
+        return Math.min(200, Math.max(16, Runtime.getRuntime().availableProcessors() * 8));
     }
 }

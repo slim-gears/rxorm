@@ -25,12 +25,13 @@ public class MongoQueryProvider extends AbstractEntityQueryProviderAdapter {
     private final MongoDatabase database;
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
 
-    MongoQueryProvider(String connectionString, String dbName) {
+    MongoQueryProvider(String connectionString, String dbName, int maxConnections) {
         MetaObjectResolver objectResolver = new ObjectResolver();
         this.client = MetaClassCodec.withResolver(
                 objectResolver,
                 () -> MongoClients.create(MongoClientSettings
                         .builder()
+                        .applyToConnectionPoolSettings(b -> b.maxSize(maxConnections))
                         .applyConnectionString(new ConnectionString(connectionString))
                         .codecRegistry(StandardCodecs.registry())
                         .build()));
