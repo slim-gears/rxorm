@@ -169,6 +169,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     public <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return query(query).toList()
                 .toMaybe()
+                .filter(list -> !list.isEmpty())
                 .map(list -> {
                     CollectionExpression<T, T, Collection<T>> collection = ConstantExpression.of(list);
                     UnaryOperationExpression<T, Collection<T>, R> aggregated = aggregator.apply(collection);
