@@ -53,7 +53,7 @@ public abstract class AbstractRepositoryTest {
 
     protected abstract Repository createRepository();
 
-    @Test
+    @Test @Ignore
     public void testLiveSelectThenInsert() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
 
