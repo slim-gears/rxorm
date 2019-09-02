@@ -31,7 +31,7 @@ public class MongoQueryProviderTest extends AbstractRepositoryTest {
     protected Repository createRepository() {
         return MongoRepository.builder()
                 .port(MongoTestUtils.port)
-                .maxConcurrentRequests(200)
+                .maxConcurrentRequests(100)
                 .decorate(SchedulingQueryProviderDecorator.createDefault())
                 .build();
     }

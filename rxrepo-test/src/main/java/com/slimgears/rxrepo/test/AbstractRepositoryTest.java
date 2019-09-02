@@ -75,24 +75,24 @@ public abstract class AbstractRepositoryTest {
                 .doOnNext(c -> System.out.println("Count: " + c))
                 .test();
 
-        productSet.update(Products.createMany(2000))
+        productSet.update(Products.createMany(200))
                 .test()
                 .await()
                 .assertNoErrors();
 
         productUpdatesTest
-                .assertOf(countAtLeast(2000, Duration.ofSeconds(40)));
+                .assertOf(countAtLeast(200, Duration.ofSeconds(40)));
 
-        productSet.delete().where(Product.$.key.id.betweenExclusive(1000, 1300))
+        productSet.delete().where(Product.$.key.id.betweenExclusive(100, 130))
                 .execute()
                 .test()
                 .await()
                 .assertNoErrors()
-                .assertValue(299);
+                .assertValue(29);
 
         productUpdatesTest
-                .assertOf(countAtLeast(2200, Duration.ofSeconds(40)))
-                .assertValueAt(2199, Notification::isDelete)
+                .assertOf(countAtLeast(220, Duration.ofSeconds(40)))
+                .assertValueAt(219, Notification::isDelete)
                 .assertNoErrors();
 
         productCount
