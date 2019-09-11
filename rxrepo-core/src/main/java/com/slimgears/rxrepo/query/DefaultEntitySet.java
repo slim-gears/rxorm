@@ -209,13 +209,13 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
             }
 
             @Override
-            public LiveSelectQuery<K, S, S> liveSelect() {
+            public LiveSelectQuery<S> liveSelect() {
                 return liveSelect(ObjectExpression.arg(metaClass.asType()));
             }
 
             @Override
-            public <T> LiveSelectQuery<K, S, T> liveSelect(ObjectExpression<S, T> expression) {
-                return new LiveSelectQuery<K, S, T>() {
+            public <T> LiveSelectQuery<T> liveSelect(ObjectExpression<S, T> expression) {
+                return new LiveSelectQuery<T>() {
                     private final QueryInfo.Builder<K, S, T> builder = QueryInfo.<K, S, T>builder()
                             .metaClass(metaClass)
                             .predicate(predicate.get())
@@ -241,7 +241,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     }
 
                     @Override
-                    public LiveSelectQuery<K, S, T> properties(Iterable<PropertyExpression<T, ?, ?>> properties) {
+                    public LiveSelectQuery<T> properties(Iterable<PropertyExpression<T, ?, ?>> properties) {
                         builder.propertiesAddAll(properties);
                         return this;
                     }
@@ -256,7 +256,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     }
 
                     @Override
-                    public <R> Observable<R> observeAs(QueryTransformer<K, S, T, R> queryTransformer) {
+                    public <R> Observable<R> observeAs(QueryTransformer<T, R> queryTransformer) {
                         QueryInfo<K, S, T> observeQuery = builder.build();
                         QueryInfo<K, S, T> retrieveQuery = observeQuery
                                 .toBuilder()

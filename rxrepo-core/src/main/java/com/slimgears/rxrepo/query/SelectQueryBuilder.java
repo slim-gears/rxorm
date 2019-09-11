@@ -27,9 +27,9 @@ public abstract class SelectQueryBuilder<K, S>
         return select(expression, true);
     }
 
-    public abstract LiveSelectQuery<K, S, S> liveSelect();
+    public abstract LiveSelectQuery<S> liveSelect();
 
-    public abstract <T> LiveSelectQuery<K, S, T> liveSelect(ObjectExpression<S, T> expression);
+    public abstract <T> LiveSelectQuery<T> liveSelect(ObjectExpression<S, T> expression);
 
     public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, ?, V> field) {
         return orderBy(field, true);
@@ -86,7 +86,7 @@ public abstract class SelectQueryBuilder<K, S>
         return observeAsList(new PropertyExpression[0]);
     }
 
-    public final <R> Observable<R> observeAs(QueryTransformer<K, S, S, R> transformer) {
+    public final <R> Observable<R> observeAs(QueryTransformer<S, R> transformer) {
         return liveSelect().observeAs(transformer);
     }
 

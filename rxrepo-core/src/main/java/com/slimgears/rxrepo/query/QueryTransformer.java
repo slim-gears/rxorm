@@ -6,10 +6,10 @@ import io.reactivex.ObservableTransformer;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-public interface QueryTransformer<K, S, T, R> {
-    ObservableTransformer<List<Notification<T>>, R> transformer(QueryInfo<K, S, T> query, AtomicLong count);
+public interface QueryTransformer<T, R> {
+    ObservableTransformer<List<Notification<T>>, R> transformer(QueryInfo<?, ?, T> query, AtomicLong count);
 
-    static <K, S, T, R> QueryTransformer<K, S, T, R> of(
+    static <T, R> QueryTransformer<T, R> of(
             ObservableTransformer<List<Notification<T>>, R> transformer) {
         return (query, count) -> transformer;
     }

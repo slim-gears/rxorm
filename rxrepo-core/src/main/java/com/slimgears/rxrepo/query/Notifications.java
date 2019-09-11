@@ -33,8 +33,12 @@ public class Notifications {
         return toList(queryInfo.metaClass(), queryInfo.sorting(), queryInfo.limit());
     }
 
-    public static <K, S> QueryTransformer<K, S, S, List<S>> toList() {
-        return (queryInfo, count) -> toList(queryInfo.metaClass(), queryInfo.sorting(), queryInfo.limit());
+    @SuppressWarnings("unchecked")
+    public static <S> QueryTransformer<S, List<S>> toList() {
+        return (queryInfo, count) -> {
+            QueryInfo<?, S, S> queryInfo1 = (QueryInfo<?, S, S>)queryInfo;
+            return toList(queryInfo1.metaClass(), queryInfo1.sorting(), queryInfo1.limit());
+        };
     }
 
     public static <K, S> ObservableTransformer<Notification<S>, Notification<S>> filter(ObjectExpression<S, Boolean> predicate) {
