@@ -35,7 +35,7 @@ public class DefaultRepository implements Repository {
 
     @Override
     public void clearAndClose() {
-        queryProvider.dropAll().blockingAwait();
+        clear();
         close();
     }
 
@@ -46,5 +46,10 @@ public class DefaultRepository implements Repository {
     @Override
     public void close() {
         this.queryProvider.close();
+    }
+
+    @Override
+    public void clear() {
+        queryProvider.dropAll().blockingAwait();
     }
 }

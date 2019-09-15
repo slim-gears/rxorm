@@ -9,6 +9,7 @@ public interface Repository extends AutoCloseable {
     <K, T> EntitySet<K, T> entities(MetaClassWithKey<K, T> meta);
 
     void close();
+    void clear();
     void clearAndClose();
 
     default Repository onClose(Consumer<Repository> onClose) {
@@ -30,6 +31,11 @@ public interface Repository extends AutoCloseable {
             public void close() {
                 onClose.accept(this);
                 self.close();
+            }
+
+            @Override
+            public void clear() {
+                self.clear();
             }
         };
     }
