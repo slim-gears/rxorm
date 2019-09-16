@@ -34,6 +34,11 @@ public class DefaultRepository implements Repository {
     }
 
     @Override
+    public Iterable<EntitySet<?, ?>> allEntitySets() {
+        return entitySetMap.values();
+    }
+
+    @Override
     public void clearAndClose() {
         queryProvider.dropAll().blockingAwait();
         close();
