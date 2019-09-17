@@ -8,6 +8,8 @@ import java.util.function.Consumer;
 public interface Repository extends AutoCloseable {
     <K, T> EntitySet<K, T> entities(MetaClassWithKey<K, T> meta);
 
+    Iterable<EntitySet<?, ?>> allEntitySets();
+
     void close();
     void clearAndClose();
 
@@ -18,6 +20,11 @@ public interface Repository extends AutoCloseable {
             @Override
             public <K, T> EntitySet<K, T> entities(MetaClassWithKey<K, T> meta) {
                 return self.entities(meta);
+            }
+
+            @Override
+            public Iterable<EntitySet<?, ?>> allEntitySets() {
+                return self.allEntitySets();
             }
 
             @Override
