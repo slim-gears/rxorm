@@ -37,7 +37,7 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
 
     @SuppressWarnings("unchecked")
     private String onVisitSearchTextExpression(Function<? super ObjectExpression<?, ?>, String> visitor, BooleanBinaryOperationExpression<?, ?, String> expression, Supplier<String> visitedExpression) {
-        TypeToken<?> argType = expression.left().objectType();
+        TypeToken<?> argType = expression.left().reflect().objectType();
         String searchText = ((ConstantExpression<?, String>)expression.right()).value();
         String wildcard = searchTextToWildcard(searchText);
         return String.format("(search_index('" + OrientDbSchemaProvider.toClassName(argType) + ".textIndex', %s) = true)", visitor.apply(ConstantExpression.of(wildcard)));
@@ -58,7 +58,7 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
     private boolean requiresAsStringMapping(BooleanBinaryOperationExpression<?, ?, ?> expression) {
         return (expression.left().type().operationType() == Expression.OperationType.Property ||
                 expression.right().type().operationType() == Expression.OperationType.Property) &&
-                PropertyMetas.isEmbedded(expression.left().objectType());
+                PropertyMetas.isEmbedded(expression.left().reflect().objectType());
     }
 
     private String visitBinaryArgument(Function<? super ObjectExpression<?, ?>, String> visitor, ObjectExpression<?, ?> expression) {

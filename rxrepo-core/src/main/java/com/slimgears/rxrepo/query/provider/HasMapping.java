@@ -14,7 +14,7 @@ public interface HasMapping<S, T> {
         //noinspection unchecked
         return Optional
                 .ofNullable(query.mapping())
-                .map(ObjectExpression::objectType)
+                .map(exp -> exp.reflect().objectType())
                 .orElseGet(() -> (TypeToken)query.metaClass().asType());
     }
 }

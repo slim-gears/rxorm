@@ -4,10 +4,10 @@
         #if (!$sourceClass.typeParams().isEmpty())##
             <#foreach ($tp in $sourceClass.typeParams())?#if ($foreach.hasNext), #end#end>##
         #end##
-        #foreach ($tp in $sourceClass.typeParams()), ?#end> ${dollar} = new Expressions<>();
+        #foreach ($tp in $sourceClass.typeParams()), ?#end> $dollar = new Expressions<>();
     public static #annotateNonPropertyMethod($context) #typeParamsDeclaration($sourceClass) Expressions<$targetClass.simpleName()#typeParams($sourceClass)#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> ${dollar}() {
 #if ($sourceClass.typeParams().isEmpty())
-        return ${dollar};
+        return $dollar;
 #else
         return (Expressions<$targetClass.simpleName()#typeParams($sourceClass)#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end>)(Expressions)${dollar};
 #end
@@ -56,8 +56,8 @@
         }
 
         @Override
-        public $[com.google.common.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)> objectType() {
-            return this.self.objectType();
+        public Reflect<__S, $targetClass.simpleName()#typeParams($sourceClass)> reflect() {
+            return this.self.reflect();
         }
 
         public static #typeParamsDeclaration($sourceClass) Expressions<$targetClass.simpleName()#typeParams($sourceClass)#foreach ($tp in $sourceClass.typeParams()), $tp.typeName()#end> create() {
@@ -120,11 +120,6 @@
         @Override
         public Type type() {
             return Type.Property;
-        }
-
-        @Override
-        public $[com.google.common.reflect.TypeToken]<$targetClass.simpleName()#typeParams($sourceClass)> objectType() {
-            return property.type();
         }
 
         @Override

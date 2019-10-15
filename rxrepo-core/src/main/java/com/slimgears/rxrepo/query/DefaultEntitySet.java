@@ -56,9 +56,9 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     }
 
     @Override
-    public EntityDeleteQuery<K, S> delete() {
-        return new EntityDeleteQuery<K, S>() {
-            private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
+    public EntityDeleteQuery<S> delete() {
+        return new EntityDeleteQuery<S>() {
+            private final AtomicReference<ObjectExpression<S, Boolean>> predicate = new AtomicReference<>();
             private final DeleteInfo.Builder<K, S> builder = DeleteInfo.builder();
 
             @Override
@@ -70,19 +70,19 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
             }
 
             @Override
-            public EntityDeleteQuery<K, S> where(BooleanExpression<S> predicate) {
-                this.predicate.updateAndGet(exp -> Optional.ofNullable(exp).map(ex -> ex.and(predicate)).orElse(predicate));
+            public EntityDeleteQuery<S> where(ObjectExpression<S, Boolean> predicate) {
+                updatePredicate(this.predicate, predicate);
                 return this;
             }
 
             @Override
-            public EntityDeleteQuery<K, S> limit(long limit) {
+            public EntityDeleteQuery<S> limit(long limit) {
                 builder.limit(limit);
                 return this;
             }
 
             @Override
-            public EntityDeleteQuery<K, S> where(Filter<S> filter) {
+            public EntityDeleteQuery<S> where(Filter<S> filter) {
                 return Optional.ofNullable(filter)
                         .flatMap(f -> f.<S>toExpression(metaClass.asType()))
                         .map(this::where)
@@ -92,24 +92,24 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     }
 
     @Override
-    public EntityUpdateQuery<K, S> update() {
-        return new EntityUpdateQuery<K, S>() {
-            private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
+    public EntityUpdateQuery<S> update() {
+        return new EntityUpdateQuery<S>() {
+            private final AtomicReference<ObjectExpression<S, Boolean>> predicate = new AtomicReference<>();
             private final UpdateInfo.Builder<K, S> builder = UpdateInfo.<K, S>builder().metaClass(metaClass);
 
             @Override
-            public <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> set(PropertyExpression<S, T, V> property, ObjectExpression<S, V> value) {
+            public <T extends HasMetaClass<T>, V> EntityUpdateQuery<S> set(PropertyExpression<S, T, V> property, ObjectExpression<S, V> value) {
                 builder.propertyUpdatesBuilder().add(PropertyUpdateInfo.create(property, value));
                 return this;
             }
 
             @Override
-            public <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<K, S> add(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item) {
+            public <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<S> add(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item) {
                 return collectionOperation(property, item, CollectionPropertyUpdateInfo.Operation.Add);
             }
 
             @Override
-            public <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<K, S> remove(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item) {
+            public <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<S> remove(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item) {
                 return collectionOperation(property, item, CollectionPropertyUpdateInfo.Operation.Remove);
             }
 
@@ -126,26 +126,26 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
             }
 
             @Override
-            public EntityUpdateQuery<K, S> where(BooleanExpression<S> predicate) {
-                this.predicate.updateAndGet(exp -> Optional.ofNullable(exp).map(ex -> ex.and(predicate)).orElse(predicate));
+            public EntityUpdateQuery<S> where(ObjectExpression<S, Boolean> predicate) {
+                updatePredicate(this.predicate, predicate);
                 return this;
             }
 
             @Override
-            public EntityUpdateQuery<K, S> limit(long limit) {
+            public EntityUpdateQuery<S> limit(long limit) {
                 builder.limit(limit);
                 return this;
             }
 
             @Override
-            public EntityUpdateQuery<K, S> where(Filter<S> filter) {
+            public EntityUpdateQuery<S> where(Filter<S> filter) {
                 return Optional.ofNullable(filter)
                         .flatMap(f -> f.<S>toExpression(metaClass.asType()))
                         .map(this::where)
                         .orElse(this);
             }
 
-            private <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<K, S> collectionOperation(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item, CollectionPropertyUpdateInfo.Operation operation) {
+            private <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<S> collectionOperation(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item, CollectionPropertyUpdateInfo.Operation operation) {
                 builder.collectionPropertyUpdatesBuilder()
                         .add(CollectionPropertyUpdateInfo.create(property, item, operation));
                 return this;
@@ -154,15 +154,15 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     }
 
     @Override
-    public SelectQueryBuilder<K, S> query() {
-        return new SelectQueryBuilder<K, S>() {
+    public SelectQueryBuilder<S> query() {
+        return new SelectQueryBuilder<S>() {
             private final ImmutableList.Builder<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos = ImmutableList.builder();
-            private final AtomicReference<BooleanExpression<S>> predicate = new AtomicReference<>();
+            private final AtomicReference<ObjectExpression<S, Boolean>> predicate = new AtomicReference<>();
             private Long limit;
             private Long skip;
 
             @Override
-            public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, ?, V> field, boolean ascending) {
+            public <V extends Comparable<V>> SelectQueryBuilder<S> orderBy(PropertyExpression<S, ?, V> field, boolean ascending) {
                 sortingInfos.add(SortingInfo.create(field, ascending));
                 return this;
             }
@@ -312,19 +312,19 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
             }
 
             @Override
-            public SelectQueryBuilder<K, S> where(BooleanExpression<S> predicate) {
-                this.predicate.updateAndGet(exp -> Optional.ofNullable(exp).map(ex -> ex.and(predicate)).orElse(predicate));
+            public SelectQueryBuilder<S> where(ObjectExpression<S, Boolean> predicate) {
+                updatePredicate(this.predicate, predicate);
                 return this;
             }
 
             @Override
-            public SelectQueryBuilder<K, S> limit(long limit) {
+            public SelectQueryBuilder<S> limit(long limit) {
                 this.limit = limit;
                 return this;
             }
 
             @Override
-            public SelectQueryBuilder<K, S> where(Filter<S> filter) {
+            public SelectQueryBuilder<S> where(Filter<S> filter) {
                 return Optional.ofNullable(filter)
                         .flatMap(f -> f.<S>toExpression(metaClass.asType()))
                         .map(this::where)
@@ -332,7 +332,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
             }
 
             @Override
-            public SelectQueryBuilder<K, S> skip(long skip) {
+            public SelectQueryBuilder<S> skip(long skip) {
                 this.skip = skip;
                 return this;
             }
@@ -389,5 +389,12 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                         .getExceptions()
                         .stream()
                         .anyMatch(DefaultEntitySet::isConcurrencyException));
+    }
+
+    private static <S> void updatePredicate(AtomicReference<ObjectExpression<S, Boolean>> current, ObjectExpression<S, Boolean> predicate) {
+        current.updateAndGet(exp -> Optional
+            .ofNullable(exp)
+            .<ObjectExpression<S, Boolean>>map(ex -> BooleanExpression.and(ex, predicate))
+            .orElse(predicate));
     }
 }

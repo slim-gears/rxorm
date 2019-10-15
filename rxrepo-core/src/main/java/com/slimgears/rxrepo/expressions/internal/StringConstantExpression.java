@@ -7,7 +7,9 @@ import com.slimgears.rxrepo.expressions.ConstantExpression;
 import com.slimgears.rxrepo.expressions.StringExpression;
 
 @AutoValue
-public abstract class StringConstantExpression<S> implements ConstantExpression<S, String>, StringExpression<S> {
+public abstract class StringConstantExpression<S>
+    extends AbstractConstantExpression<S, String>
+    implements StringExpression<S> {
     @JsonCreator
     public static <S> StringConstantExpression<S> create(@JsonProperty("type") Type type, @JsonProperty String value) {
         return new AutoValue_StringConstantExpression<>(type, value);

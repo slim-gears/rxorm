@@ -8,7 +8,9 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.StringExpression;
 
 @AutoValue
-public abstract class StringBinaryOperationExpression<S, T1, T2> implements BinaryOperationExpression<S, T1, T2, String>, StringExpression<S> {
+public abstract class StringBinaryOperationExpression<S, T1, T2>
+    extends AbstractBinaryOperationExpression<S, T1, T2, String>
+    implements StringExpression<S> {
     @JsonCreator
     public static <S, T1, T2> StringBinaryOperationExpression<S, T1, T2> create(
             @JsonProperty("type") Type type,

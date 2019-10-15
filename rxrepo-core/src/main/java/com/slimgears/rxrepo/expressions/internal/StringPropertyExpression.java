@@ -8,7 +8,9 @@ import com.slimgears.rxrepo.expressions.StringExpression;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 
 @AutoValue
-public abstract class StringPropertyExpression<S, T> extends AbstractPropertyExpression<S, T, String> implements StringExpression<S> {
+public abstract class StringPropertyExpression<S, T>
+    extends AbstractPropertyExpression<S, T, String>
+    implements StringExpression<S> {
     @JsonCreator
     public static <S, T> StringPropertyExpression<S, T> create(
             @JsonProperty("type") Type type,

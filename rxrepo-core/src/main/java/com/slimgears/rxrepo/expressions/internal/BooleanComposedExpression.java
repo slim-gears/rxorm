@@ -8,7 +8,9 @@ import com.slimgears.rxrepo.expressions.ComposedExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 
 @AutoValue
-public abstract class BooleanComposedExpression<S, T> implements ComposedExpression<S, T, Boolean>, BooleanExpression<S> {
+public abstract class BooleanComposedExpression<S, T>
+    extends AbstractComposedExpression<S, T, Boolean>
+    implements BooleanExpression<S> {
     @JsonCreator
     public static <S, T> BooleanComposedExpression<S, T> create(
             @JsonProperty("type") Type type,

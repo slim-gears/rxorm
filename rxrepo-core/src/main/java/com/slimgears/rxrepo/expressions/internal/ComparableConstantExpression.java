@@ -7,7 +7,9 @@ import com.slimgears.rxrepo.expressions.ComparableExpression;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 
 @AutoValue
-public abstract class ComparableConstantExpression<S, V extends Comparable<V>> implements ConstantExpression<S, V>, ComparableExpression<S, V> {
+public abstract class ComparableConstantExpression<S, V extends Comparable<V>>
+    extends AbstractConstantExpression<S, V>
+    implements ComparableExpression<S, V> {
     @JsonCreator
     public static <S, V extends Comparable<V>> ComparableConstantExpression<S, V> create(
             @JsonProperty Type type,

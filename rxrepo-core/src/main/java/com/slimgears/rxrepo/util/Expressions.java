@@ -4,11 +4,10 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.encoding.MetaClassSearchableFields;
-import com.slimgears.rxrepo.expressions.Expression;
-import com.slimgears.rxrepo.expressions.ExpressionVisitor;
-import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.expressions.*;
+import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.stream.Equality;
 import com.slimgears.util.stream.Optionals;
 
 import java.util.*;
@@ -18,7 +17,6 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-@SuppressWarnings("WeakerAccess")
 public class Expressions {
     @SuppressWarnings("unchecked")
     public static <S, T> Function<S, T> compile(ObjectExpression<S, T> exp) {
@@ -47,6 +45,34 @@ public class Expressions {
 
     public static <S, T> io.reactivex.functions.Function<S, T> compileRx(ObjectExpression<S, T> exp) {
         return compile(exp)::apply;
+    }
+
+    public static <S, T, R, E, C extends Collection<E>> CollectionPropertyExpression<S, R, E, C> compose(ObjectExpression<S, T> first, CollectionPropertyExpression<T, R, E, C> second) {
+        return (CollectionPropertyExpression<S, R, E, C>)compose(first, (ObjectExpression<T, C>)second);
+    }
+
+    public static <S, T, R, V> PropertyExpression<S, R, V> compose(ObjectExpression<S, T> first, PropertyExpression<T, R, V> second) {
+        return (PropertyExpression<S, R, V>)compose(first, (ObjectExpression<T, V>)second);
+    }
+
+    public static <S, T, T1, T2, R> BinaryOperationExpression<S, T1, T2, R> compose(ObjectExpression<S, T> first, BinaryOperationExpression<T, T1, T2, R> second) {
+        return (BinaryOperationExpression<S, T1, T2, R>)compose(first, (ObjectExpression<T, R>)second);
+    }
+
+    public static <S, T, T1, R> UnaryOperationExpression<S, T1, R> compose(ObjectExpression<S, T> first, UnaryOperationExpression<T, T1, R> second) {
+        return (UnaryOperationExpression<S, T1, R>)compose(first, (ObjectExpression<T, R>)second);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <S, T, R> ObjectExpression<S, R> compose(ObjectExpression<S, T> first, ObjectExpression<T, R> second) {
+        return (ObjectExpression<S, R>)second.reflect().convert(new ObjectExpression.Converter() {
+            @Override
+            public <_S, _T> ObjectExpression<_S, _T> convert(ObjectExpression<_S, _T> expression) {
+                return expression.type().operationType() == Expression.OperationType.Argument
+                    ? (ObjectExpression<_S, _T>)first
+                    : expression;
+            }
+        });
     }
 
     @SuppressWarnings("unchecked")

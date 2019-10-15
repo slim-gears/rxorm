@@ -155,7 +155,7 @@ public class SqlQueryProvider implements QueryProvider {
     public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         TypeToken<T> elementType = HasMapping.objectType(query);
         ObjectExpression<T, R> aggregation = aggregator.apply(CollectionExpression.indirectArg(MoreTypeTokens.collection(elementType)));
-        TypeToken<R> resultType = aggregation.objectType();
+        TypeToken<R> resultType = aggregation.reflect().objectType();
         return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
                 .executeQuery(statementProvider.forAggregation(query, aggregation, aggregationField))
                 .map(pr -> {

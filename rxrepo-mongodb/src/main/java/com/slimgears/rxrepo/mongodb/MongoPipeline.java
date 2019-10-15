@@ -91,7 +91,7 @@ public class MongoPipeline {
             Optional.ofNullable(expression)
                     .filter(exp -> !(exp instanceof ArgumentExpression))
                     .map(MongoPipeline::toExpression)
-                    .map(expr -> PropertyMetas.hasMetaClass(expression.objectType()) ? expr : new Document(valueField, expr))
+                    .map(expr -> PropertyMetas.hasMetaClass(expression.reflect().objectType()) ? expr : new Document(valueField, expr))
                     .ifPresent(this::replaceRoot);
             return this;
         }

@@ -32,8 +32,10 @@ public interface BooleanExpression<S> extends ObjectExpression<S, Boolean> {
     }
 
     @SafeVarargs
-    static <S> BooleanExpression<S> and(BooleanExpression<S> first, BooleanExpression<S>... expressions) {
-        return Arrays.stream(expressions).reduce(first, (a, b) -> a.and(b), (a, b) -> a.and(b));
+    static <S> BooleanExpression<S> and(ObjectExpression<S, Boolean> first, ObjectExpression<S, Boolean>... expressions) {
+        return ObjectExpression.asBoolean(Arrays
+            .stream(expressions)
+            .reduce(first, (a, b) -> BooleanBinaryOperationExpression.create(Type.And, a, b)));
     }
 
     @SafeVarargs

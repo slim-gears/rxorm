@@ -9,4 +9,8 @@ public interface DelegateExpression<S, T> extends ObjectExpression<S, T> {
         return BooleanBinaryOperationExpression.create(Type.SearchText, this, ConstantExpression.of(pattern));
     }
 
+    @Override
+    default Reflect<S, T> reflect() {
+        return delegate().reflect();
+    }
 }

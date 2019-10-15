@@ -10,8 +10,9 @@ import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import java.util.Collection;
 
 @AutoValue
-public abstract class CollectionPropertyExpression<S, T, E, C extends Collection<E>> extends AbstractPropertyExpression<S, T, C>
-        implements CollectionExpression<S, E, C> {
+public abstract class CollectionPropertyExpression<S, T, E, C extends Collection<E>>
+    extends AbstractPropertyExpression<S, T, C>
+    implements CollectionExpression<S, E, C> {
     @JsonCreator
     public static <S, T, E, C extends Collection<E>> CollectionPropertyExpression<S, T, E, C> create(
             @JsonProperty("type") Type type,

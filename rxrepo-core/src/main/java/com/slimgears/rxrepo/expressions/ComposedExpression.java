@@ -6,12 +6,8 @@ import com.slimgears.rxrepo.expressions.internal.*;
 
 import java.util.Collection;
 
+@SuppressWarnings("UnstableApiUsage")
 public interface ComposedExpression<S, T, R> extends ObjectExpression<S, R> {
-    @Override
-    default TypeToken<R> objectType() {
-        return expression().objectType();
-    }
-
     @JsonProperty ObjectExpression<S, T> source();
     @JsonProperty ObjectExpression<T, R> expression();
 

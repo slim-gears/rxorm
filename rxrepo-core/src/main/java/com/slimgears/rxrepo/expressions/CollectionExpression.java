@@ -10,10 +10,6 @@ public interface CollectionExpression<S, E, C extends Collection<E>> extends Obj
         return BooleanBinaryOperationExpression.create(Expression.Type.Contains, this, item);
     }
 
-    default TypeToken<E> elementType() {
-        return MoreTypeTokens.elementType(objectType());
-    }
-
     default BooleanExpression<S> contains(E item) {
         return contains(ConstantExpression.of(item));
     }

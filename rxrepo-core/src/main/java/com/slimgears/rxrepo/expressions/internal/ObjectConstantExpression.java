@@ -6,7 +6,7 @@ import com.google.auto.value.AutoValue;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 
 @AutoValue
-public abstract class ObjectConstantExpression<S, V> implements ConstantExpression<S, V> {
+public abstract class ObjectConstantExpression<S, V> extends AbstractConstantExpression<S, V> {
     @JsonCreator
     public static <S, V> ObjectConstantExpression<S, V> create(
             @JsonProperty Type type,

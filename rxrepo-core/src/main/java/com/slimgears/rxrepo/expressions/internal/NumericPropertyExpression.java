@@ -8,8 +8,9 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 
 @AutoValue
-public abstract class NumericPropertyExpression<S, T, V extends Number & Comparable<V>> extends AbstractPropertyExpression<S, T, V>
-        implements NumericExpression<S, V> {
+public abstract class NumericPropertyExpression<S, T, V extends Number & Comparable<V>>
+    extends AbstractPropertyExpression<S, T, V>
+    implements NumericExpression<S, V> {
     @JsonCreator
     public static <S, T, V extends Number & Comparable<V>> NumericPropertyExpression<S, T, V> create(
             @JsonProperty("type") Type type,

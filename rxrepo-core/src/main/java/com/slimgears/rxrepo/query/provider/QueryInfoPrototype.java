@@ -18,7 +18,7 @@ public interface QueryInfoPrototype<K, S, T> extends
     default TypeToken<T> objectType() {
         return Optional
                 .ofNullable(mapping())
-                .map(ObjectExpression::objectType)
+                .map(exp -> exp.reflect().objectType())
                 .orElseGet(() -> (TypeToken<T>)metaClass().asType());
     }
 }

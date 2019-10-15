@@ -8,7 +8,9 @@ import com.slimgears.rxrepo.expressions.ComparableExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 
 @AutoValue
-public abstract class ComparableBinaryOperationExpression<S, T1, T2, V extends Comparable<V>> implements BinaryOperationExpression<S, T1, T2, V>, ComparableExpression<S, V> {
+public abstract class ComparableBinaryOperationExpression<S, T1, T2, V extends Comparable<V>>
+    extends AbstractBinaryOperationExpression<S, T1, T2, V>
+    implements ComparableExpression<S, V> {
     @JsonCreator
     public static <S, T1, T2, V extends Comparable<V>> ComparableBinaryOperationExpression<S, T1, T2, V> create(
             @JsonProperty("type") Type type,

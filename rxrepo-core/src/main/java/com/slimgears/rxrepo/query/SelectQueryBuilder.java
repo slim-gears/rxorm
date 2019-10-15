@@ -9,11 +9,11 @@ import io.reactivex.Single;
 import java.util.List;
 
 @SuppressWarnings("WeakerAccess")
-public abstract class SelectQueryBuilder<K, S>
-    implements QueryBuilder<SelectQueryBuilder<K, S>, K, S> {
-    public abstract SelectQueryBuilder<K, S> skip(long skip);
+public abstract class SelectQueryBuilder<S>
+    implements QueryBuilder<SelectQueryBuilder<S>, S> {
+    public abstract SelectQueryBuilder<S> skip(long skip);
 
-    public abstract <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, ?, V> field, boolean ascending);
+    public abstract <V extends Comparable<V>> SelectQueryBuilder<S> orderBy(PropertyExpression<S, ?, V> field, boolean ascending);
 
     public abstract SelectQuery<S> select();
 
@@ -31,11 +31,11 @@ public abstract class SelectQueryBuilder<K, S>
 
     public abstract <T> LiveSelectQuery<T> liveSelect(ObjectExpression<S, T> expression);
 
-    public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, ?, V> field) {
+    public <V extends Comparable<V>> SelectQueryBuilder<S> orderBy(PropertyExpression<S, ?, V> field) {
         return orderBy(field, true);
     }
 
-    public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderByDescending(PropertyExpression<S, S, V> field) {
+    public <V extends Comparable<V>> SelectQueryBuilder<S> orderByDescending(PropertyExpression<S, S, V> field) {
         return orderBy(field, false);
     }
 
@@ -70,7 +70,6 @@ public abstract class SelectQueryBuilder<K, S>
         return retrieve(properties).toList();
     }
 
-
     public final Single<List<S>> retrieveAsList() {
         //noinspection unchecked
         return retrieveAsList(new PropertyExpression[0]);
@@ -98,5 +97,9 @@ public abstract class SelectQueryBuilder<K, S>
     public Observable<Notification<S>> queryAndObserve() {
         //noinspection unchecked
         return queryAndObserve(new PropertyExpression[0]);
+    }
+
+    public final <T> SelectQueryBuilder<T> map(ObjectExpression<S, T> mapper) {
+        return MappedSelectQueryBuilder.create(this, mapper);
     }
 }

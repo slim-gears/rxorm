@@ -8,11 +8,6 @@ import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import java.util.Collection;
 
 public interface PropertyExpression<S, T, V> extends ObjectExpression<S, V> {
-    @Override
-    default TypeToken<V> objectType() {
-        return property().type();
-    }
-
     @JsonProperty ObjectExpression<S, T> target();
     @JsonProperty PropertyMeta<T, V> property();
 

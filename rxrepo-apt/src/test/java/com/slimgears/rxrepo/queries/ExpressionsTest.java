@@ -11,6 +11,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static com.slimgears.rxrepo.filters.ComparableFilter.fromGreaterOrEqual;
 import static com.slimgears.rxrepo.filters.ComparableFilter.fromLessThan;
@@ -446,5 +447,31 @@ public class ExpressionsTest {
     @Test
     public void testPropertyExpressionEquality() {
         Assert.assertEquals(TestEntity.$.refEntity.id, PropertyExpressions.fromPath(TestEntity.class, "refEntity.id"));
+    }
+
+    @Test
+    public void testExpressionsCompose() {
+        ObjectExpression<TestRefEntity, Boolean> refPredicate = TestRefEntity.$.text.contains("test");
+        ObjectExpression<TestEntity, Boolean> composedPredicate = Expressions.compose(TestEntity.$.refEntity, refPredicate);
+
+        TestEntity testEntity1 = TestEntity.builder()
+            .refEntity(TestRefEntity.create(1, "test"))
+            .refEntities(Collections.emptyList())
+            .key(TestKey.create("key"))
+            .text("text")
+            .number(1)
+            .build();
+
+        TestEntity testEntity2 = TestEntity.builder()
+            .refEntity(TestRefEntity.create(1, "none"))
+            .refEntities(Collections.emptyList())
+            .key(TestKey.create("key"))
+            .text("text")
+            .number(1)
+            .build();
+
+        Predicate<TestEntity> compiledComposedPredicate = Expressions.compilePredicate(composedPredicate);
+        Assert.assertTrue(compiledComposedPredicate.test(testEntity1));
+        Assert.assertFalse(compiledComposedPredicate.test(testEntity2));
     }
 }

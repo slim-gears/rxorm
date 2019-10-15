@@ -64,7 +64,7 @@ public class PropertyExpressions {
     }
 
     public static <S, T> Stream<PropertyExpression<S, T, ?>> ownPropertiesOf(ObjectExpression<S, T> target) {
-        MetaClass<T> metaClass = MetaClasses.forTokenUnchecked(target.objectType());
+        MetaClass<T> metaClass = MetaClasses.forTokenUnchecked(target.reflect().objectType());
         return Streams
                 .fromIterable(metaClass.properties())
                 .map(prop -> PropertyExpression.ofObject(target, prop));
@@ -78,7 +78,7 @@ public class PropertyExpressions {
         return Stream.concat(
                 ownProps.stream(),
                 ownProps.stream()
-                        .filter(p -> PropertyMetas.hasMetaClass(p.objectType()))
+                        .filter(p -> PropertyMetas.hasMetaClass(p.reflect().objectType()))
                         .flatMap(p -> propertiesOf(p, visitedProps)));
     }
 
@@ -104,7 +104,7 @@ public class PropertyExpressions {
 
     private static <S, T> PropertyExpression<S, ?, ?> createExpressionFromPath(ObjectExpression<S, T> target, String path) {
         String head = head(path);
-        MetaClass<T> meta = Objects.requireNonNull(MetaClasses.forTokenUnchecked(target.objectType()));
+        MetaClass<T> meta = Objects.requireNonNull(MetaClasses.forTokenUnchecked(target.reflect().objectType()));
         PropertyMeta<T, ?> prop = meta.getProperty(head);
         if (head.length() == path.length()) {
             return PropertyExpression.ofObject(target, prop);
@@ -147,7 +147,7 @@ public class PropertyExpressions {
     private static <S> Collection<PropertyExpression<?, ?, ?>> mandatoryPropertiesNotCached(PropertyExpression<S, ?, ?> exp) {
         return Stream.concat(Stream.of(exp), parentProperties(exp)
                 .filter(p -> PropertyMetas.hasMetaClass(p.property()))
-                .flatMap(p -> mandatoryProperties(p, MetaClasses.forTokenUnchecked(p.objectType()), new HashSet<>())))
+                .flatMap(p -> mandatoryProperties(p, MetaClasses.forTokenUnchecked(p.reflect().objectType()), new HashSet<>())))
                 .collect(Collectors.toCollection(Sets::newLinkedHashSet));
     }
 
@@ -164,7 +164,7 @@ public class PropertyExpressions {
                 .map(p -> PropertyExpression.ofObject(target, p))
                 .filter(visitedProperties::add)
                 .flatMap(propertyExpression -> {
-                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>) Optional.of(propertyExpression.objectType())
+                    Stream<PropertyExpression<S, ?, ?>> stream = (Stream<PropertyExpression<S, ?, ?>>) Optional.of(propertyExpression.reflect().objectType())
                             .filter(PropertyMetas::hasMetaClass)
                             .map(MetaClasses::forTokenUnchecked)
                             .map(meta -> mandatoryProperties(propertyExpression, (MetaClass)meta, visitedProperties))

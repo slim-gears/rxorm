@@ -10,7 +10,9 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import java.util.Collection;
 
 @AutoValue
-public abstract class CollectionComposedExpression<S, T, R, C extends Collection<R>> implements ComposedExpression<S, T, C>, CollectionExpression<S, R, C> {
+public abstract class CollectionComposedExpression<S, T, R, C extends Collection<R>>
+    extends AbstractComposedExpression<S, T, C>
+    implements CollectionExpression<S, R, C> {
     @JsonCreator
     public static <S, T, R, C extends Collection<R>> CollectionComposedExpression<S, T, R, C> create(
             @JsonProperty("type") Type type,

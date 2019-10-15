@@ -10,7 +10,9 @@ import com.slimgears.rxrepo.expressions.CollectionExpression;
 import java.util.Collection;
 
 @AutoValue
-public abstract class CollectionArgumentExpression<S, T, C extends Collection<T>> implements ArgumentExpression<S, C>, CollectionExpression<S, T, C> {
+public abstract class CollectionArgumentExpression<S, T, C extends Collection<T>>
+    extends AbstractArgumentExpression<S, C>
+    implements CollectionExpression<S, T, C> {
     @JsonCreator
     public static <S, T, C extends Collection<T>> CollectionArgumentExpression<S, T, C> create(
             @JsonProperty("type") Type type,

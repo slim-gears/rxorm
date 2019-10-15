@@ -9,22 +9,21 @@ import io.reactivex.Single;
 
 import java.util.Collection;
 
-public interface EntityUpdateQuery<K, S>
-            extends QueryBuilder<EntityUpdateQuery<K, S>, K, S> {
+public interface EntityUpdateQuery<S> extends QueryBuilder<EntityUpdateQuery<S>, S> {
 
-    <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> set(PropertyExpression<S, T, V> property, ObjectExpression<S, V> value);
-    <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<K, S> add(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item);
-    <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<K, S> remove(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item);
+    <T extends HasMetaClass<T>, V> EntityUpdateQuery<S> set(PropertyExpression<S, T, V> property, ObjectExpression<S, V> value);
+    <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<S> add(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item);
+    <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<S> remove(CollectionPropertyExpression<S, T, V, C> property, ObjectExpression<S, V> item);
 
-    default <T extends HasMetaClass<T>, V> EntityUpdateQuery<K, S> set(PropertyExpression<S, T, V> property, V value) {
+    default <T extends HasMetaClass<T>, V> EntityUpdateQuery<S> set(PropertyExpression<S, T, V> property, V value) {
         return set(property, ConstantExpression.of(value));
     }
 
-    default <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<K, S> add(CollectionPropertyExpression<S, T, V, C> property, V item) {
+    default <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<S> add(CollectionPropertyExpression<S, T, V, C> property, V item) {
         return add(property, ConstantExpression.of(item));
     }
 
-    default <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<K, S> remove(CollectionPropertyExpression<S, T, V, C> property, V item) {
+    default <T extends HasMetaClass<T>, V, C extends Collection<V>> EntityUpdateQuery<S> remove(CollectionPropertyExpression<S, T, V, C> property, V item) {
         return remove(property, ConstantExpression.of(item));
     }
 

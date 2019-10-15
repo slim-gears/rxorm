@@ -8,7 +8,9 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
 
 @AutoValue
-public abstract class ComparableUnaryOperationExpression<S, T, V extends Comparable<V>> implements UnaryOperationExpression<S, T, V>, ComparableExpression<S, V> {
+public abstract class ComparableUnaryOperationExpression<S, T, V extends Comparable<V>>
+    extends AbstractUnaryOperationExpression<S, T, V>
+    implements ComparableExpression<S, V> {
     @JsonCreator
     public static <S, T, V extends Comparable<V>> ComparableUnaryOperationExpression<S, T, V> create(
             @JsonProperty("type") Type type,
