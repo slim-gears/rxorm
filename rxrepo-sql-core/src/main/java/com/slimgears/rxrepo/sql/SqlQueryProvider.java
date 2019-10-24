@@ -73,7 +73,8 @@ public class SqlQueryProvider implements QueryProvider {
                 .limit(1L)
                 .build());
 
-        return statementExecutor
+        return schemaProvider.createOrUpdate(metaClass)
+            .andThen(statementExecutor
                 .executeQuery(statement)
                 .firstElement()
                 .flatMap((PropertyResolver pr) -> {
@@ -86,7 +87,7 @@ public class SqlQueryProvider implements QueryProvider {
                 })
                 .switchIfEmpty(Maybe.defer(() -> entityUpdater
                         .apply(Maybe.empty())
-                        .flatMap(e -> insert(metaClass, e).toMaybe())));
+                        .flatMap(e -> insert(metaClass, e).toMaybe()))));
     }
 
 
