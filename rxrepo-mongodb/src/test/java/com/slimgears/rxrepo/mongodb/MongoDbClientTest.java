@@ -91,7 +91,7 @@ public class MongoDbClientTest {
         Assert.assertEquals(8, filteredProducts.size());
     }
 
-    @Test
+    @Test @Ignore
     public void testWatchCollection() {
         CompletableSubject subscribed = CompletableSubject.create();
 
