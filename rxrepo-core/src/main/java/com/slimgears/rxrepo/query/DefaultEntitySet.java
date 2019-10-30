@@ -66,7 +66,12 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                 return queryProvider.delete(builder
                         .metaClass(metaClass)
                         .predicate(predicate.get())
-                        .build());
+                        .build())
+                        .compose(Singles.backOffDelayRetry(
+                                DefaultEntitySet::isConcurrencyException,
+                                Duration.ofMillis(config.retryInitialDurationMillis()),
+                                config.retryCount()));
+
             }
 
             @Override
