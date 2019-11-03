@@ -7,6 +7,8 @@ import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Observable;
 import io.reactivex.ObservableSource;
 import io.reactivex.ObservableTransformer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -16,6 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class NotificationsToListTransformer<K, T> implements ObservableTransformer<List<Notification<T>>, List<T>> {
+    private final static Logger log = LoggerFactory.getLogger(NotificationsToListTransformer.class);
     private final @Nullable Long limit;
     private final AtomicLong firstItemIndex;
     private final AtomicReference<T> firstItem = new AtomicReference<>();
@@ -28,6 +31,7 @@ public class NotificationsToListTransformer<K, T> implements ObservableTransform
                                            ImmutableList<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos,
                                            @Nullable Long limit,
                                            AtomicLong firstItemIndex) {
+        log.trace("Creating instance of list transformer for {}", metaClass.simpleName());
         this.metaClass = metaClass;
         this.limit = limit;
         this.firstItemIndex = firstItemIndex;
@@ -80,7 +84,10 @@ public class NotificationsToListTransformer<K, T> implements ObservableTransform
         map.values()
                 .stream()
                 .min(comparator)
-                .ifPresent(firstItem::set);
+                .ifPresent(item -> {
+                    log.trace("First item set: {}", item);
+                    firstItem.set(item);
+                });
     }
 
     private void removeAfterLast() {
@@ -96,9 +103,11 @@ public class NotificationsToListTransformer<K, T> implements ObservableTransform
     }
 
     private void removeBeforeFirst() {
+        log.trace("Trying to remove item before first ({})", firstItem.get());
         Optional.ofNullable(firstItem.get())
                 .map(m -> map.values()
                         .stream()
+                        .peek(val -> log.trace("Comparing items: (firstItem: {}, currentItem: {}, result: {})", m, val, comparator.compare(m, val)))
                         .filter(val -> comparator.compare(m, val) > 0))
                 .orElse(Stream.empty())
                 .map(val -> metaClass.keyProperty().getValue(val))

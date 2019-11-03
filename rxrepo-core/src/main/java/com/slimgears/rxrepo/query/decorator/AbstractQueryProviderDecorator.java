@@ -12,11 +12,17 @@ import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static com.slimgears.util.generic.LazyString.lazy;
 
 public class AbstractQueryProviderDecorator implements QueryProvider {
     private final QueryProvider underlyingProvider;
+    protected final Logger log;
 
     protected AbstractQueryProviderDecorator(QueryProvider underlyingProvider) {
+        this.log = LoggerFactory.getLogger(getClass());
         this.underlyingProvider = underlyingProvider;
     }
 
@@ -42,7 +48,8 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
 
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-        return underlyingProvider.liveQuery(query);
+        return underlyingProvider.liveQuery(query)
+            .doOnNext(n -> log.trace("[{}] Received notification: {}", lazy(() -> getClass().getSimpleName()), n));
     }
 
     @Override
@@ -52,7 +59,8 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
 
     @Override
     public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return underlyingProvider.liveAggregate(query, aggregator);
+        return underlyingProvider.liveAggregate(query, aggregator)
+            .doOnNext(n -> log.trace("[{}] Received aggregation notification: {}", lazy(() -> getClass().getSimpleName()), n));
     }
 
     @Override

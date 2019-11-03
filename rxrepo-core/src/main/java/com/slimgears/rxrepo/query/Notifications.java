@@ -18,30 +18,36 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class Notifications {
     private final static Logger log = LoggerFactory.getLogger(Notifications.class);
-    public static <K, S> ObservableTransformer<List<Notification<S>>, List<S>> toList(
+    public static <K, S, T> ObservableTransformer<List<Notification<S>>, List<T>> toList(
             MetaClassWithKey<K, S> metaClass,
             ImmutableList<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos,
+            @Nullable ObjectExpression<S, T> mapping,
             @Nullable Long limit) {
-        return NotificationsToListTransformer.create(metaClass, sortingInfos, limit);
+        Function<S, T> mapper = Expressions.compile(mapping);
+        ObservableTransformer<List<Notification<S>>, List<S>> transformer = NotificationsToListTransformer.create(metaClass, sortingInfos, limit);
+        return src -> src
+            .compose(transformer)
+            .map(objects -> objects.stream().map(mapper).collect(Collectors.toList()));
     }
 
     public static <K, S> ObservableTransformer<List<Notification<S>>, List<S>> toList(QueryInfo<K, S, S> queryInfo, AtomicLong count) {
-        return toList(queryInfo.metaClass(), queryInfo.sorting(), queryInfo.limit());
+        return Notifications.toList(queryInfo.metaClass(), queryInfo.sorting(), queryInfo.mapping(), queryInfo.limit());
     }
 
-    @SuppressWarnings("unchecked")
-    public static <S> QueryTransformer<S, List<S>> toList() {
-        return (queryInfo, count) -> {
-            QueryInfo<?, S, S> queryInfo1 = (QueryInfo<?, S, S>)queryInfo;
-            return toList(queryInfo1.metaClass(), queryInfo1.sorting(), queryInfo1.limit());
+    public static <T> QueryTransformer<T, List<T>> toList() {
+        return new QueryTransformer<T, List<T>>() {
+            @Override
+            public <K, S> ObservableTransformer<List<Notification<S>>, List<T>> transformer(QueryInfo<K, S, T> query, AtomicLong count) {
+                return toList(query.metaClass(), query.sorting(), query.mapping(), query.limit());
+            }
         };
     }
-
-    public static <K, S> ObservableTransformer<Notification<S>, Notification<S>> filter(ObjectExpression<S, Boolean> predicate) {
+    public static <S> ObservableTransformer<Notification<S>, Notification<S>> filter(ObjectExpression<S, Boolean> predicate) {
         if (predicate == null) {
             return src -> src;
         }
@@ -80,7 +86,7 @@ public class Notifications {
                 .compose(fieldsFilter(query.properties()));
     }
 
-    private static <K, S, T> ObservableTransformer<Notification<S>, Notification<T>> map(ObjectExpression<S, T> projection) {
+    private static <S, T> ObservableTransformer<Notification<S>, Notification<T>> map(ObjectExpression<S, T> projection) {
         java.util.function.Function<S, T> mapper = Expressions.compile(projection);
         return src -> src.map(n -> n.map(mapper));
     }

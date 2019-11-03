@@ -8,6 +8,6 @@ import java.util.stream.Stream;
 
 public interface SqlAssignmentGenerator {
     <K, T> Function<String, Stream<String>> toAssignment(MetaClassWithKey<K, T> metaClass,
-                                                                                           PropertyResolver propertyResolver,
-                                                                                           ReferenceResolver referenceResolver);
+                                                         PropertyResolver propertyResolver,
+                                                         ReferenceResolver referenceResolver);
 }

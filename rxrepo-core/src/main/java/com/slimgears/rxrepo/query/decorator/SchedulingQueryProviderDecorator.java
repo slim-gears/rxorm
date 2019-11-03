@@ -44,56 +44,56 @@ public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecor
 
     @Override
     public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
-        return Completable.defer(() -> super.insert(metaClass, entities)).subscribeOn(updateScheduler);
+        return super.insert(metaClass, entities).subscribeOn(updateScheduler);
     }
 
     @Override
     public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return Maybe.defer(() -> super.insertOrUpdate(metaClass, key, entityUpdater)).subscribeOn(updateScheduler);
+        return super.insertOrUpdate(metaClass, key, entityUpdater).subscribeOn(updateScheduler);
     }
 
     @Override
     public <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
-        return Single.defer(() -> super.insertOrUpdate(metaClass, entity)).subscribeOn(updateScheduler);
+        return super.insertOrUpdate(metaClass, entity).subscribeOn(updateScheduler);
     }
 
     @Override
     public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
-        return Single.defer(() -> super.update(update)).subscribeOn(updateScheduler);
+        return super.update(update).subscribeOn(updateScheduler);
     }
 
     @Override
     public <K, S> Single<Integer> delete(DeleteInfo<K, S> delete) {
-        return Single.defer(() -> super.delete(delete)).subscribeOn(updateScheduler);
+        return super.delete(delete).subscribeOn(updateScheduler);
     }
 
     @Override
     public <K, S> Completable drop(MetaClassWithKey<K, S> metaClass) {
-        return Completable.defer(() -> super.drop(metaClass)).subscribeOn(updateScheduler);
+        return super.drop(metaClass).subscribeOn(updateScheduler);
     }
 
     @Override
     public Completable dropAll() {
-        return Completable.defer(super::dropAll).subscribeOn(updateScheduler);
+        return super.dropAll().subscribeOn(updateScheduler);
     }
 
     @Override
     public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
-        return Observable.defer(() -> super.query(query)).subscribeOn(queryScheduler);
+        return super.query(query).subscribeOn(queryScheduler);
     }
 
     @Override
     public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return Maybe.defer(() -> super.aggregate(query, aggregator)).subscribeOn(queryScheduler);
+        return super.aggregate(query, aggregator).subscribeOn(queryScheduler);
     }
 
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-        return Observable.defer(() -> super.liveQuery(query)).subscribeOn(notificationScheduler);
+        return super.liveQuery(query).subscribeOn(notificationScheduler);
     }
 
     @Override
     public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return Observable.defer(() -> super.liveAggregate(query, aggregator)).subscribeOn(notificationScheduler);
+        return super.liveAggregate(query, aggregator).subscribeOn(notificationScheduler);
     }
 }

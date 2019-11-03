@@ -8,6 +8,7 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
 import com.slimgears.rxrepo.query.provider.*;
+import com.slimgears.rxrepo.util.Expressions;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.rx.Maybes;
@@ -66,7 +67,11 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                 return queryProvider.delete(builder
                         .metaClass(metaClass)
                         .predicate(predicate.get())
-                        .build());
+                        .build())
+                    .compose(Singles.backOffDelayRetry(
+                        DefaultEntitySet::isConcurrencyException,
+                        Duration.ofMillis(config.retryInitialDurationMillis()),
+                        config.retryCount()));
             }
 
             @Override
@@ -255,21 +260,42 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                 .distinctUntilChanged();
                     }
 
+                    @SuppressWarnings("unchecked")
                     @Override
                     public <R> Observable<R> observeAs(QueryTransformer<T, R> queryTransformer) {
-                        QueryInfo<K, S, T> observeQuery = builder.build();
-                        QueryInfo<K, S, T> retrieveQuery = observeQuery
-                                .toBuilder()
-                                .limit(limit)
-                                .skip(skip)
-                                .sortingAddAll(sortingInfos.build())
-                                .build();
+                        QueryInfo<K, S, T> sourceQuery = builder.build();
+
+                        QueryInfo<K, S, S> observeQuery = QueryInfo.<K, S, S>builder()
+                            .metaClass(sourceQuery.metaClass())
+                            .predicate(sourceQuery.predicate())
+                            .properties(Optional
+                                .ofNullable(sourceQuery.mapping())
+                                .<ImmutableList<PropertyExpression<S, ?, ?>>>map(mapping -> sourceQuery.properties()
+                                    .stream()
+                                    .map(prop -> Expressions.compose(mapping, prop))
+                                    .collect(ImmutableList.toImmutableList()))
+                                .orElse((ImmutableList<PropertyExpression<S, ?, ?>>)(ImmutableList<?>)sourceQuery.properties()))
+                            .build();
+
+                        QueryInfo<K, S, S> retrieveQuery = observeQuery.toBuilder()
+                            .limit(limit)
+                            .skip(skip)
+                            .sortingAddAll(sortingInfos.build())
+                            .build();
+
+                        QueryInfo<K, S, T> transformQuery = sourceQuery.toBuilder()
+                            .limit(limit)
+                            .skip(skip)
+                            .sortingAddAll(sortingInfos.build())
+                            .build();
 
                         return queryProvider.aggregate(observeQuery, Aggregator.count())
                                 .defaultIfEmpty(0L)
                                 .map(AtomicLong::new)
                                 .flatMapObservable(count -> {
-                                    ObservableTransformer<List<Notification<T>>, R> transformer = queryTransformer.transformer(retrieveQuery, count);
+                                    ObservableTransformer<List<Notification<S>>, R> transformer = queryTransformer
+                                        .transformer(transformQuery, count);
+
                                     return queryProvider
                                             .query(retrieveQuery)
                                             .map(Notification::ofCreated)
@@ -283,7 +309,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                 });
                     }
 
-                    private void updateCount(Notification<T> notification, AtomicLong count) {
+                    private void updateCount(Notification<S> notification, AtomicLong count) {
                         if (notification.isDelete()) {
                             count.decrementAndGet();
                         } else if (notification.isCreate()) {

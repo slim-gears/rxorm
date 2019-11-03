@@ -125,6 +125,14 @@ class PropertyResolvers {
                         .map(name -> getProperty(name, keyClass))
                         .orElse(null);
             }
+
+            @SuppressWarnings("unchecked")
+            @Override
+            public <_T> _T toObject(MetaClass<_T> targetMeta) {
+                return metaClass.equals(targetMeta)
+                    ? (_T)obj
+                    : PropertyResolvers.toObject(this, targetMeta);
+            }
         };
     }
 

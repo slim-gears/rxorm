@@ -5,10 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.query.EntitySet;
-import com.slimgears.rxrepo.query.Notification;
-import com.slimgears.rxrepo.query.NotificationPrototype;
-import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.query.*;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.logging.LogLevel;
@@ -768,7 +765,7 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(0, p -> requireNonNull(p.vendor()).id().equals(vendorId));
     }
 
-    @Test
+    @Test @UseLogLevel(LogLevel.TRACE)
     public void testObserveAsList() {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
         products.update(Products.createMany(10)).ignoreElement().blockingAwait();
@@ -838,7 +835,7 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    public void testORetrieveAsListWithProperties() throws InterruptedException {
+    public void testRetrieveAsListWithProperties() throws InterruptedException {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
         products.update(Products.createMany(10)).ignoreElement().blockingAwait();
         products.query()
@@ -925,6 +922,65 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(10, NotificationPrototype::isModify)
                 .assertValueAt(10, n -> ProductPrototype.Type.ComputeHardware.equals(requireNonNull(n.oldValue()).type()))
                 .assertValueAt(10, n -> ProductPrototype.Type.ComputerSoftware.equals(requireNonNull(n.newValue()).type()));
+    }
+
+    @Test @UseLogLevel(LogLevel.TRACE)
+    public void testLiveSelectWithMapping() throws InterruptedException {
+        repository.entities(Product.metaClass)
+            .update(Products.createMany(10))
+            .test()
+            .await()
+            .assertNoErrors();
+
+        TestObserver<List<Inventory>> inventoriesObserver = repository.entities(Product.metaClass)
+            .query()
+            .liveSelect(Product.$.inventory)
+            .observeAs(Notifications.toList())
+            .doOnNext(n -> n.forEach(System.out::println))
+            .debounce(500, TimeUnit.MILLISECONDS)
+            .test()
+            .assertSubscribed();
+
+        inventoriesObserver
+            .assertOf(countAtLeast(1))
+            .assertNoTimeout()
+            .assertNoErrors()
+            .assertValueAt(0, l -> l.size() == 10)
+            .assertValueAt(0, l -> l.get(0) != null);
+
+        repository.entities(Product.metaClass)
+            .update(Products.createMany(11))
+            .ignoreElement()
+            .blockingAwait();
+
+        inventoriesObserver
+            .assertOf(countAtLeast(2))
+            .assertNoTimeout()
+            .assertNoErrors()
+            .assertValueAt(1, l -> l.size() == 11)
+            .assertValueAt(1, l -> l.get(10) != null);
+    }
+
+    @Test
+    public void testLiveAggregateWithMapping() {
+        TestObserver<Long> inventoriesObserver = repository.entities(Product.metaClass)
+            .query()
+            .map(Product.$.inventory)
+            .observeCount()
+            .filter(c -> c > 0)
+            .test()
+            .assertSubscribed();
+
+        repository.entities(Product.metaClass)
+            .update(Products.createMany(10))
+            .test()
+            .awaitCount(10)
+            .assertNoErrors();
+
+        inventoriesObserver
+            .assertOf(countAtLeast(1))
+            .assertNoTimeout()
+            .assertNoErrors();
     }
 
     @Test @UseLogLevel(LogLevel.TRACE)

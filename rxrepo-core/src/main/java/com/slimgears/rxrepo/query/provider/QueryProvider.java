@@ -40,7 +40,10 @@ public interface QueryProvider extends AutoCloseable {
     }
 
     default <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return liveQuery(query).debounce(500, TimeUnit.MILLISECONDS).switchMapMaybe(n -> aggregate(query, aggregator));
+        return liveQuery(query)
+            .debounce(500, TimeUnit.MILLISECONDS)
+            .switchMapMaybe(n -> aggregate(query, aggregator))
+            .distinctUntilChanged();
     }
 
     default void close() {
