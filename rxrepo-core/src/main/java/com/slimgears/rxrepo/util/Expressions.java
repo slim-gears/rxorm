@@ -65,6 +65,9 @@ public class Expressions {
 
     @SuppressWarnings("unchecked")
     public static <S, T, R> ObjectExpression<S, R> compose(ObjectExpression<S, T> first, ObjectExpression<T, R> second) {
+        if (first == null) {
+            return (ObjectExpression<S, R>)second;
+        }
         return (ObjectExpression<S, R>)second.reflect().convert(new ObjectExpression.Converter() {
             @Override
             public <_S, _T> ObjectExpression<_S, _T> convert(ObjectExpression<_S, _T> expression) {
