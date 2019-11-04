@@ -83,6 +83,19 @@ public class ExpressionsTest {
     }
 
     @Test
+    public void testFilterByValue() {
+        TestEntity.Filter filter = TestEntity.Filter
+            .builder()
+            .equalsTo(testEntity1)
+            .build();
+        Function<TestEntity, Boolean> func = filter.toExpression(ObjectExpression.arg(TestEntity.class))
+            .map(Expressions::compile)
+            .orElse(e -> false);
+
+        Assert.assertTrue(func.apply(testEntity1));
+    }
+
+    @Test
     public void testAnnotationRetrieval() {
         Assert.assertTrue(TestEntity.metaClass.text.hasAnnotation(Filterable.class));
         Assert.assertTrue(TestEntity.metaClass.number.hasAnnotation(Indexable.class));

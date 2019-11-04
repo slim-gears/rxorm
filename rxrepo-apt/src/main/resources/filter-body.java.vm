@@ -35,10 +35,9 @@
                     $[com.slimgears.rxrepo.filters.Filters].fromTextFilter(this, self)#if(!$filterableProperties.isEmpty()),#end
 #end##
 #foreach ($p in $filterableProperties)
-                    $[java.util.Optional].ofNullable(${p.name()}()).flatMap(f -> f.toExpression(self.${p.name()}))##
-#if ($foreach.hasNext),
+                    $[java.util.Optional].ofNullable(${p.name()}()).flatMap(f -> f.toExpression(self.${p.name()})),
 #end
-#end##
+                    ValueFilterPrototype.super.toExpression(arg)
             );
         }
 
