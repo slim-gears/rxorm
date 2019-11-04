@@ -32,7 +32,7 @@
             Expressions<__S#foreach ($tp in $sourceClass.typeParams()), $tp.name()#end> self = new Expressions<>(arg);
             return $[com.slimgears.rxrepo.filters.Filters].combineExpressions(
 #if ($isSearchable)
-                    $[com.slimgears.rxrepo.filters.Filters].fromTextFilter(this, self)#if(!$filterableProperties.isEmpty()),#end
+                    $[com.slimgears.rxrepo.filters.Filters].fromTextFilter(this, self),
 #end##
 #foreach ($p in $filterableProperties)
                     $[java.util.Optional].ofNullable(${p.name()}()).flatMap(f -> f.toExpression(self.${p.name()})),
