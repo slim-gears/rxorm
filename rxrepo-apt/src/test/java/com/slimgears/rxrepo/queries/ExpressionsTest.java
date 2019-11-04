@@ -1,13 +1,19 @@
 package com.slimgears.rxrepo.queries;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.slimgears.rxrepo.annotations.Filterable;
 import com.slimgears.rxrepo.annotations.Indexable;
+import com.slimgears.rxrepo.expressions.BooleanExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.filters.ComparableFilter;
+import com.slimgears.rxrepo.filters.StringFilter;
 import com.slimgears.rxrepo.util.Expressions;
 import com.slimgears.rxrepo.util.PropertyExpressions;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
@@ -93,6 +99,24 @@ public class ExpressionsTest {
             .orElse(e -> false);
 
         Assert.assertTrue(func.apply(testEntity1));
+    }
+
+    @Test
+    public void testFilterByValueFromJson() {
+        TestEntity.Filter filter = TestEntity.Filter
+                .create(
+                        "",
+                        StringFilter.fromNotEqualsTo(""),
+                        ComparableFilter.fromNotEqualsTo(5),
+                        TestRefEntity.Filter.builder().build(),
+                        testEntity1,
+                        testEntity2,
+                        ImmutableList.of(testEntity1),
+                        false);
+        Assert.assertEquals(filter.equalsTo(), testEntity1);
+        Assert.assertEquals(filter.notEqualsTo(), testEntity2);
+        Assert.assertEquals(filter.equalsToAny(), ImmutableList.of(testEntity1));
+        Assert.assertEquals(Boolean.FALSE, filter.isNull());
     }
 
     @Test

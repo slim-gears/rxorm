@@ -48,22 +48,25 @@
 
         @$[com.fasterxml.jackson.annotation.JsonCreator]
         public static #typeParamsDeclaration($sourceClass) Filter#typeParams($sourceClass) create(
+#if ($isSearchable)            @$[javax.annotation.Nullable] @$[com.fasterxml.jackson.annotation.JsonProperty]("searchText") String searchText,#end
 #foreach ($p in $filterableProperties)
-            @$[javax.annotation.Nullable] @$[com.fasterxml.jackson.annotation.JsonProperty]("$p.name()") #filterType($p) ${p.name()}##
-    #if ($foreach.hasNext || $isSearchable),##
-
-##
-    #end##
-#end##
-#if ($isSearchable)            @$[javax.annotation.Nullable] @$[com.fasterxml.jackson.annotation.JsonProperty]("searchText") String searchText#end##
-        ) {
-            return Filter.#typeParams($sourceClass)builder()
-#foreach ($p in $filterableProperties)
-                    .${p.name()}($p.name())
+            @$[javax.annotation.Nullable] @$[com.fasterxml.jackson.annotation.JsonProperty]("$p.name()") #filterType($p) ${p.name()},
 #end
+            @$[javax.annotation.Nullable] @$[com.fasterxml.jackson.annotation.JsonProperty]("equalsTo") $targetClass.simpleName() equalsTo,
+            @$[javax.annotation.Nullable] @$[com.fasterxml.jackson.annotation.JsonProperty]("notEqualsTo") $targetClass.simpleName() notEqualsTo,
+            @$[javax.annotation.Nullable] @$[com.fasterxml.jackson.annotation.JsonProperty]("equalsToAny") $[com.google.common.collect.ImmutableList]<$targetClass.simpleName()> equalsToAny,
+            @$[javax.annotation.Nullable] @$[com.fasterxml.jackson.annotation.JsonProperty]("isNull") Boolean isNull) {
+            return Filter.#typeParams($sourceClass)builder()
 #if ($isSearchable)
                     .searchText(searchText)
 #end
+#foreach ($p in $filterableProperties)
+                    .${p.name()}($p.name())
+#end
+                    .equalsTo(equalsTo)
+                    .notEqualsTo(notEqualsTo)
+                    .equalsToAny(equalsToAny)
+                    .isNull(isNull)
                     .build();
         }
 
