@@ -9,6 +9,8 @@ import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.stream.Streams;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -18,12 +20,15 @@ import static com.slimgears.util.stream.Optionals.ofType;
 class PropertyResolvers {
     static <T> T toObject(PropertyResolver resolver, MetaClass<T> metaClass) {
         BuilderPrototype<T, ?> builder = metaClass.createBuilder();
+        AtomicBoolean notNull = new AtomicBoolean(false);
         Streams.fromIterable(resolver.propertyNames())
                 .map(metaClass::getProperty)
                 .filter(Objects::nonNull)
                 .flatMap(PropertyValue.toValue(resolver))
+                .filter(PropertyValue::hasValue)
+                .peek(v -> notNull.set(true))
                 .forEach(pv -> pv.set(builder));
-        return builder.build();
+        return notNull.get() ? builder.build() : null;
     }
 
     static PropertyResolver empty() {
@@ -196,6 +201,10 @@ class PropertyResolvers {
     private static class PropertyValue<T, V> {
         final PropertyMeta<T, V> property;
         final V value;
+
+        boolean hasValue() {
+            return value != null;
+        }
 
         void set(MetaBuilder<T> builder) {
             property.setValue(builder, PropertyResolvers.toValue(property.type(), value));
