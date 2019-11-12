@@ -6,29 +6,22 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.util.autovalue.annotations.*;
+import com.slimgears.util.stream.Lazy;
 import com.slimgears.util.stream.Streams;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static com.slimgears.util.stream.Optionals.ofType;
 
 class PropertyResolvers {
     static <T> T toObject(PropertyResolver resolver, MetaClass<T> metaClass) {
         BuilderPrototype<T, ?> builder = metaClass.createBuilder();
-        AtomicBoolean notNull = new AtomicBoolean(false);
-        Streams.fromIterable(resolver.propertyNames())
-                .map(metaClass::getProperty)
-                .filter(Objects::nonNull)
-                .flatMap(PropertyValue.toValue(resolver))
-                .filter(PropertyValue::hasValue)
-                .peek(v -> notNull.set(true))
+        Streams.fromIterable(metaClass.properties())
+                .map(prop -> PropertyValue.toValue(resolver, prop))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
                 .forEach(pv -> pv.set(builder));
-        return notNull.get() ? builder.build() : null;
+        return builder.build();
     }
 
     static PropertyResolver empty() {
@@ -42,53 +35,33 @@ class PropertyResolvers {
             public Object getProperty(String name, Class type) {
                 return null;
             }
-
-            @Override
-            public Object getKey(Class keyClass) {
-                return null;
-            }
         };
     }
 
     static PropertyResolver merge(PropertyResolver... propertyResolvers) {
-        List<PropertyResolver> resolvers = Arrays
-                .stream(propertyResolvers)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        Lazy<Iterable<String>> propertyNames = Lazy.of(() -> Arrays
+            .stream(propertyResolvers)
+            .filter(Objects::nonNull)
+            .flatMap(pr -> Streams.fromIterable(pr.propertyNames()))
+            .collect(Collectors.toSet()));
 
-        Set<String> propertyNames = Arrays
-                .stream(propertyResolvers)
-                .filter(Objects::nonNull)
-                .flatMap(pr -> Streams.fromIterable(pr.propertyNames()))
-                .collect(Collectors.toSet());
-
-
-        return new PropertyResolver() {
+        PropertyResolver resolver = new PropertyResolver() {
             @Override
             public Iterable<String> propertyNames() {
-                return propertyNames;
+                return propertyNames.get();
             }
 
             @Override
             public Object getProperty(String name, Class type) {
-                return resolvers
-                        .stream()
+                return Arrays.stream(propertyResolvers)
+                        .filter(Objects::nonNull)
                         .map(pr -> pr.getProperty(name, type))
                         .filter(Objects::nonNull)
                         .findFirst()
                         .orElse(null);
             }
-
-            @Override
-            public Object getKey(Class<?> keyClass) {
-                return resolvers
-                        .stream()
-                        .map(pr -> pr.getKey(keyClass))
-                        .filter(Objects::nonNull)
-                        .findFirst()
-                        .orElse(null);
-            }
         };
+        return resolver.cache();
     }
 
     private static <T extends HasMetaClass<T>> PropertyResolver fromObject(T obj) {
@@ -105,12 +78,6 @@ class PropertyResolvers {
                 .map(PropertyMeta::name)
                 .collect(Collectors.toList());
 
-        Optional<String> keyProperty = Optional
-                .of(metaClass)
-                .flatMap(ofType(MetaClassWithKey.class))
-                .map(MetaClassWithKey::keyProperty)
-                .map(PropertyMeta::name);
-
         return new PropertyResolver() {
             @Override
             public Iterable<String> propertyNames() {
@@ -123,14 +90,6 @@ class PropertyResolvers {
                         .map(p -> fromValue(p.type(), p.getValue(obj)))
                         .orElse(null);
             }
-
-            @Override
-            public Object getKey(Class keyClass) {
-                return keyProperty
-                        .map(name -> getProperty(name, keyClass))
-                        .orElse(null);
-            }
-
             @SuppressWarnings("unchecked")
             @Override
             public <_T> _T toObject(MetaClass<_T> targetMeta) {
@@ -138,7 +97,7 @@ class PropertyResolvers {
                     ? (_T)obj
                     : PropertyResolvers.toObject(this, targetMeta);
             }
-        };
+        }.cache();
     }
 
     private static <V> Object fromValue(TypeToken<?> type, V value) {
@@ -202,10 +161,6 @@ class PropertyResolvers {
         final PropertyMeta<T, V> property;
         final V value;
 
-        boolean hasValue() {
-            return value != null;
-        }
-
         void set(MetaBuilder<T> builder) {
             property.setValue(builder, PropertyResolvers.toValue(property.type(), value));
         }
@@ -215,13 +170,9 @@ class PropertyResolvers {
             this.value = value;
         }
 
-        static <T, V> Function<PropertyMeta<T, V>, Stream<PropertyValue<T, V>>> toValue(PropertyResolver resolver) {
-            return prop -> {
-                V value = resolver.getProperty(prop);
-                return value != null
-                        ? Stream.of(new PropertyValue<>(prop, value))
-                        : Stream.empty();
-            };
+        static <T, V> Optional<PropertyValue<T, V>> toValue(PropertyResolver resolver, PropertyMeta<T, V> prop) {
+            return Optional.ofNullable(resolver.getProperty(prop))
+                    .map(val -> new PropertyValue<>(prop, val));
         }
     }
 }

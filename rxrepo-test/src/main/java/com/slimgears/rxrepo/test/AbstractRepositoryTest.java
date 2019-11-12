@@ -444,6 +444,24 @@ public abstract class AbstractRepositoryTest {
                 });
     }
 
+    @Test
+    public void testObserveReferencedObjectProperties() {
+        repository.entities(Product.metaClass)
+            .update(Products.createOne().toBuilder().inventory(null).build())
+            .ignoreElement()
+            .blockingAwait();
+
+        repository.entities(Product.metaClass)
+            .query()
+            .liveSelect()
+            .properties(Product.$.inventory.name)
+            .observeAs(Notifications.toList())
+            .test()
+            .awaitCount(1)
+            .assertValue(l -> l.size() == 1)
+            .assertValue(l -> l.get(0).inventory() == null);
+    }
+
     @Test @UseLogLevel(LogLevel.TRACE)
     public void testPartialRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
@@ -458,6 +476,7 @@ public abstract class AbstractRepositoryTest {
                 .query()
                 .where(Product.$.price.lessOrEqual(115))
                 .orderBy(Product.$.key.id)
+                .orderBy(Product.$.productionDate)
                 .retrieve(Product.$.name)
                 .doOnNext(System.out::println)
                 .test()
@@ -771,6 +790,7 @@ public abstract class AbstractRepositoryTest {
         products.update(Products.createMany(10)).ignoreElement().blockingAwait();
         TestObserver<List<Product>> productTestObserver = products.query()
                 .orderBy(Product.$.name)
+                .orderByDescending(Product.$.price)
                 .limit(3)
                 .skip(2)
                 .observeAsList()
@@ -981,6 +1001,60 @@ public abstract class AbstractRepositoryTest {
             .assertOf(countAtLeast(1))
             .assertNoTimeout()
             .assertNoErrors();
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    @Test
+    public void testLiveQueryThenUpdate() {
+        repository.entities(Product.metaClass)
+            .update(Products.createMany(10))
+            .ignoreElement()
+            .blockingAwait();
+
+        TestObserver<Notification<Product>> productObserver = repository.entities(Product.metaClass)
+            .query()
+            .where(Product.$.name.lessThan("Product 5"))
+            .liveSelect()
+            .observe(Product.$.name, Product.$.price)
+            .test()
+            .assertSubscribed();
+
+        Product product1 = repository.entities(Product.metaClass)
+            .find(UniqueId.productId(1))
+            .blockingGet();
+
+        Product product8 = repository.entities(Product.metaClass)
+            .find(UniqueId.productId(8))
+            .blockingGet();
+
+        repository.entities(Product.metaClass)
+            .update(product8.toBuilder().name(product8.name() + " - Updated").build())
+            .ignoreElement()
+            .blockingAwait();
+
+        repository.entities(Product.metaClass)
+            .update(product1.toBuilder().name(product1.name() + " - Updated").build())
+            .ignoreElement()
+            .blockingAwait();
+
+        productObserver.awaitCount(1)
+            .assertValueAt(0, NotificationPrototype::isModify)
+            .assertValueAt(0, p -> p.oldValue().name().equals("Product 1"))
+            .assertValueAt(0, p -> p.newValue().name().equals("Product 1 - Updated"));
+
+        repository.entities(Product.metaClass)
+            .update(product1.toBuilder().productionDate(new Date(product1.productionDate().getTime() + 1)).build())
+            .ignoreElement()
+            .blockingAwait();
+
+        repository.entities(Product.metaClass)
+            .update(product1.toBuilder().price(product1.price() + 1).build())
+            .ignoreElement()
+            .blockingAwait();
+
+        productObserver.awaitCount(2)
+            .assertValueAt(1, NotificationPrototype::isModify)
+            .assertValueAt(1, p -> p.newValue().productionDate().getTime() - p.oldValue().productionDate().getTime() == 1);
     }
 
     @Test @UseLogLevel(LogLevel.TRACE)

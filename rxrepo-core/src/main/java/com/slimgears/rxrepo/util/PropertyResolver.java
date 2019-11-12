@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface PropertyResolver {
     Iterable<String> propertyNames();
     Object getProperty(String name, Class type);
-    Object getKey(Class<?> keyClass);
+    //Object getKey(Class<?> keyClass);
 
     @SuppressWarnings("unchecked")
     default <V> V getProperty(PropertyMeta<?, V> propertyMeta) {
@@ -45,6 +45,10 @@ public interface PropertyResolver {
                     .map(name -> (T)getProperty(name, Object.class))
                     .orElse(null);
         }
+    }
+
+    default PropertyResolver cache() {
+        return CachedPropertyResolver.of(this);
     }
 
     static <T> PropertyResolver fromObject(MetaClass<T> metaClass, T obj) {

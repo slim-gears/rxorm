@@ -201,7 +201,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
         builder.append(toOrder(first));
         statement.sorting().stream().skip(1)
                 .forEach(si -> {
-                    builder.append(" then by ");
+                    builder.append(", ");
                     builder.append(toOrder(si));
                 });
         return builder.toString();

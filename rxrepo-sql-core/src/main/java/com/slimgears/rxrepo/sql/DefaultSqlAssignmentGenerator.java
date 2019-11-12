@@ -28,8 +28,9 @@ public class DefaultSqlAssignmentGenerator implements SqlAssignmentGenerator {
         Lazy<T> object = Lazy.of(() -> propertyResolver.toObject(metaClass));
         return prop -> {
             Object val = Optional.ofNullable(metaClass.getProperty(prop))
-                .map(p -> p.getValue(object.get()))
-                .orElseGet(() -> propertyResolver.getProperty(prop, Object.class));
+                .map(p -> Optional.ofNullable(p.getValue(object.get())))
+                .orElseGet(() -> Optional.of(propertyResolver.getProperty(prop, Object.class)))
+                .orElse(null);
 
             if (val == null) {
                 return Stream.empty();
