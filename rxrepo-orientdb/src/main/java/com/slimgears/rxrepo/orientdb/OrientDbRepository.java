@@ -108,10 +108,10 @@ public class OrientDbRepository {
                             .ifPresent(CompletableSubject::onComplete))
                     .shutdownSignal(shutdownSubject)
                     .decorate(
-                            LiveQueryProviderDecorator.create(),
                             decorator,
-                            UpdateReferencesFirstQueryProviderDecorator.create())
-                    .decorate(OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName))
+                            LiveQueryProviderDecorator.create(),
+                            UpdateReferencesFirstQueryProviderDecorator.create(),
+                            OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName))
                     .buildRepository(configBuilder.build())
                     .onClose(repo -> {
                         shutdownSubject.onComplete();
