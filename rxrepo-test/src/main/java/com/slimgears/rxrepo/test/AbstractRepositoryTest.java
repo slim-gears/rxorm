@@ -828,9 +828,9 @@ public abstract class AbstractRepositoryTest {
         productTestObserver
                 .assertOf(countAtLeast(2))
                 .assertValueAt(1, l -> l.size() == 3)
-                .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 2"))
-                .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 3"))
-                .assertValueAt(1, l -> Objects.equals(l.get(2).name(), "Product 3-1"));
+                .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 1-1"))
+                .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 2"))
+                .assertValueAt(1, l -> Objects.equals(l.get(2).name(), "Product 3"));
     }
 
     @Test
@@ -852,6 +852,44 @@ public abstract class AbstractRepositoryTest {
                 .assertValue(l -> Objects.isNull(l.get(0).type()))
                 .assertValue(l -> Objects.equals(l.get(0).name(), "Product 2"))
                 .assertValue(l -> Objects.equals(l.get(2).name(), "Product 4"));
+    }
+
+    @Test
+    public void testObserveAsListWithPredicate() {
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+
+        products.update(Product.builder()
+                        .name("Product 1")
+                        .key(UniqueId.productId(2))
+                        .price(100)
+                        .type(ProductPrototype.Type.ComputeHardware)
+                        .build())
+                .ignoreElement().blockingAwait();
+
+        TestObserver<List<Product>> productTestObserver = products.query()
+                .where(Product.$.price.eq(100))
+                .observeAsList()
+                .doOnNext(l -> {
+                    System.out.println("List received: ");
+                    l.forEach(System.out::println);
+                })
+                .test()
+                .assertOf(countAtLeast(1))
+                .assertValueAt(0, l -> l.size() == 1);
+
+        products.update(Product.builder()
+                    .name("Product 2")
+                    .key(UniqueId.productId(1))
+                    .price(100)
+                    .type(ProductPrototype.Type.ComputeHardware)
+                    .build())
+                .ignoreElement().blockingAwait();
+
+        productTestObserver
+                .assertOf(countAtLeast(2))
+                .assertValueAt(1, l -> l.size() == 2)
+                .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 1"))
+                .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 2"));
     }
 
     @Test
