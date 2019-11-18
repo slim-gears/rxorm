@@ -793,7 +793,7 @@ public abstract class AbstractRepositoryTest {
                 .orderByDescending(Product.$.price)
                 .limit(3)
                 .skip(2)
-                .observeAsList()
+                .observeAs(Notifications.toSlidingList())
                 .doOnNext(l -> {
                     System.out.println("List received: ");
                     l.forEach(System.out::println);
@@ -828,9 +828,9 @@ public abstract class AbstractRepositoryTest {
         productTestObserver
                 .assertOf(countAtLeast(2))
                 .assertValueAt(1, l -> l.size() == 3)
-                .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 1-1"))
-                .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 2"))
-                .assertValueAt(1, l -> Objects.equals(l.get(2).name(), "Product 3"));
+                .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 2"))
+                .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 3"))
+                .assertValueAt(1, l -> Objects.equals(l.get(2).name(), "Product 3-1"));
     }
 
     @Test

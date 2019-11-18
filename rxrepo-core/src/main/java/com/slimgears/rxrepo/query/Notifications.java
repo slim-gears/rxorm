@@ -35,8 +35,24 @@ public class Notifications {
             .map(objects -> objects.stream().map(mapper).collect(Collectors.toList()));
     }
 
+    private static <K, S, T> ObservableTransformer<List<Notification<S>>, List<T>> toSlidingList(
+            MetaClassWithKey<K, S> metaClass,
+            ImmutableList<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos,
+            @Nullable ObjectExpression<S, T> mapping,
+            @Nullable Long limit) {
+        Function<S, T> mapper = Expressions.compile(mapping);
+        ObservableTransformer<List<Notification<S>>, List<S>> transformer = NotificationsToSlidingListTransformer.create(metaClass, sortingInfos, limit);
+        return src -> src
+            .compose(transformer)
+            .map(objects -> objects.stream().map(mapper).collect(Collectors.toList()));
+    }
+
     public static <K, S> ObservableTransformer<List<Notification<S>>, List<S>> toList(QueryInfo<K, S, S> queryInfo, AtomicLong count) {
         return Notifications.toList(queryInfo.metaClass(), queryInfo.sorting(), queryInfo.mapping(), queryInfo.limit());
+    }
+
+    public static <K, S> ObservableTransformer<List<Notification<S>>, List<S>> toSlidingList(QueryInfo<K, S, S> queryInfo, AtomicLong count) {
+        return Notifications.toSlidingList(queryInfo.metaClass(), queryInfo.sorting(), queryInfo.mapping(), queryInfo.limit());
     }
 
     public static <T> QueryTransformer<T, List<T>> toList() {
@@ -47,6 +63,16 @@ public class Notifications {
             }
         };
     }
+
+    public static <T> QueryTransformer<T, List<T>> toSlidingList() {
+        return new QueryTransformer<T, List<T>>() {
+            @Override
+            public <K, S> ObservableTransformer<List<Notification<S>>, List<T>> transformer(QueryInfo<K, S, T> query, AtomicLong count) {
+                return toSlidingList(query.metaClass(), query.sorting(), query.mapping(), query.limit());
+            }
+        };
+    }
+
     public static <S> ObservableTransformer<Notification<S>, Notification<S>> filter(ObjectExpression<S, Boolean> predicate) {
         if (predicate == null) {
             return src -> src;
