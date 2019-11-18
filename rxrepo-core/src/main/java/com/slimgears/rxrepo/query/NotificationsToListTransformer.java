@@ -67,7 +67,8 @@ public class NotificationsToListTransformer<K, T> implements ObservableTransform
             Optional.ofNullable(value)
                     .map(metaClass::keyOf)
                     .ifPresent(key -> {
-                        map.put(key, value);
+                        Optional.ofNullable(map.put(key, value))
+                                .ifPresent(set::remove);
                         set.add(value);
                     });
         }
