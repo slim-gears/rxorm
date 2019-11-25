@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.queries;
 import com.slimgears.rxrepo.annotations.Filterable;
 import com.slimgears.rxrepo.annotations.Indexable;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.filters.ComparableFilter;
 import com.slimgears.rxrepo.util.Expressions;
 import org.junit.Assert;
 import org.junit.Test;
@@ -78,6 +79,22 @@ public class ExpressionsTest {
 
         Assert.assertTrue(func.apply(testEntity1));
         Assert.assertFalse(func.apply(testEntity2));
+    }
+
+    @Test
+    public void testNestedFilterToExpression() {
+        TestRefEntity inner = TestRefEntity.create(1, "", null);
+        TestRefEntity refWithInner = TestRefEntity.create(2, "", inner);
+        TestRefEntity.Filter filter = TestRefEntity.Filter.builder()
+                .testRefEntity(TestRefEntity.Filter.builder().id(ComparableFilter.fromEqualsTo(1)).build())
+                .build();
+
+        Function<TestRefEntity, Boolean> func = filter.toExpression(ObjectExpression.arg(TestRefEntity.class))
+                .map(Expressions::compile)
+                .orElse(e -> false);
+
+        Assert.assertTrue(func.apply(refWithInner));
+        Assert.assertFalse(func.apply(inner));
     }
 
     @Test

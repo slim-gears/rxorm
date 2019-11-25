@@ -32,7 +32,7 @@ public class MetaClassCodecTest {
             .refEntityId(2)
             .refEntityText("Text1")
             .enumVal(TestEntityPrototype.TestEnum.Val2)
-            .refEntities(ImmutableList.of(TestRefEntity.create(4, "Test4")))
+            .refEntities(ImmutableList.of(TestRefEntity.create(4, "Test4", null)))
             .build();
 
     @Test

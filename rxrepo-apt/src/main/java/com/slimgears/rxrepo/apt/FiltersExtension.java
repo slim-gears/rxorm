@@ -16,8 +16,8 @@ import java.util.stream.Collectors;
 @SupportedAnnotationTypes("com.slimgears.rxrepo.annotations.UseFilters")
 public class FiltersExtension implements Extension {
     public static class FilterUtils {
-        public boolean hasOwnFilter(PropertyInfo property) {
-            return ExtensionUtils.hasInnerClass(property, "Filter");
+        public boolean hasOwnFilter(TypeInfo sourceClass, PropertyInfo property) {
+            return ExtensionUtils.hasInnerClass(sourceClass, property, "Filter");
         }
     }
 
