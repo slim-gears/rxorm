@@ -23,7 +23,6 @@ import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.rxrepo.util.Expressions;
 import com.slimgears.rxrepo.util.PropertyMetas;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Lazy;
@@ -51,7 +50,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-class MongoEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implements EntityQueryProvider<K, S> {
+class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S> {
     private final static Logger log = LoggerFactory.getLogger(MongoEntityQueryProvider.class);
     private final MetaClassWithKey<K, S> metaClass;
     private final Lazy<MongoCollection<Document>> objectCollection;
@@ -90,8 +89,14 @@ class MongoEntityQueryProvider<K, S extends HasMetaClassWithKey<K, S>> implement
 
         return Completable
                 .fromPublisher(objectCollection.get().insertMany(documents))
+                .doOnSubscribe(d -> log.debug("Inserting {} documents", documents.size()))
                 .doOnComplete(() -> log.debug("Insert of {} documents complete", documents.size()))
                 .onErrorResumeNext(e -> Completable.error(convertError(e)));
+    }
+
+    @Override
+    public MetaClassWithKey<K, S> metaClass() {
+        return metaClass;
     }
 
     @Override

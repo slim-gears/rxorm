@@ -8,6 +8,7 @@ import com.slimgears.rxrepo.expressions.internal.*;
 
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 @JsonTypeIdResolver(ExpressionTypeResolver.class)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CUSTOM, property = "type", visible = true)
@@ -167,20 +168,17 @@ public interface Expression {
 
         private static <S, T> TypeToken<T> fromArgument(ObjectExpression<S, T> exp) {
             return requireInstanceOf(exp, new TypeToken<UnaryOperationExpression<S, T, T>>(){})
-                    .operand()
-                    .objectType();
+                    .operand().reflect().objectType();
         }
 
         private static <S, T> TypeToken<T> fromFirstArgument(ObjectExpression<S, T> exp) {
             return requireInstanceOf(exp, new TypeToken<BinaryOperationExpression<S, T, T, T>>(){})
-                    .left()
-                    .objectType();
+                    .left().reflect().objectType();
         }
 
         private static <S, T> TypeToken<T> fromProperty(ObjectExpression<S, T> exp) {
             return requireInstanceOf(exp, new TypeToken<PropertyExpression<S, ?, T>>(){})
-                    .property()
-                    .type();
+                    .property().type();
         }
 
         @SuppressWarnings("unchecked")
@@ -195,12 +193,11 @@ public interface Expression {
 
         private static <S, T> TypeToken<T> fromComposition(ObjectExpression<S, T> exp) {
             return requireInstanceOf(exp, new TypeToken<ComposedExpression<S, ?, T>>(){})
-                .expression()
-                .objectType();
+                .expression().reflect().objectType();
         }
 
         private static <S, T> TypeToken<T> overridden(ObjectExpression<S, T> exp) {
-            return exp.objectType();
+            return exp.reflect().objectType();
         }
 
         private static <T, R extends T> R requireInstanceOf(T obj, TypeToken<R> typeToken) {

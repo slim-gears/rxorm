@@ -7,7 +7,9 @@ import com.slimgears.rxrepo.expressions.ComposedExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 
 @AutoValue
-public abstract class ObjectComposedExpression<S, T, R> implements ComposedExpression<S, T, R>, ObjectExpression<S, R> {
+public abstract class ObjectComposedExpression<S, T, R>
+    extends AbstractComposedExpression<S, T, R>
+    implements ObjectExpression<S, R> {
     @JsonCreator
     public static <S, T, R> ObjectComposedExpression<S, T, R> create(
             @JsonProperty("type") Type type,

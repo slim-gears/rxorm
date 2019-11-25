@@ -108,17 +108,20 @@ public class OrientDbRepository {
                             .ifPresent(CompletableSubject::onComplete))
                     .shutdownSignal(shutdownSubject)
                     .decorate(
-                            decorator,
+                            LiveQueryProviderDecorator.create(),
                             UpdateReferencesFirstQueryProviderDecorator.create(),
-                            LiveQueryProviderDecorator.create())
-                    .decorate(OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName))
+                            OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
+                            decorator)
                     .buildRepository(configBuilder.build())
                     .onClose(repo -> {
                         shutdownSubject.onComplete();
                         if (!Observable.fromIterable(sessions.values())
                                 .flatMapCompletable(Functions.identity())
                                 .blockingAwait(4, TimeUnit.SECONDS)) {
-                            sessions.keySet().forEach(ODatabaseDocument::close);
+                            sessions.keySet().forEach(dbSession -> {
+                                dbSession.activateOnCurrentThread();
+                                dbSession.close();
+                            });
                         }
                         dbClient.close();
                     });

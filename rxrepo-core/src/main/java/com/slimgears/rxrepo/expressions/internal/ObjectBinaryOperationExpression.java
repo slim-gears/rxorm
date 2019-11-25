@@ -7,9 +7,11 @@ import com.slimgears.rxrepo.expressions.BinaryOperationExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 
 @AutoValue
-public abstract class ObjectBinaryOperationExpression<S, T1, T2, V> implements BinaryOperationExpression<S, T1, T2, V>, ObjectExpression<S, V> {
+public abstract class ObjectBinaryOperationExpression<S, T1, T2, V>
+    extends AbstractBinaryOperationExpression<S, T1, T2, V>
+    implements ObjectExpression<S, V> {
     @JsonCreator
-    public static <S, T1, T2, V extends Comparable<V>> ObjectBinaryOperationExpression<S, T1, T2, V> create(
+    public static <S, T1, T2, V> ObjectBinaryOperationExpression<S, T1, T2, V> create(
             @JsonProperty("type") Type type,
             @JsonProperty("left") ObjectExpression<S, T1> left,
             @JsonProperty("right") ObjectExpression<S, T2> right) {

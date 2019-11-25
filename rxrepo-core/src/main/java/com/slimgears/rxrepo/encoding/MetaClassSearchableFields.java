@@ -2,30 +2,47 @@ package com.slimgears.rxrepo.encoding;
 
 import com.google.common.base.Strings;
 import com.slimgears.rxrepo.annotations.Searchable;
+import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class MetaClassSearchableFields {
-    public static <T> Optional<Function<T, String>> searchableTextFromEntity(MetaClass<T> metaClass) {
-        return searchableTextFromEntity(metaClass, e -> e, new HashSet<>());
+    private final static Map<Class<?>, Function<Object, String>> searchableTextGetterByClass = new ConcurrentHashMap<>();
+
+    public static String searchableTextFromObject(Object obj) {
+        return Optional.ofNullable(obj)
+                .flatMap(Optionals.ofType(HasMetaClass.class))
+                .map(o -> (HasMetaClass<?>)o)
+                .flatMap(o -> searchableTextFromEntity(o.metaClass()).map(f -> f.apply(obj)))
+                .orElseGet(() -> obj != null ? obj.toString() : "");
+    }
+
+    public static <T> Optional<Function<Object, String>> searchableTextFromEntity(MetaClass<T> metaClass) {
+        return Optional.ofNullable(searchableTextGetterByClass.computeIfAbsent(
+                metaClass.asClass(),
+                c -> searchableTextFromEntity(metaClass, obj -> metaClass.asClass().cast(obj), new HashSet<>()).orElse(null)));
     }
 
     private static <T, R> Optional<Function<T, String>> searchableTextFromEntity(MetaClass<R> metaClass, Function<T, R> getter, Set<PropertyMeta<?, ?>> visitedProperties) {
         Optional<Function<T, String>> selfFields = searchableTextForMetaClass(metaClass, visitedProperties)
                 .map(getter::andThen);
 
+//        return selfFields;
         Optional<Function<T, String>> nestedFields = Streams
                 .fromIterable(metaClass.properties())
-                .filter(p -> p.type().isSubtypeOf(HasMetaClass.class))
+                .filter(p -> PropertyMetas.isEmbedded(p) && !PropertyMetas.isReference(p))
                 .filter(visitedProperties::add)
                 .map(p -> searchableTextFromProperty(getter, p, visitedProperties))
                 .flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty))

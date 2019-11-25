@@ -6,68 +6,75 @@ import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static com.slimgears.util.generic.LazyString.lazy;
 
 public class AbstractQueryProviderDecorator implements QueryProvider {
-    @SuppressWarnings("WeakerAccess") protected final QueryProvider underlyingProvider;
+    private final QueryProvider underlyingProvider;
+    protected final Logger log;
 
     protected AbstractQueryProviderDecorator(QueryProvider underlyingProvider) {
+        this.log = LoggerFactory.getLogger(getClass());
         this.underlyingProvider = underlyingProvider;
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Completable insert(Iterable<S> entities) {
-        return underlyingProvider.insert(entities);
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return underlyingProvider.insert(metaClass, entities);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
-        return underlyingProvider.insertOrUpdate(entity);
+    public <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
+        return underlyingProvider.insertOrUpdate(metaClass, entity);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+    public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return underlyingProvider.insertOrUpdate(metaClass, key, entityUpdater);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
         return underlyingProvider.query(query);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-        return underlyingProvider.liveQuery(query);
+    public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
+        return underlyingProvider.liveQuery(query)
+            .doOnNext(n -> log.trace("[{}] Received notification: {}", lazy(() -> getClass().getSimpleName()), n));
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
+    public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return underlyingProvider.aggregate(query, aggregator);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return underlyingProvider.liveAggregate(query, aggregator);
+    public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
+        return underlyingProvider.liveAggregate(query, aggregator)
+            .doOnNext(n -> log.trace("[{}] Received aggregation notification: {}", lazy(() -> getClass().getSimpleName()), n));
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> update(UpdateInfo<K, S> update) {
+    public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
         return underlyingProvider.update(update);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> delete) {
+    public <K, S> Single<Integer> delete(DeleteInfo<K, S> delete) {
         return underlyingProvider.delete(delete);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Completable drop(MetaClassWithKey<K, S> metaClass) {
+    public <K, S> Completable drop(MetaClassWithKey<K, S> metaClass) {
         return underlyingProvider.drop(metaClass);
     }
 

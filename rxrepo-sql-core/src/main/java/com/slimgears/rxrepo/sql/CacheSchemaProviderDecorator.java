@@ -34,7 +34,7 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
     public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
         return cache.computeIfAbsent(
                 tableName(metaClass),
-                tn -> createOrUpdateWithReferences(metaClass).cache());
+                tn -> Completable.defer(() -> createOrUpdateWithReferences(metaClass)).cache());
     }
 
     private <T> Completable createOrUpdateWithReferences(MetaClass<T> metaClass) {

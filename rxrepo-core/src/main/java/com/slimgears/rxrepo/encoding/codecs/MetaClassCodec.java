@@ -15,7 +15,7 @@ import java.util.function.Function;
 
 public class MetaClassCodec<T> implements MetaCodec<T> {
     private final MetaClass<T> metaClass;
-    private final Lazy<Optional<Function<T, String>>> textSupplier;
+    private final Lazy<Optional<Function<Object, String>>> textSupplier;
     private final MetaObjectResolver resolver;
     private final boolean alwaysEmbedNested;
 
@@ -126,7 +126,7 @@ public class MetaClassCodec<T> implements MetaCodec<T> {
                 .ifPresent(val -> propertyMeta.setValue(builder, val));
     }
 
-    private <K, S extends HasMetaClassWithKey<K, S>> S readReference(MetaContext.Reader context, MetaClassWithKey<K, S> metaClass) {
+    private <K, S> S readReference(MetaContext.Reader context, MetaClassWithKey<K, S> metaClass) {
         return Optional.ofNullable(readValue(context, metaClass.keyProperty().type()))
                 .flatMap(key -> resolver.resolve(metaClass, key).map(Optional::of).blockingGet(Optional.empty()))
                 .orElse(null);

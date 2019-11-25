@@ -2,7 +2,6 @@ package com.slimgears.rxrepo.query;
 
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
@@ -10,11 +9,11 @@ import io.reactivex.Single;
 import java.util.List;
 
 @SuppressWarnings("WeakerAccess")
-public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
-    implements QueryBuilder<SelectQueryBuilder<K, S>, K, S> {
-    public abstract SelectQueryBuilder<K, S> skip(long skip);
+public abstract class SelectQueryBuilder<S>
+    implements QueryBuilder<SelectQueryBuilder<S>, S> {
+    public abstract SelectQueryBuilder<S> skip(long skip);
 
-    public abstract <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, ?, V> field, boolean ascending);
+    public abstract <V extends Comparable<V>> SelectQueryBuilder<S> orderBy(PropertyExpression<S, ?, V> field, boolean ascending);
 
     public abstract SelectQuery<S> select();
 
@@ -28,15 +27,15 @@ public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
         return select(expression, true);
     }
 
-    public abstract LiveSelectQuery<K, S, S> liveSelect();
+    public abstract LiveSelectQuery<S> liveSelect();
 
-    public abstract <T> LiveSelectQuery<K, S, T> liveSelect(ObjectExpression<S, T> expression);
+    public abstract <T> LiveSelectQuery<T> liveSelect(ObjectExpression<S, T> expression);
 
-    public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderBy(PropertyExpression<S, ?, V> field) {
+    public <V extends Comparable<V>> SelectQueryBuilder<S> orderBy(PropertyExpression<S, ?, V> field) {
         return orderBy(field, true);
     }
 
-    public <V extends Comparable<V>> SelectQueryBuilder<K, S> orderByDescending(PropertyExpression<S, S, V> field) {
+    public <V extends Comparable<V>> SelectQueryBuilder<S> orderByDescending(PropertyExpression<S, S, V> field) {
         return orderBy(field, false);
     }
 
@@ -66,15 +65,27 @@ public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
         return liveSelect().queryAndObserve(properties);
     }
 
+    @SafeVarargs
+    public final Single<List<S>> retrieveAsList(PropertyExpression<S, ?, ?>... properties) {
+        return retrieve(properties).toList();
+    }
+
     public final Single<List<S>> retrieveAsList() {
-        return retrieve().toList();
+        //noinspection unchecked
+        return retrieveAsList(new PropertyExpression[0]);
+    }
+
+    @SafeVarargs
+    public final Observable<List<S>> observeAsList(PropertyExpression<S, ?, ?>... properties) {
+        return liveSelect().properties(properties).observeAs(Notifications.toList());
     }
 
     public final Observable<List<S>> observeAsList() {
-        return observeAs(Notifications.toList());
+        //noinspection unchecked
+        return observeAsList(new PropertyExpression[0]);
     }
 
-    public final <R> Observable<R> observeAs(QueryTransformer<K, S, S, R> transformer) {
+    public final <R> Observable<R> observeAs(QueryTransformer<S, R> transformer) {
         return liveSelect().observeAs(transformer);
     }
 
@@ -86,5 +97,9 @@ public abstract class SelectQueryBuilder<K, S extends HasMetaClassWithKey<K, S>>
     public Observable<Notification<S>> queryAndObserve() {
         //noinspection unchecked
         return queryAndObserve(new PropertyExpression[0]);
+    }
+
+    public final <T> SelectQueryBuilder<T> map(ObjectExpression<S, T> mapper) {
+        return MappedSelectQueryBuilder.create(this, mapper);
     }
 }

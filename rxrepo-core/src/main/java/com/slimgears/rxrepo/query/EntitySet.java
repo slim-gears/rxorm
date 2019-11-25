@@ -4,7 +4,6 @@ import com.slimgears.rxrepo.expressions.BooleanExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
@@ -15,11 +14,11 @@ import io.reactivex.functions.Function;
 import java.util.Arrays;
 import java.util.List;
 
-public interface EntitySet<K, S extends HasMetaClassWithKey<K, S>> {
+public interface EntitySet<K, S> {
     MetaClassWithKey<K, S> metaClass();
-    EntityDeleteQuery<K, S> delete();
-    EntityUpdateQuery<K, S> update();
-    SelectQueryBuilder<K, S> query();
+    EntityDeleteQuery<S> delete();
+    EntityUpdateQuery<S> update();
+    SelectQueryBuilder<S> query();
     Single<S> update(S entity);
     Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater);
     Single<List<S>> update(Iterable<S> entities);

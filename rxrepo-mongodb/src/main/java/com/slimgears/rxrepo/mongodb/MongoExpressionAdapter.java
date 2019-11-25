@@ -12,6 +12,7 @@ import org.bson.Document;
 
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
     private final static ImmutableMap<Expression.Type, Reducer> expressionTypeReducers = ImmutableMap
@@ -32,7 +33,7 @@ class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
             .put(Expression.Type.Concat, args -> expr("$concat", args))
             .put(Expression.Type.AsString, args -> expr("$toString", args))
             .put(Expression.Type.StartsWith, args -> expr("$eq", expr("$indexOfCP", args), 0))
-            .put(Expression.Type.SearchText, args -> reduce(Expression.Type.Contains, args[0] + MongoFieldMapper.instance.searchableTextField(), args[1]))
+            .put(Expression.Type.SearchText, args -> searchText(args[0], args[1]))
             .put(Expression.Type.EndsWith, args -> expr("$eq",
                     expr("$indexOfCP", args),
                     expr("$subtract",
@@ -94,6 +95,13 @@ class MongoExpressionAdapter extends ExpressionVisitor<Void, Object> {
     @Override
     protected <T> Object visitArgument(TypeToken<T> argType, Void arg) {
         return "$";
+    }
+
+    private static Document searchText(Object target, Object searchExpr) {
+        String[] parts = searchExpr.toString().split("\\s");
+        return expr("$and", Stream.of(parts)
+                .map(p -> reduce(Expression.Type.Contains, target + MongoFieldMapper.instance.searchableTextField(), p))
+                .toArray(Object[]::new));
     }
 
     interface Reducer {

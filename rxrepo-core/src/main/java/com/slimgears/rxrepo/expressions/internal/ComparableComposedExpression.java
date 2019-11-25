@@ -8,7 +8,9 @@ import com.slimgears.rxrepo.expressions.ComposedExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 
 @AutoValue
-public abstract class ComparableComposedExpression<S, T, R extends Comparable<R>> implements ComposedExpression<S, T, R>, ComparableExpression<S, R> {
+public abstract class ComparableComposedExpression<S, T, R extends Comparable<R>>
+    extends AbstractComposedExpression<S, T, R>
+    implements ComparableExpression<S, R> {
     @JsonCreator
     public static <S, T, R extends Comparable<R>> ComparableComposedExpression<S, T, R> create(
             @JsonProperty("type") Type type,

@@ -17,16 +17,11 @@ class OElementPropertyResolver extends AbstractOrientPropertyResolver {
     }
 
     @Override
-    public Object getKey(Class keyClass) {
-        return oElement.getIdentity().toString();
-    }
-
-    @Override
     protected Object getPropertyInternal(String name, Class type) {
         return oElement.getProperty(name);
     }
 
-    public static PropertyResolver create(OrientDbSessionProvider dbSessionProvider, OElement oElement) {
-        return new OElementPropertyResolver(dbSessionProvider, oElement);
+    static PropertyResolver create(OrientDbSessionProvider dbSessionProvider, OElement oElement) {
+        return new OElementPropertyResolver(dbSessionProvider, oElement).cache();
     }
 }

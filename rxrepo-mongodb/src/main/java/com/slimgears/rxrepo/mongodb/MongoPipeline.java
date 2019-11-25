@@ -14,7 +14,10 @@ import com.slimgears.rxrepo.query.provider.SortingInfo;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyReference;
 import com.slimgears.rxrepo.util.PropertyReferences;
-import com.slimgears.util.autovalue.annotations.*;
+import com.slimgears.util.autovalue.annotations.MetaClass;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClasses;
+import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.generic.MoreStrings;
 import com.slimgears.util.stream.Streams;
 import org.bson.Document;
@@ -88,7 +91,7 @@ public class MongoPipeline {
             Optional.ofNullable(expression)
                     .filter(exp -> !(exp instanceof ArgumentExpression))
                     .map(MongoPipeline::toExpression)
-                    .map(expr -> PropertyMetas.hasMetaClass(expression.objectType()) ? expr : new Document(valueField, expr))
+                    .map(expr -> PropertyMetas.hasMetaClass(expression.reflect().objectType()) ? expr : new Document(valueField, expr))
                     .ifPresent(this::replaceRoot);
             return this;
         }
@@ -134,8 +137,8 @@ public class MongoPipeline {
         }
     }
 
-    static <K, S extends HasMetaClassWithKey<K, S>> Document filterFor(S entity) {
-        return filterForKey(HasMetaClassWithKey.keyOf(entity));
+    static <K, S> Document filterFor(MetaClassWithKey<K, S> metaClass, S entity) {
+        return filterForKey(metaClass.keyOf(entity));
     }
 
     static <K> Document filterForKey(K key) {
@@ -151,7 +154,7 @@ public class MongoPipeline {
     }
 
 
-    static <K, S extends HasMetaClassWithKey<K, S>, T> List<Document> aggregationPipeline(QueryInfo<K, S, T> queryInfo, Aggregator<T, T, ?> aggregator) {
+    static <K, S, T> List<Document> aggregationPipeline(QueryInfo<K, S, T> queryInfo, Aggregator<T, T, ?> aggregator) {
         Builder builder = builder();
         builder.lookupAndUnwindReferences(queryInfo.metaClass());
 

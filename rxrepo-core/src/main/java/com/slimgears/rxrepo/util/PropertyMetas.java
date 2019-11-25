@@ -9,16 +9,25 @@ import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.stream.Optionals;
 
 import javax.annotation.Nullable;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("WeakerAccess")
 public class PropertyMetas {
+    private final static Map<PropertyMeta<?, ?>, Boolean> referencePropertiesCache = new ConcurrentHashMap<>();
+    private final static Map<PropertyMeta<?, ?>, Boolean> embeddedPropertiesCache = new ConcurrentHashMap<>();
+    private final static Map<PropertyMeta<?, ?>, Boolean> mandatoryPropertiesCache = new ConcurrentHashMap<>();
+    private final static Map<PropertyMeta<?, ?>, Boolean> keyPropertiesCache = new ConcurrentHashMap<>();
+
     public static boolean isReference(PropertyMeta<?, ?> propertyMeta) {
-        return isReference(propertyMeta.type()) && !propertyMeta.hasAnnotation(Embedded.class);
+        return referencePropertiesCache.computeIfAbsent(propertyMeta, pm -> isReference(pm.type()) && !pm.hasAnnotation(Embedded.class));
     }
 
     public static boolean isEmbedded(PropertyMeta<?, ?> propertyMeta) {
-        return isEmbedded(propertyMeta.type()) || (isReference(propertyMeta.type()) && propertyMeta.hasAnnotation(Embedded.class));
+        return embeddedPropertiesCache.computeIfAbsent(propertyMeta, pm -> isEmbedded(pm.type()) || (isReference(pm.type()) && pm.hasAnnotation(Embedded.class)));
     }
 
     public static boolean isReference(TypeToken<?> typeToken) {
@@ -38,13 +47,14 @@ public class PropertyMetas {
     }
 
     public static boolean isKey(PropertyMeta<?, ?> property) {
-        return Optional.of(property.declaringType())
+        return keyPropertiesCache.computeIfAbsent(property, pm ->
+            Optional.of(pm.declaringType())
                 .flatMap(Optionals.ofType(MetaClassWithKey.class))
-                .map(mc -> mc.keyProperty() == property)
-                .orElse(false);
+                .map(mc -> mc.keyProperty() == pm)
+                .orElse(false));
     }
 
     public static boolean isMandatory(PropertyMeta<?, ?> propertyMeta) {
-        return !propertyMeta.hasAnnotation(Nullable.class);
+        return mandatoryPropertiesCache.computeIfAbsent(propertyMeta, pm -> !pm.hasAnnotation(Nullable.class));
     }
 }

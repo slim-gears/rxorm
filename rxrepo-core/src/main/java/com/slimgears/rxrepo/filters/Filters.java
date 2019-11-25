@@ -1,13 +1,13 @@
 package com.slimgears.rxrepo.filters;
 
 import com.slimgears.rxrepo.expressions.BooleanExpression;
-import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.expressions.DelegateExpression;
 
 import java.util.Arrays;
 import java.util.Optional;
 
 public class Filters {
-    public static <S, T> Optional<BooleanExpression<S>> fromTextFilter(SearchableFilter filter, ObjectExpression<S, T> arg) {
+    public static <S, T> Optional<BooleanExpression<S>> fromTextFilter(SearchableFilter filter, DelegateExpression<S, T> arg) {
         return Optional.ofNullable(filter.searchText())
                 .filter(text -> !text.isEmpty())
                 .map(arg::searchText);

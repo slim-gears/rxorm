@@ -8,7 +8,9 @@ import com.slimgears.rxrepo.expressions.ArgumentExpression;
 import com.slimgears.rxrepo.expressions.NumericExpression;
 
 @AutoValue
-public abstract class NumericArgumentExpression<S, T extends Number & Comparable<T>> implements ArgumentExpression<S, T>, NumericExpression<S, T> {
+public abstract class NumericArgumentExpression<S, T extends Number & Comparable<T>>
+    extends AbstractArgumentExpression<S, T>
+    implements NumericExpression<S, T> {
     @JsonCreator
     public static <S, T extends Number & Comparable<T>> NumericArgumentExpression<S, T> create(
             @JsonProperty("type") Type type,

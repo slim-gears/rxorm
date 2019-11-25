@@ -9,7 +9,9 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.util.reflect.TypeTokens;
 
 @AutoValue
-public abstract class ObjectArgumentExpression<S, T> implements ArgumentExpression<S, T>, ObjectExpression<S, T> {
+public abstract class ObjectArgumentExpression<S, T>
+    extends AbstractArgumentExpression<S, T>
+    implements ObjectExpression<S, T> {
     @JsonCreator
     public static <S, T> ObjectArgumentExpression<S, T> create(
             @JsonProperty("type") Type type,

@@ -8,7 +8,9 @@ import com.slimgears.rxrepo.expressions.StringExpression;
 import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
 
 @AutoValue
-public abstract class StringUnaryOperationExpression<S, T> implements UnaryOperationExpression<S, T, String>, StringExpression<S> {
+public abstract class StringUnaryOperationExpression<S, T>
+    extends AbstractUnaryOperationExpression<S, T, String>
+    implements StringExpression<S> {
     @JsonCreator
     public static <S, T> StringUnaryOperationExpression<S, T> create(
             @JsonProperty("type") Type type,

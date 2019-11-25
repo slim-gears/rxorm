@@ -6,7 +6,7 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.SortingInfo;
 import com.slimgears.rxrepo.util.Expressions;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Maybe;
 import io.reactivex.ObservableTransformer;
 import io.reactivex.functions.Predicate;
@@ -18,25 +18,62 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class Notifications {
     private final static Logger log = LoggerFactory.getLogger(Notifications.class);
-    public static <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<List<Notification<S>>, List<S>> toList(
+    public static <K, S, T> ObservableTransformer<List<Notification<S>>, List<T>> toList(
+            MetaClassWithKey<K, S> metaClass,
             ImmutableList<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos,
+            @Nullable ObjectExpression<S, T> mapping,
             @Nullable Long limit) {
-        return NotificationsToListTransformer.create(sortingInfos, limit);
+        Function<S, T> mapper = Expressions.compile(mapping);
+        ObservableTransformer<List<Notification<S>>, List<S>> transformer = NotificationsToListTransformer.create(metaClass, sortingInfos, limit);
+        return src -> src
+            .compose(transformer)
+            .map(objects -> objects.stream().map(mapper).collect(Collectors.toList()));
     }
 
-    public static <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<List<Notification<S>>, List<S>> toList(QueryInfo<K, S, S> queryInfo, AtomicLong count) {
-        return toList(queryInfo.sorting(), queryInfo.limit());
+    private static <K, S, T> ObservableTransformer<List<Notification<S>>, List<T>> toSlidingList(
+            MetaClassWithKey<K, S> metaClass,
+            ImmutableList<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos,
+            @Nullable ObjectExpression<S, T> mapping,
+            @Nullable Long limit) {
+        Function<S, T> mapper = Expressions.compile(mapping);
+        ObservableTransformer<List<Notification<S>>, List<S>> transformer = NotificationsToSlidingListTransformer.create(metaClass, sortingInfos, limit);
+        return src -> src
+            .compose(transformer)
+            .map(objects -> objects.stream().map(mapper).collect(Collectors.toList()));
     }
 
-    public static <K, S extends HasMetaClassWithKey<K, S>> QueryTransformer<K, S, S, List<S>> toList() {
-        return (queryInfo, count) -> toList(queryInfo.sorting(), queryInfo.limit());
+    public static <K, S> ObservableTransformer<List<Notification<S>>, List<S>> toList(QueryInfo<K, S, S> queryInfo, AtomicLong count) {
+        return Notifications.toList(queryInfo.metaClass(), queryInfo.sorting(), queryInfo.mapping(), queryInfo.limit());
     }
 
-    public static <K, S extends HasMetaClassWithKey<K, S>> ObservableTransformer<Notification<S>, Notification<S>> filter(ObjectExpression<S, Boolean> predicate) {
+    public static <K, S> ObservableTransformer<List<Notification<S>>, List<S>> toSlidingList(QueryInfo<K, S, S> queryInfo, AtomicLong count) {
+        return Notifications.toSlidingList(queryInfo.metaClass(), queryInfo.sorting(), queryInfo.mapping(), queryInfo.limit());
+    }
+
+    public static <T> QueryTransformer<T, List<T>> toList() {
+        return new QueryTransformer<T, List<T>>() {
+            @Override
+            public <K, S> ObservableTransformer<List<Notification<S>>, List<T>> transformer(QueryInfo<K, S, T> query, AtomicLong count) {
+                return toList(query.metaClass(), query.sorting(), query.mapping(), query.limit());
+            }
+        };
+    }
+
+    public static <T> QueryTransformer<T, List<T>> toSlidingList() {
+        return new QueryTransformer<T, List<T>>() {
+            @Override
+            public <K, S> ObservableTransformer<List<Notification<S>>, List<T>> transformer(QueryInfo<K, S, T> query, AtomicLong count) {
+                return toSlidingList(query.metaClass(), query.sorting(), query.mapping(), query.limit());
+            }
+        };
+    }
+
+    public static <S> ObservableTransformer<Notification<S>, Notification<S>> filter(ObjectExpression<S, Boolean> predicate) {
         if (predicate == null) {
             return src -> src;
         }
@@ -67,7 +104,7 @@ public class Notifications {
                 });
     }
 
-    public static <K, S extends HasMetaClassWithKey<K, S>, T> ObservableTransformer<Notification<S>, Notification<T>> applyQuery(QueryInfo<K, S, T> query) {
+    public static <K, S, T> ObservableTransformer<Notification<S>, Notification<T>> applyQuery(QueryInfo<K, S, T> query) {
         return src -> src
                 .doOnNext(n -> log.debug("Notification: {}", n))
                 .compose(filter(query.predicate()))
@@ -75,7 +112,7 @@ public class Notifications {
                 .compose(fieldsFilter(query.properties()));
     }
 
-    private static <K, S extends HasMetaClassWithKey<K, S>, T> ObservableTransformer<Notification<S>, Notification<T>> map(ObjectExpression<S, T> projection) {
+    private static <S, T> ObservableTransformer<Notification<S>, Notification<T>> map(ObjectExpression<S, T> projection) {
         java.util.function.Function<S, T> mapper = Expressions.compile(projection);
         return src -> src.map(n -> n.map(mapper));
     }

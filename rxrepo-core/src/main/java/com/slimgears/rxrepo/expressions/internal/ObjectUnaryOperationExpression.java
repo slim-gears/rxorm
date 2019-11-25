@@ -7,7 +7,9 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
 
 @AutoValue
-public abstract class ObjectUnaryOperationExpression<S, T, V> implements UnaryOperationExpression<S, T, V>, ObjectExpression<S, V> {
+public abstract class ObjectUnaryOperationExpression<S, T, V>
+    extends AbstractUnaryOperationExpression<S, T, V>
+    implements ObjectExpression<S, V> {
     @JsonCreator
     public static <S, T, V> ObjectUnaryOperationExpression<S, T, V> create(
             @JsonProperty("type") Type type,

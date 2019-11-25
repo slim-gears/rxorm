@@ -9,17 +9,23 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
+import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Optionals;
+import com.slimgears.util.stream.Streams;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static com.slimgears.util.generic.LazyString.lazy;
 
 public class SqlQueryProvider implements QueryProvider {
     private final static Logger log = LoggerFactory.getLogger(SqlQueryProvider.class);
@@ -40,26 +46,26 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Completable insert(Iterable<S> entities) {
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
         return Optional
-                .ofNullable(Iterables.getFirst(entities, null))
-                .map(HasMetaClassWithKey::metaClass)
-                .map(meta -> schemaProvider.createOrUpdate(meta)
-                        .doOnSubscribe(d -> log.debug("Beginning creating class {}", meta.simpleName()))
-                        .doOnComplete(() -> log.debug("Finished creating class {}", meta.simpleName()))
+                .of(entities)
+                .filter(e -> !Iterables.isEmpty(e))
+                .map(meta -> schemaProvider.createOrUpdate(metaClass)
+                        .doOnSubscribe(d -> log.debug("Beginning creating class {}", lazy(metaClass::simpleName)))
+                        .doOnComplete(() -> log.debug("Finished creating class {}", lazy(metaClass::simpleName)))
                         .andThen(Observable.fromIterable(entities)
-                                .flatMapSingle(this::insert)
+                                .flatMapSingle(e -> insert(metaClass, e))
                                 .ignoreElements()))
                 .orElseGet(Completable::complete);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(S entity) {
-        return insertOrUpdate(entity.metaClass(), PropertyResolver.fromObject(entity));
+    public <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
+        return insertOrUpdate(metaClass, PropertyResolver.fromObject(metaClass, entity));
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+    public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         SqlStatement statement = statementProvider.forQuery(QueryInfo
                 .<K, S, S>builder()
                 .metaClass(metaClass)
@@ -67,31 +73,30 @@ public class SqlQueryProvider implements QueryProvider {
                 .limit(1L)
                 .build());
 
-        return statementExecutor
+        return schemaProvider.createOrUpdate(metaClass)
+            .andThen(statementExecutor
                 .executeQuery(statement)
                 .firstElement()
                 .flatMap((PropertyResolver pr) -> {
                     S oldObj = pr.toObject(metaClass);
                     return entityUpdater
                             .apply(Maybe.just(oldObj))
-                            .filter(newObj -> !newObj.equals(oldObj))
-                            .map(newObj -> pr.mergeWith(PropertyResolver.fromObject(newObj)))
+                            .map(newObj -> pr.mergeWith(PropertyResolver.fromObject(metaClass, newObj)))
                             .filter(newPr -> !pr.equals(newPr))
-                            .flatMap(newPr -> insertOrUpdate(metaClass, newPr).toMaybe())
-                            .switchIfEmpty(Maybe.just(oldObj));
+                            .flatMap(newPr -> insertOrUpdate(metaClass, newPr).toMaybe());
                 })
                 .switchIfEmpty(Maybe.defer(() -> entityUpdater
                         .apply(Maybe.empty())
-                        .flatMap(e -> insert(e).toMaybe())));
+                        .flatMap(e -> insert(metaClass, e).toMaybe()))));
     }
 
 
-    private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
+    private <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
         SqlStatement statement = statementProvider.forInsertOrUpdate(metaClass, propertyResolver, referenceResolver);
         return insertOrUpdate(metaClass, statement);
     }
 
-    private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, SqlStatement statement) {
+    private <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, SqlStatement statement) {
         return schemaProvider.createOrUpdate(metaClass)
                 .doOnSubscribe(d -> log.trace("Ensuring class {}", metaClass.simpleName()))
                 .doOnError(e -> log.trace("Error when updating class: {}", metaClass.simpleName(), e))
@@ -107,14 +112,13 @@ public class SqlQueryProvider implements QueryProvider {
                         .singleOrError());
     }
 
-    private <K, S extends HasMetaClassWithKey<K, S>> Single<S> insert(S entity) {
-        MetaClassWithKey<K, S> metaClass = entity.metaClass();
-        SqlStatement statement = statementProvider.forInsert(entity, referenceResolver);
+    private <K, S> Single<S> insert(MetaClassWithKey<K, S> metaClass, S entity) {
+        SqlStatement statement = statementProvider.forInsert(metaClass, entity, referenceResolver);
         return insertOrUpdate(metaClass, statement);
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<T> query(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
         return schemaProvider
                 .createOrUpdate(query.metaClass())
@@ -128,8 +132,7 @@ public class SqlQueryProvider implements QueryProvider {
         Function<PropertyResolver, Maybe<T>> mapper = Optional
                 .ofNullable(mapping)
                 .flatMap(Optionals.ofType(PropertyExpression.class))
-                .map(e -> (PropertyExpression<?, ?, T>)e)
-                .map(this::toPropertyPath)
+                .map(PropertyExpression::path)
                 .<Function<PropertyResolver, Maybe<T>>>map(path -> pr -> Optional
                         .ofNullable(pr.getProperty(path, TypeTokens.asClass(objectType)))
                         .map(obj -> obj instanceof PropertyResolver
@@ -141,14 +144,8 @@ public class SqlQueryProvider implements QueryProvider {
         return src -> src.flatMapMaybe(mapper);
     }
 
-    private String toPropertyPath(PropertyExpression<?, ?, ?> propertyExpression) {
-        return propertyExpression.target() instanceof PropertyExpression
-                ? toPropertyPath((PropertyExpression<?, ?, ?>)propertyExpression.target()) + "." + propertyExpression.property().name()
-                : propertyExpression.property().name();
-    }
-
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
         return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
                 .executeLiveQuery(statementProvider.forQuery(query))
@@ -156,10 +153,10 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
+    public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         TypeToken<T> elementType = HasMapping.objectType(query);
         ObjectExpression<T, R> aggregation = aggregator.apply(CollectionExpression.indirectArg(MoreTypeTokens.collection(elementType)));
-        TypeToken<R> resultType = aggregation.objectType();
+        TypeToken<R> resultType = aggregation.reflect().objectType();
         return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
                 .executeQuery(statementProvider.forAggregation(query, aggregation, aggregationField))
                 .map(pr -> {
@@ -173,21 +170,21 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> update(UpdateInfo<K, S> update) {
+    public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
         return schemaProvider
                 .createOrUpdate(update.metaClass())
                 .andThen(statementExecutor.executeCommandReturnCount(statementProvider.forUpdate(update)));
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Single<Integer> delete(DeleteInfo<K, S> deleteInfo) {
+    public <K, S> Single<Integer> delete(DeleteInfo<K, S> deleteInfo) {
         return schemaProvider
                 .createOrUpdate(deleteInfo.metaClass())
                 .andThen(statementExecutor.executeCommandReturnCount(statementProvider.forDelete(deleteInfo)));
     }
 
     @Override
-    public <K, S extends HasMetaClassWithKey<K, S>> Completable drop(MetaClassWithKey<K, S> metaClass) {
+    public <K, S> Completable drop(MetaClassWithKey<K, S> metaClass) {
         return Completable.defer(() -> {
             SqlStatement statement = statementProvider.forDrop(metaClass);
             return statementExecutor.executeCommand(statement);
@@ -200,5 +197,20 @@ public class SqlQueryProvider implements QueryProvider {
             SqlStatement statement = statementProvider.forDrop();
             return statementExecutor.executeCommand(statement);
         });
+    }
+
+    private static <S extends HasMetaClass<S>> boolean isEmptyObject(S object) {
+        AtomicReference<PropertyMeta<S, ?>> nonNullProperty = new AtomicReference<>();
+        if (Streams.fromIterable(object.metaClass().properties())
+                .filter(p -> p.getValue(object) != null)
+                .peek(nonNullProperty::set)
+                .limit(2)
+                .count() > 1) {
+            return false;
+        }
+
+        return Optional.ofNullable(nonNullProperty.get())
+                .map(PropertyMetas::isKey)
+                .orElse(true);
     }
 }

@@ -7,7 +7,7 @@ import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 
 @AutoValue
-public abstract class NullConstantExpression<S, V> implements ConstantExpression<S, V> {
+public abstract class NullConstantExpression<S, V> extends AbstractConstantExpression<S, V> {
     @JsonProperty public abstract TypeToken<V> nullType();
 
     @Override

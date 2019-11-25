@@ -7,7 +7,9 @@ import com.slimgears.rxrepo.expressions.ConstantExpression;
 import com.slimgears.rxrepo.expressions.NumericExpression;
 
 @AutoValue
-public abstract class NumericConstantExpression<S, V extends Number & Comparable<V>> implements ConstantExpression<S, V>, NumericExpression<S, V> {
+public abstract class NumericConstantExpression<S, V extends Number & Comparable<V>>
+    extends AbstractConstantExpression<S, V>
+    implements NumericExpression<S, V> {
     @JsonCreator
     public static <S, V extends Number & Comparable<V>> NumericConstantExpression<S, V> create(
             @JsonProperty("type") Type type,

@@ -1,18 +1,13 @@
 package com.slimgears.rxrepo.util;
 
-import com.slimgears.rxrepo.query.provider.HasMapping;
-import com.slimgears.rxrepo.query.provider.HasPagination;
-import com.slimgears.rxrepo.query.provider.HasPredicate;
-import com.slimgears.rxrepo.query.provider.HasSortingInfo;
-import com.slimgears.rxrepo.query.provider.QueryInfo;
-import com.slimgears.rxrepo.query.provider.SortingInfo;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
+import com.slimgears.rxrepo.query.provider.*;
 import io.reactivex.ObservableTransformer;
 
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+@SuppressWarnings("WeakerAccess")
 public class Queries {
     public static <T> Comparator<T> toComparator(HasSortingInfo<T> sortingInfo) {
         return sortingInfo.sorting()
@@ -69,7 +64,7 @@ public class Queries {
                 .compose(applyLimit(pagination));
     }
 
-    public static <K, S extends HasMetaClassWithKey<K, S>, T> ObservableTransformer<S, T> applyQuery(QueryInfo<K, S, T> query) {
+    public static <K, S, T> ObservableTransformer<S, T> applyQuery(QueryInfo<K, S, T> query) {
         return source -> source
                 .compose(applyFilter(query))
                 .compose(applySorting(query))

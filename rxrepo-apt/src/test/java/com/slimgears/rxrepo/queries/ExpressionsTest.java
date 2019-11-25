@@ -1,16 +1,24 @@
 package com.slimgears.rxrepo.queries;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.slimgears.rxrepo.annotations.Filterable;
 import com.slimgears.rxrepo.annotations.Indexable;
+import com.slimgears.rxrepo.expressions.BooleanExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.filters.ComparableFilter;
+import com.slimgears.rxrepo.filters.ComparableFilter;
+import com.slimgears.rxrepo.filters.StringFilter;
 import com.slimgears.rxrepo.util.Expressions;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static com.slimgears.rxrepo.filters.ComparableFilter.fromGreaterOrEqual;
 import static com.slimgears.rxrepo.filters.ComparableFilter.fromLessThan;
@@ -70,7 +78,7 @@ public class ExpressionsTest {
                 .refEntity(TestRefEntity.Filter.builder().id(fromGreaterOrEqual(8)).build())
                 .number(fromLessThan(5))
                 .text(fromContains("ity 1"))
-                .searchText("ity")
+                .searchText("En ty 1")
                 .build();
 
         Function<TestEntity, Boolean> func = filter.toExpression(ObjectExpression.arg(TestEntity.class))
@@ -95,6 +103,37 @@ public class ExpressionsTest {
 
         Assert.assertTrue(func.apply(refWithInner));
         Assert.assertFalse(func.apply(inner));
+    }
+
+    @Test
+    public void testFilterByValue() {
+        TestEntity.Filter filter = TestEntity.Filter
+            .builder()
+            .equalsTo(testEntity1)
+            .build();
+        Function<TestEntity, Boolean> func = filter.toExpression(ObjectExpression.arg(TestEntity.class))
+            .map(Expressions::compile)
+            .orElse(e -> false);
+
+        Assert.assertTrue(func.apply(testEntity1));
+    }
+
+    @Test
+    public void testFilterByValueFromJson() {
+        TestEntity.Filter filter = TestEntity.Filter
+                .create(
+                        "",
+                        StringFilter.fromNotEqualsTo(""),
+                        ComparableFilter.fromNotEqualsTo(5),
+                        TestRefEntity.Filter.builder().build(),
+                        testEntity1,
+                        testEntity2,
+                        ImmutableList.of(testEntity1),
+                        false);
+        Assert.assertEquals(filter.equalsTo(), testEntity1);
+        Assert.assertEquals(filter.notEqualsTo(), testEntity2);
+        Assert.assertEquals(filter.equalsToAny(), ImmutableList.of(testEntity1));
+        Assert.assertEquals(Boolean.FALSE, filter.isNull());
     }
 
     @Test
@@ -430,7 +469,7 @@ public class ExpressionsTest {
     @Test
     public void testSearchTextWithNull1() {
         Function<TestEntity, Boolean> exp = Expressions
-                .compile(TestEntity.$.address.searchText("Ad"));
+                .compile(TestEntity.$.searchText("Ad"));
 
         Assert.assertFalse(exp.apply(testEntity1));
     }
@@ -457,5 +496,36 @@ public class ExpressionsTest {
                 .compile(TestEntity.$.optionalRefEntity.text);
 
         Assert.assertNull(exp.apply(testEntity1));
+    }
+
+    @Test
+    public void testPropertyExpressionEquality() {
+        Assert.assertEquals(TestEntity.$.refEntity.id, PropertyExpressions.fromPath(TestEntity.class, "refEntity.id"));
+    }
+
+    @Test
+    public void testExpressionsCompose() {
+        ObjectExpression<TestRefEntity, Boolean> refPredicate = TestRefEntity.$.text.contains("test");
+        ObjectExpression<TestEntity, Boolean> composedPredicate = Expressions.compose(TestEntity.$.refEntity, refPredicate);
+
+        TestEntity testEntity1 = TestEntity.builder()
+            .refEntity(TestRefEntity.create(1, "test"))
+            .refEntities(Collections.emptyList())
+            .key(TestKey.create("key"))
+            .text("text")
+            .number(1)
+            .build();
+
+        TestEntity testEntity2 = TestEntity.builder()
+            .refEntity(TestRefEntity.create(1, "none"))
+            .refEntities(Collections.emptyList())
+            .key(TestKey.create("key"))
+            .text("text")
+            .number(1)
+            .build();
+
+        Predicate<TestEntity> compiledComposedPredicate = Expressions.compilePredicate(composedPredicate);
+        Assert.assertTrue(compiledComposedPredicate.test(testEntity1));
+        Assert.assertFalse(compiledComposedPredicate.test(testEntity2));
     }
 }

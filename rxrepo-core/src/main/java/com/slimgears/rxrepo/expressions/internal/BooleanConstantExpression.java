@@ -7,7 +7,9 @@ import com.slimgears.rxrepo.expressions.BooleanExpression;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 
 @AutoValue
-public abstract class BooleanConstantExpression<S> implements ConstantExpression<S, Boolean>, BooleanExpression<S> {
+public abstract class BooleanConstantExpression<S>
+    extends AbstractConstantExpression<S, Boolean>
+    implements BooleanExpression<S> {
     @JsonCreator
     public static <S> BooleanConstantExpression<S> create(
             @JsonProperty("type") Type type,

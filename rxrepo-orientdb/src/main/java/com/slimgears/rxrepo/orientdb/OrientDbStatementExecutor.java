@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ConcurrentModificationException;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -26,6 +27,7 @@ import java.util.stream.IntStream;
 import static com.slimgears.util.generic.LazyString.lazy;
 
 class OrientDbStatementExecutor implements SqlStatementExecutor {
+    private final static AtomicLong operationCounter = new AtomicLong();
     private final static Logger log = LoggerFactory.getLogger(OrientDbStatementExecutor.class);
     private final OrientDbSessionProvider sessionProvider;
     private final Completable shutdown;
@@ -102,9 +104,10 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
     private Observable<PropertyResolver> toObservable(Function<ODatabaseDocument, OResultSet> resultSetSupplier) {
         return Observable.<OResult>create(
                 emitter -> sessionProvider.withSession(dbSession -> {
+                    long id = operationCounter.incrementAndGet();
                     OResultSet resultSet = resultSetSupplier.apply(dbSession);
                     resultSet.stream()
-                            .peek(res -> log.trace("Received: {}", res))
+                            .peek(res -> log.trace("[{}] Received: {}", id, res))
                             .forEach(emitter::onNext);
                     resultSet.close();
                     emitter.onComplete();
@@ -113,7 +116,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
     }
 
     private void logStatement(String title, SqlStatement statement) {
-        log.trace("{}: {}", title, lazy(() -> toString(statement)));
+        log.trace("[{}] {}: {}", operationCounter.get(), title, lazy(() -> toString(statement)));
     }
 
     private String toString(SqlStatement statement) {

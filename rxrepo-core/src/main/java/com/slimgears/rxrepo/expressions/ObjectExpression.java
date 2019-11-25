@@ -1,16 +1,13 @@
 package com.slimgears.rxrepo.expressions;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.internal.*;
 
 import java.util.Collection;
+import java.util.stream.Stream;
 
+@SuppressWarnings("UnstableApiUsage")
 public interface ObjectExpression<S, T> extends Expression {
-    @JsonIgnore default TypeToken<T> objectType() {
-        return type().resolveType(this);
-    }
-
     default BooleanExpression<S> eq(ObjectExpression<S, T> value) {
         return BooleanBinaryOperationExpression.create(Type.Equals, this, value);
     }
@@ -51,58 +48,6 @@ public interface ObjectExpression<S, T> extends Expression {
 
     default BooleanExpression<S> in(Collection<T> values) {
         return in(ConstantExpression.of(values));
-    }
-
-    default <R> ObjectExpression<S, R> compose(ObjectExpression<T, R> expression) {
-        return ComposedExpression.ofObject(this, expression);
-    }
-
-    default <R, C extends Collection<R>> CollectionExpression<S, R, C> compose(CollectionExpression<T, R, C> expression) {
-        return ComposedExpression.ofCollection(this, expression);
-    }
-
-    default <R extends Comparable<R>> ComparableExpression<S, R> compose(ComparableExpression<T, R> expression) {
-        return ComposedExpression.ofComparable(this, expression);
-    }
-
-    default <N extends Number & Comparable<N>> NumericExpression<S, N> compose(NumericExpression<T, N> expression) {
-        return ComposedExpression.ofNumeric(this, expression);
-    }
-
-    default BooleanExpression<S> compose(BooleanExpression<T> expression) {
-        return ComposedExpression.ofBoolean(this, expression);
-    }
-
-    default StringExpression<S> compose(StringExpression<T> expression) {
-        return ComposedExpression.ofString(this, expression);
-    }
-
-    default <V> ObjectExpression<S, V> ref(ObjectPropertyExpression<S, T, V> expression) {
-        return PropertyExpression.ofObject(this, expression.property());
-    }
-
-    default <V extends Comparable<V>> ComparableExpression<S, V> ref(ComparablePropertyExpression<?, T, V> expression) {
-        return PropertyExpression.ofComparable(this, expression.property());
-    }
-
-    default <V extends Number & Comparable<V>> NumericExpression<S, V> ref(NumericPropertyExpression<?, T, V> expression) {
-        return PropertyExpression.ofNumeric(this, expression.property());
-    }
-
-    default BooleanExpression<S> ref(BooleanPropertyExpression<?, T> expression) {
-        return PropertyExpression.ofBoolean(this, expression.property());
-    }
-
-    default StringExpression<S> ref(StringPropertyExpression<?, T> expression) {
-        return PropertyExpression.ofString(this, expression.property());
-    }
-
-    default <E, C extends Collection<E>> CollectionExpression<S, E, C> ref(CollectionPropertyExpression<?, T, E, C> expression) {
-        return PropertyExpression.ofCollection(this, expression.property());
-    }
-
-    default BooleanExpression<S> searchText(String pattern) {
-        return BooleanBinaryOperationExpression.create(Type.SearchText, this, ConstantExpression.of(pattern));
     }
 
     static <S> ObjectExpression<S, S> arg(TypeToken<S> type) {
@@ -174,4 +119,31 @@ public interface ObjectExpression<S, T> extends Expression {
                 ? (NumericExpression<S, N>)expression
                 : NumericUnaryOperationExpression.create(Type.AsNumeric, expression);
     }
+
+
+    interface Converter {
+        <S, T> ObjectExpression<S, T> convert(ObjectExpression<S, T> expression);
+    }
+
+    interface Visitor<_T> {
+        <S, T1, T2, R> _T visitBinary(BinaryOperationExpression<S, T1, T2, R> expression);
+        <S, T, R> _T visitUnary(UnaryOperationExpression<S, T, R> expression);
+        <S, T, V> _T visitProperty(PropertyExpression<S, T, V> expression);
+        <S, T> _T visitConstant(ConstantExpression<S, T> expression);
+        <S, T> _T visitArgument(ArgumentExpression<S, T> expression);
+        <S, T, R> _T visitComposed(ComposedExpression<S, T, R> expression);
+        <S, T> _T visitOther(ObjectExpression<S, T> expression);
+    }
+
+    interface Reflect<S, T> {
+        default TypeToken<T> objectType() {
+            return expression().type().resolveType(expression());
+        }
+
+        ObjectExpression<S, T> expression();
+        <_T> _T accept(Visitor<_T> visitor);
+        ObjectExpression<S, T> convert(Converter converter);
+    }
+
+    Reflect<S, T> reflect();
 }

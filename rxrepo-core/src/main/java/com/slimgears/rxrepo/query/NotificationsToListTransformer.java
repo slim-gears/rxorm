@@ -3,47 +3,40 @@ package com.slimgears.rxrepo.query;
 import com.google.common.collect.ImmutableList;
 import com.slimgears.rxrepo.query.provider.SortingInfo;
 import com.slimgears.rxrepo.query.provider.SortingInfos;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Observable;
 import io.reactivex.ObservableSource;
 import io.reactivex.ObservableTransformer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, T>> implements ObservableTransformer<List<Notification<T>>, List<T>> {
+public class NotificationsToListTransformer<K, T> implements ObservableTransformer<List<Notification<T>>, List<T>> {
+    private final static Logger log = LoggerFactory.getLogger(NotificationsToListTransformer.class);
     private final @Nullable Long limit;
-    private final AtomicLong firstItemIndex;
-    private final AtomicReference<T> firstItem = new AtomicReference<>();
-    private final Comparator<T> comparator;
-    private final Map<K, T> map = Collections.synchronizedMap(new HashMap<>());
+    private final Map<K, T> map = new HashMap<>();
+    private final Set<T> set;
+    private final MetaClassWithKey<K, T> metaClass;
 
-
-    private NotificationsToListTransformer(ImmutableList<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos,
-                                           @Nullable Long limit,
-                                           AtomicLong firstItemIndex) {
+    private NotificationsToListTransformer(MetaClassWithKey<K, T> metaClass,
+                                           ImmutableList<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos,
+                                           @Nullable Long limit) {
+        log.trace("Creating instance of list transformer for {}", metaClass.simpleName());
+        this.metaClass = metaClass;
         this.limit = limit;
-        this.firstItemIndex = firstItemIndex;
-        this.comparator = Optional
+        this.set = Collections.synchronizedSet(Optional
                 .ofNullable(SortingInfos.toComparator(sortingInfos))
-                .orElseGet(() -> Comparator.<T, String>comparing((item -> item.metaClass().keyOf(item).toString())));
+                .<Set<T>>map(TreeSet::new)
+                .orElseGet(LinkedHashSet::new));
     }
 
-    public static <K, T extends HasMetaClassWithKey<K, T>> NotificationsToListTransformer<K, T> create(
+    public static <K, T> NotificationsToListTransformer<K, T> create(
+            MetaClassWithKey<K, T> metaClass,
             ImmutableList<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos,
-            @Nullable Long limit,
-            AtomicLong firstItemIndex) {
-        return new NotificationsToListTransformer<>(sortingInfos, limit, firstItemIndex);
-    }
-
-    public static <K, S extends HasMetaClassWithKey<K, S>> NotificationsToListTransformer<K, S> create(
-            ImmutableList<SortingInfo<S, ?, ? extends Comparable<?>>> sortingInfos,
             @Nullable Long limit) {
-        return create(sortingInfos, limit, new AtomicLong());
+        return new NotificationsToListTransformer<>(metaClass, sortingInfos, limit);
     }
 
     @Override
@@ -54,82 +47,30 @@ public class NotificationsToListTransformer<K, T extends HasMetaClassWithKey<K, 
     }
 
     private ImmutableList<T> toList() {
-        return map.values()
-                .stream()
-                .sorted(comparator)
-                .collect(ImmutableList.toImmutableList());
+        return Optional.ofNullable(limit)
+                .map(l -> set.stream().limit(l).collect(ImmutableList.toImmutableList()))
+                .orElseGet(() -> ImmutableList.copyOf(set));
     }
 
     private void updateMap(List<Notification<T>> notifications) {
-        notifications
-                .stream()
-                .peek(this::updateStartIndex)
-                .forEach(this::onNotification);
-
-        removeBeforeFirst();
-        removeAfterLast();
-        updateFirst();
+        notifications.forEach(this::onNotification);
     }
 
-    private void updateFirst() {
-        map.values()
-                .stream()
-                .min(comparator)
-                .ifPresent(firstItem::set);
-    }
-
-    private void removeAfterLast() {
-        Optional.ofNullable(limit)
-                .map(l -> map.values()
-                        .stream()
-                        .sorted(comparator)
-                        .skip(l))
-                .orElse(Stream.empty())
-                .map(val -> val.metaClass().keyProperty().getValue(val))
-                .collect(Collectors.toList())
-                .forEach(map::remove);
-    }
-
-    private void removeBeforeFirst() {
-        Optional.ofNullable(firstItem.get())
-                .map(m -> map.values()
-                        .stream()
-                        .filter(val -> comparator.compare(m, val) > 0))
-                .orElse(Stream.empty())
-                .map(val -> val.metaClass().keyProperty().getValue(val))
-                .collect(Collectors.toList())
-                .forEach(map::remove);
-    }
-
-    private void updateStartIndex(Notification<T> notification) {
-        if (notification.isDelete() && isBeforeFirst(notification.oldValue())) {
-            firstItemIndex.decrementAndGet();
-        } else if (notification.isCreate() && isBeforeFirst(notification.newValue())) {
-            firstItemIndex.incrementAndGet();
-        } else if (notification.isModify()) {
-            if (isBeforeFirst(notification.newValue()) && !isBeforeFirst(notification.oldValue())) {
-                firstItemIndex.incrementAndGet();
-            } else if (!isBeforeFirst(notification.newValue()) && isBeforeFirst(notification.oldValue())) {
-                firstItemIndex.decrementAndGet();
-            }
-        }
-    }
-
-    private boolean isBeforeFirst(T item) {
-        return Optional.ofNullable(firstItem.get())
-                .map(fi -> comparator.compare(fi, item) < 0)
-                .orElse(false);
-    }
-
-    private void onNotification(Notification<T> notification) {
+    private synchronized void onNotification(Notification<T> notification) {
         if (notification.isDelete()) {
             Optional.ofNullable(notification.oldValue())
-                    .map(val -> val.metaClass().keyProperty().getValue(val))
-                    .ifPresent(map::remove);
+                    .map(val -> metaClass.keyProperty().getValue(val))
+                    .map(map::remove)
+                    .ifPresent(set::remove);
         } else {
-            Optional.ofNullable(notification.newValue())
-                    .map(val -> val.metaClass().keyProperty().getValue(val))
-                    .ifPresent(key -> map.put(key, notification.newValue()));
+            T value = notification.newValue();
+            Optional.ofNullable(value)
+                    .map(metaClass::keyOf)
+                    .ifPresent(key -> {
+                        Optional.ofNullable(map.put(key, value))
+                                .ifPresent(set::remove);
+                        set.add(value);
+                    });
         }
     }
 }

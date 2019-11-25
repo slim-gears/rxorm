@@ -21,7 +21,7 @@ rectangle RxRepo {
     +delete()
     +deleteAll()
   }
-  class DefaultEntitySet<K, S extends HasMetaClassWithKey<K, S>> implements EntitySet
+  class DefaultEntitySet<K, S> implements EntitySet
 
   interface QueryProvider {
     +insertOrUpdate(entity: S): Single<S>

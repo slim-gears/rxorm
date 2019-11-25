@@ -2,7 +2,6 @@ package com.slimgears.rxrepo.query;
 
 import com.slimgears.rxrepo.query.decorator.MandatoryPropertiesQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 
 import java.util.HashMap;
@@ -30,8 +29,13 @@ public class DefaultRepository implements Repository {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <K, T extends HasMetaClassWithKey<K, T>> EntitySet<K, T> entities(MetaClassWithKey<K, T> meta) {
+    public <K, T> EntitySet<K, T> entities(MetaClassWithKey<K, T> meta) {
         return (EntitySet<K, T>)entitySetMap.computeIfAbsent(meta, m -> createEntitySet(meta));
+    }
+
+    @Override
+    public Iterable<EntitySet<?, ?>> allEntitySets() {
+        return entitySetMap.values();
     }
 
     @Override
@@ -40,7 +44,7 @@ public class DefaultRepository implements Repository {
         close();
     }
 
-    private <K, T extends HasMetaClassWithKey<K, T>> EntitySet<K, T> createEntitySet(MetaClassWithKey<K, T> metaClass) {
+    private <K, T> EntitySet<K, T> createEntitySet(MetaClassWithKey<K, T> metaClass) {
         return DefaultEntitySet.create(queryProvider, metaClass, config);
     }
 

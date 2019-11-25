@@ -28,8 +28,8 @@ public class TestUtils {
     public static <T> Consumer<TestObserver<T>> countAtLeast(int count, Duration timeout) {
         return observer -> observer
                 .awaitCount(count, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, timeout.toMillis())
-                .assertOf(o -> Assert.assertTrue(o.valueCount() >= count))
-                .assertNoErrors();
+                .assertNoErrors()
+                .assertOf(o -> Assert.assertTrue(o.valueCount() >= count));
     }
 
     public static <T> Consumer<TestObserver<T>> countExactly(int count) {

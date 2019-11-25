@@ -9,7 +9,9 @@ import com.slimgears.rxrepo.expressions.ComparableExpression;
 import com.slimgears.util.reflect.TypeTokens;
 
 @AutoValue
-public abstract class ComparableArgumentExpression<S, T extends Comparable<T>> implements ArgumentExpression<S, T>, ComparableExpression<S, T> {
+public abstract class ComparableArgumentExpression<S, T extends Comparable<T>>
+    extends AbstractArgumentExpression<S, T>
+    implements ComparableExpression<S, T> {
     @JsonCreator
     public static <S, T extends Comparable<T>> ComparableArgumentExpression<S, T> create(
             @JsonProperty("type") Type type,
