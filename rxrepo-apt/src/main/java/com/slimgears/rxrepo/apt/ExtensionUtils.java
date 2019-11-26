@@ -7,11 +7,16 @@ import com.slimgears.util.stream.Streams;
 
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
+import java.util.Objects;
 import java.util.Optional;
 
 class ExtensionUtils {
-    static boolean hasInnerClass(TypeInfo sourceClass, PropertyInfo property, String name) {
-        return  classHasPropertyOfItself(sourceClass, property) ||
+    static boolean hasInnerClass(PropertyInfo property, String name) {
+        return hasInnerClass(null, null, property, name);
+    }
+
+    static boolean hasInnerClass(TypeInfo sourceClass, TypeInfo targetClass, PropertyInfo property, String name) {
+        return classHasPropertyOfItself(sourceClass, targetClass, property) ||
                 Optional.of(property.propertyType())
                 .flatMap(Optionals.ofType(DeclaredType.class))
                 .map(DeclaredType::asElement)
@@ -23,19 +28,11 @@ class ExtensionUtils {
                 .orElse(false);
     }
 
-    private static boolean classHasPropertyOfItself(TypeInfo sourceClass, PropertyInfo property) {
-        return Optional.ofNullable(sourceClass).map(TypeInfo::simpleName).map(classType -> {
-            classType = removePrototypeFromTypeName(classType);
-            String propertyType = removePrototypeFromTypeName(property.type().name());
-            return classType.contentEquals(propertyType);
-        }).orElse(false);
-    }
-
-    private static String removePrototypeFromTypeName(String name) {
-        String prototype = "Prototype";
-        if (name.endsWith(prototype)) {
-            return name.substring(0, name.length() - prototype.length());
+    private static boolean classHasPropertyOfItself(TypeInfo sourceClass, TypeInfo targetClass, PropertyInfo property) {
+        if(sourceClass == null || targetClass == null) {
+            return false;
         }
-        return name;
+        boolean hasNoPackage = Optional.of(property.type()).map(type -> Objects.equals(type.fullName(), type.simpleName())).orElse(false);
+        return hasNoPackage && (property.type().name().equals(targetClass.simpleName()) || property.type().name().equals(sourceClass.simpleName()));
     }
 }

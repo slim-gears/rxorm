@@ -12,7 +12,7 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 public class ExpressionsExtension implements Extension {
     public static class ExpressionUtils {
         public boolean hasOwnExpressions(PropertyInfo property) {
-            return ExtensionUtils.hasInnerClass(null, property, "Expressions");
+            return ExtensionUtils.hasInnerClass(property, "Expressions");
         }
     }
 
