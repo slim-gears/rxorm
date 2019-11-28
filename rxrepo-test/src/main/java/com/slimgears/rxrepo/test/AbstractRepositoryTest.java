@@ -1217,4 +1217,42 @@ public abstract class AbstractRepositoryTest {
                 .await()
                 .assertValue(0L);
     }
+
+    @Test @Ignore
+    public void testMassiveInsertBatch() {
+        long count = 10000;
+
+        Stopwatch stopwatch = Stopwatch.createStarted();
+
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        Observable
+                .fromIterable(Products.createMany((int)count))
+                .buffer(1000)
+                .flatMapSingle(products::update)
+                .ignoreElements()
+                .blockingAwait();
+
+        stopwatch.stop();
+        System.out.println("Elapsed time: " + stopwatch.elapsed().toMillis() / 1000 + "s");
+
+        Assert.assertEquals(Long.valueOf(count), repository.entities(Product.metaClass).query().count().blockingGet());
+    }
+
+    @Test @Ignore
+    public void testMassiveUpdateOneByOne() {
+        long count = 10000;
+
+        Stopwatch stopwatch = Stopwatch.createStarted();
+
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        Observable.fromIterable(Products.createMany((int)count))
+                .flatMapSingle(products::update)
+                .ignoreElements()
+                .blockingAwait();
+
+        stopwatch.stop();
+        System.out.println("Elapsed time: " + stopwatch.elapsed().toMillis() / 1000 + "s");
+
+        Assert.assertEquals(Long.valueOf(count), repository.entities(Product.metaClass).query().count().blockingGet());
+    }
 }
