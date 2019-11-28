@@ -49,6 +49,7 @@ public abstract class AbstractRepositoryTest {
     @After
     public void tearDown() {
         System.out.println("Test finished: " + testNameRule.getMethodName());
+        this.repository.clearAndClose();
     }
 
     protected abstract Repository createRepository();
