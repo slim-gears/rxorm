@@ -43,16 +43,12 @@ public abstract class AbstractRepositoryTest {
     @Before
     public void setUp() {
         this.repository = createRepository();
-        Assert.assertEquals(Long.valueOf(0), this.repository.entities(Product.metaClass).query().count().blockingGet());
         System.out.println("Starting test: " + testNameRule.getMethodName());
     }
 
     @After
     public void tearDown() {
         System.out.println("Test finished: " + testNameRule.getMethodName());
-        Observable.fromIterable(repository.allEntitySets())
-                .flatMapCompletable(EntitySet::clear)
-                .blockingAwait();
     }
 
     protected abstract Repository createRepository();
