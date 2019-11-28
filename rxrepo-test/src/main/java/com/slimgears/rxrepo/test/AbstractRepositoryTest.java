@@ -43,13 +43,16 @@ public abstract class AbstractRepositoryTest {
     @Before
     public void setUp() {
         this.repository = createRepository();
+        Assert.assertEquals(Long.valueOf(0), this.repository.entities(Product.metaClass).query().count().blockingGet());
         System.out.println("Starting test: " + testNameRule.getMethodName());
     }
 
     @After
     public void tearDown() {
         System.out.println("Test finished: " + testNameRule.getMethodName());
-        this.repository.clearAndClose();
+        Observable.fromIterable(repository.allEntitySets())
+                .flatMapCompletable(EntitySet::clear)
+                .blockingAwait();
     }
 
     protected abstract Repository createRepository();
@@ -1216,5 +1219,43 @@ public abstract class AbstractRepositoryTest {
                 .test()
                 .await()
                 .assertValue(0L);
+    }
+
+    @Test @Ignore
+    public void testMassiveInsertBatch() {
+        long count = 10000;
+
+        Stopwatch stopwatch = Stopwatch.createStarted();
+
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        Observable
+                .fromIterable(Products.createMany((int)count))
+                .buffer(1000)
+                .flatMapSingle(products::update)
+                .ignoreElements()
+                .blockingAwait();
+
+        stopwatch.stop();
+        System.out.println("Elapsed time: " + stopwatch.elapsed().toMillis() / 1000 + "s");
+
+        Assert.assertEquals(Long.valueOf(count), repository.entities(Product.metaClass).query().count().blockingGet());
+    }
+
+    @Test @Ignore
+    public void testMassiveUpdateOneByOne() {
+        long count = 10000;
+
+        Stopwatch stopwatch = Stopwatch.createStarted();
+
+        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
+        Observable.fromIterable(Products.createMany((int)count))
+                .flatMapSingle(products::update)
+                .ignoreElements()
+                .blockingAwait();
+
+        stopwatch.stop();
+        System.out.println("Elapsed time: " + stopwatch.elapsed().toMillis() / 1000 + "s");
+
+        Assert.assertEquals(Long.valueOf(count), repository.entities(Product.metaClass).query().count().blockingGet());
     }
 }

@@ -141,7 +141,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
         OType propertyOType = toOType(propertyMeta.type());
         log.trace("{}: Adding property {} of type {} ({})", oClass.getName(), propertyMeta.name(), propertyMeta.type().getRawType().getSimpleName(), propertyOType);
 
-        if (propertyOType.isLink()) {
+        if (propertyOType.isLink() || propertyOType.isEmbedded()) {
             OClass linkedOClass = dbSession.getClass(toClassName(propertyMeta.type()));
             if (oClass.existsProperty(propertyMeta.name())) {
                 OProperty oProperty = oClass.getProperty(propertyMeta.name());
@@ -153,6 +153,9 @@ class OrientDbSchemaProvider implements SchemaProvider {
                 }
             } else {
                 oClass.createProperty(propertyMeta.name(), propertyOType, linkedOClass);
+                if (PropertyMetas.isEmbedded(propertyMeta)) {
+                    oClass.createProperty(propertyMeta.name() + "AsString", OType.STRING);
+                }
             }
         } else {
             if (oClass.existsProperty(propertyMeta.name())) {
@@ -162,20 +165,18 @@ class OrientDbSchemaProvider implements SchemaProvider {
                 }
             } else {
                 oClass.createProperty(propertyMeta.name(), propertyOType);
-                if (PropertyMetas.isEmbedded(propertyMeta)) {
-                    oClass.createProperty(propertyMeta.name() + "AsString", OType.STRING);
-                }
             }
         }
     }
 
     private static OType toOType(TypeToken<?> token) {
         Class<?> cls = token.getRawType();
-        return Optional
-                .ofNullable(OType.getTypeByClass(cls))
-                .orElseGet(() -> HasMetaClass.class.isAssignableFrom(cls)
-                        ? (HasMetaClassWithKey.class.isAssignableFrom(cls) ? OType.LINK : OType.CUSTOM)
-                        : OType.ANY);
+        if (PropertyMetas.isReference(token)) {
+            return OType.LINK;
+        } else if (PropertyMetas.isEmbedded(token)) {
+            return OType.EMBEDDED;
+        }
+        return OType.getTypeByClass(cls);
     }
 
     private static String toClassName(MetaClass<?> metaClass) {
