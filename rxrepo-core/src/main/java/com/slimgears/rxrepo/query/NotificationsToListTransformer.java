@@ -52,25 +52,29 @@ public class NotificationsToListTransformer<K, T> implements ObservableTransform
                 .orElseGet(() -> ImmutableList.copyOf(set));
     }
 
-    private void updateMap(List<Notification<T>> notifications) {
-        notifications.forEach(this::onNotification);
+    private boolean updateMap(List<Notification<T>> notifications) {
+        return notifications.stream().map(this::onNotification)
+                .reduce(Boolean::logicalOr)
+                .orElse(false);
     }
 
-    private synchronized void onNotification(Notification<T> notification) {
+    private synchronized boolean onNotification(Notification<T> notification) {
         if (notification.isDelete()) {
-            Optional.ofNullable(notification.oldValue())
+            return Optional.ofNullable(notification.oldValue())
                     .map(val -> metaClass.keyProperty().getValue(val))
                     .map(map::remove)
-                    .ifPresent(set::remove);
+                    .map(set::remove)
+                    .orElse(false);
         } else {
             T value = notification.newValue();
-            Optional.ofNullable(value)
+            return Optional.ofNullable(value)
                     .map(metaClass::keyOf)
-                    .ifPresent(key -> {
+                    .map(key -> {
                         Optional.ofNullable(map.put(key, value))
                                 .ifPresent(set::remove);
-                        set.add(value);
-                    });
+                        return set.add(value);
+                    })
+                    .orElse(false);
         }
     }
 }

@@ -305,6 +305,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                             .concatWith(queryProvider.liveQuery(observeQuery)
                                                     .doOnNext(n -> updateCount(n, count))
                                                     .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
+                                                    .filter(n -> !n.isEmpty())
                                                     .compose(transformer));
                                 });
                     }

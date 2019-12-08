@@ -41,6 +41,6 @@ rectangle RxRepo {
 }
 
 DefaultRepository "1" o-- "*" DefaultEntitySet: <<contains>>
-DefaultEntitySet .> QueryProvider: <<contains>>
+DefaultEntitySet o-- QueryProvider: <<contains>>
 
 @enduml

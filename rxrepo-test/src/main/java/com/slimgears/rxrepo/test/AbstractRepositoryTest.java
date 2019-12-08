@@ -1182,6 +1182,39 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
+    public void testAggregateOnEmptySet() throws InterruptedException {
+        Assert.assertEquals(Long.valueOf(0), repository.entities(Product.metaClass)
+                .query()
+                .select()
+                .aggregate(Aggregator.count())
+                .blockingGet());
+
+        repository.entities(Product.metaClass)
+                .query()
+                .select(Product.$.name)
+                .aggregate(Aggregator.max())
+                .test()
+                .await()
+                .assertValueCount(0)
+                .assertComplete();
+    }
+
+    @Test
+    public void testObserveCount() {
+        TestObserver<Long> testObserver = repository.entities(Product.metaClass)
+                .query()
+                .where(Product.$.key.id.eq(2))
+                .observeCount()
+                .test();
+
+        repository.entities(Product.metaClass).update(Products.createOne(2)).ignoreElement().blockingAwait();
+
+        testObserver.awaitCount(2)
+                .assertValueCount(2)
+                .assertValueAt(1, 1L);
+    }
+
+    @Test
     @UseLogLevel(LogLevel.DEBUG)
     public void testUpdatingDeletedObjectShouldNotAddObjectIntoRepo() throws InterruptedException {
 

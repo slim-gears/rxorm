@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.test;
 import com.slimgears.rxrepo.annotations.Filterable;
 import com.slimgears.rxrepo.annotations.Searchable;
 import com.slimgears.rxrepo.annotations.UseExpressions;
+import com.slimgears.rxrepo.annotations.UseFilters;
 import com.slimgears.util.autovalue.annotations.AutoValuePrototype;
 import com.slimgears.util.autovalue.annotations.Key;
 import com.slimgears.util.autovalue.annotations.UseCopyAnnotator;
@@ -14,6 +15,7 @@ import java.util.List;
 @AutoValuePrototype
 @UseExpressions
 @UseCopyAnnotator
+@UseFilters
 public interface ProductPrototype {
     enum Type {
         ConsumerElectronics,

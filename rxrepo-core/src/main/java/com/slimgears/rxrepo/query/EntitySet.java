@@ -17,8 +17,10 @@ import java.util.List;
 public interface EntitySet<K, S> {
     MetaClassWithKey<K, S> metaClass();
     EntityDeleteQuery<S> delete();
-    EntityUpdateQuery<S> update();
     SelectQueryBuilder<S> query();
+
+    EntityUpdateQuery<S> update();
+
     Single<S> update(S entity);
     Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater);
     Single<List<S>> update(Iterable<S> entities);

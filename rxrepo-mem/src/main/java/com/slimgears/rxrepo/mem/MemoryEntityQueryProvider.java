@@ -65,15 +65,15 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     public Maybe<S> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return Maybe.defer(() -> {
             Supplier<AtomicReference<S>> referenceResolver = () -> objects.computeIfAbsent(key, k -> new AtomicReference<>());
-            AtomicReference<S> oldValue = new AtomicReference<>(referenceResolver.get().get());
+            S oldValue = referenceResolver.get().get();
             return entityUpdater
                     .apply(Optional.ofNullable(referenceResolver.get().get()).map(Maybe::just).orElseGet(Maybe::empty))
-                    .flatMap(e -> referenceResolver.get().compareAndSet(oldValue.get(), e)
+                    .flatMap(e -> referenceResolver.get().compareAndSet(oldValue, e)
                             ? (e != null ? Maybe.just(e): Maybe.empty())
                             : Maybe.error(new ConcurrentModificationException("Concurrent modification of " + metaClass.simpleName() + " detected")))
                     .doOnSuccess(e -> {
-                        if (!Objects.equals(oldValue.get(), e)) {
-                            Notification<S> notification = Notification.ofModified(oldValue.get(), e);
+                        if (!Objects.equals(oldValue, e)) {
+                            Notification<S> notification = Notification.ofModified(oldValue, e);
                             notificationSubject.onNext(notification);
                             log.debug("Published notification: {}", notification);
                         }
@@ -91,18 +91,24 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
                 .compose(ob -> Optional.ofNullable(query.sorting()).map(SortingInfos::toComparator).map(ob::sorted).orElse(ob))
                 .compose(ob -> Optional.ofNullable(query.skip()).map(ob::skip).orElse(ob))
                 .compose(ob -> Optional.ofNullable(query.limit()).map(ob::take).orElse(ob))
+                .doOnNext(val -> log.trace("Object without references: {}", val))
                 .flatMapSingle(this::applyReferences)
+                .doOnNext(val -> log.trace("Object with references: {}", val))
                 .map(mapper)
+                .doOnNext(val -> log.trace("Object after mapping: {}", val))
                 .compose(ob -> Optional
                         .ofNullable(query.distinct())
                         .filter(Boolean::booleanValue)
                         .map(b -> ob.distinct())
                         .orElse(ob))
+                .doOnNext(val -> log.trace("Object after distinct: {}", val))
                 .compose(ob -> Optional
                         .ofNullable(query.properties())
                         .filter(p -> !p.isEmpty())
                         .map(p -> ob.map(maskProperties(p)::apply))
-                        .orElse(ob));
+                        .orElse(ob))
+                .doOnNext(val -> log.trace("Object after masking properties: {}", val))
+                .doOnNext(val -> log.trace("Emitting object: {}", val));
     }
 
     private <T> java.util.function.Function<T, T> maskProperties(ImmutableList<PropertyExpression<T, ?, ?>> properties) {
@@ -153,7 +159,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public <T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         return notificationSubject
@@ -170,12 +176,14 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     public <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return query(query).toList()
                 .toMaybe()
-                .filter(list -> !list.isEmpty())
-                .map(list -> {
+                .flatMap(list -> {
                     CollectionExpression<T, T, Collection<T>> collection = ConstantExpression.of(list);
                     UnaryOperationExpression<T, Collection<T>, R> aggregated = aggregator.apply(collection);
                     java.util.function.Function<T, R> aggFunc = Expressions.compile(aggregated);
-                    return aggFunc.apply(null);
+                    return Optional
+                            .ofNullable(aggFunc.apply(null))
+                            .map(Maybe::just)
+                            .orElseGet(Maybe::empty);
                 });
     }
 
@@ -231,7 +239,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
                 .map(newRef -> builder -> propertyMeta.setValue(builder, newRef));
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private <_K, _S> Maybe<_S> resolve(MetaClassWithKey<_K, _S> meta, _S value) {
         if (value == null) {
             return Maybe.empty();
@@ -246,7 +254,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
 
     @Override
     public void close() {
-        notificationExecutor.ifExists(ExecutorService::shutdown);
         notificationScheduler.ifExists(Scheduler::shutdown);
+        notificationExecutor.ifExists(ExecutorService::shutdown);
     }
 }

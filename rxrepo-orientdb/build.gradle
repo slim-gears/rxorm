@@ -21,4 +21,5 @@ dependencies {
     testImplementation libs.jsr305
     testImplementation libs.slimTestUtils, libs.slimTestUtilsLogback
     testImplementation project(':rxrepo-test')
+    testImplementation libs.slimNanometer
 }
