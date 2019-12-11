@@ -235,17 +235,6 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     }
 
                     @Override
-                    public Observable<List<T>> toList() {
-                        QueryInfo<K, S, T> query = builder.build();
-                        return queryProvider
-                                .liveQuery(query)
-                                .debounce(config.debounceTimeoutMillis(), TimeUnit.MILLISECONDS)
-                                .concatMapSingle(n -> queryProvider
-                                        .query(query)
-                                        .toList());
-                    }
-
-                    @Override
                     public LiveSelectQuery<T> properties(Iterable<PropertyExpression<T, ?, ?>> properties) {
                         builder.propertiesAddAll(properties);
                         return this;
@@ -254,9 +243,8 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     @Override
                     public <R> Observable<R> aggregate(Aggregator<T, T, R> aggregator) {
                         QueryInfo<K, S, T> query = builder.build();
-                        return queryProvider.aggregate(query, aggregator)
-                                .toObservable()
-                                .concatWith(queryProvider.liveAggregate(query, aggregator))
+                        return queryProvider.liveAggregate(query, aggregator)
+                                .mergeWith(queryProvider.aggregate(query, aggregator).toObservable())
                                 .distinctUntilChanged();
                     }
 

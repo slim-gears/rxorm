@@ -471,6 +471,34 @@ public abstract class AbstractRepositoryTest {
 
     @Test
     @UseLogLevel(LogLevel.TRACE)
+    public void testObserveCountThenDelete() {
+        repository.entities(Product.metaClass)
+                .update(Products.createMany(10))
+                .ignoreElement()
+                .blockingAwait();
+
+        TestObserver<Long> count = repository.entities(Product.metaClass)
+                .query()
+                .where(Product.$.price.greaterOrEqual(100))
+                .observeCount()
+                .debounce(500, TimeUnit.MILLISECONDS)
+                .test()
+                .assertSubscribed();
+
+        count.awaitCount(1)
+                .assertValueCount(1)
+                .assertValue(10L);
+
+        repository.entities(Product.metaClass).deleteAll(Product.$.price.greaterOrEqual(100))
+                .blockingAwait();
+
+        count.awaitCount(2)
+                .assertValueCount(2)
+                .assertValueAt(1, 0L);
+    }
+
+    @Test
+    @UseLogLevel(LogLevel.TRACE)
     public void testPartialRetrieve() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = Products.createMany(10);
