@@ -51,6 +51,8 @@ public class OrientDbRepository {
         private ODatabaseType dbType = ODatabaseType.MEMORY;
         private String user = "admin";
         private String password = "admin";
+        private String serverUser = "root";
+        private String serverPassword = "root";
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
         private RepositoryConfig.Builder configBuilder = RepositoryConfig
                 .builder()
@@ -82,6 +84,16 @@ public class OrientDbRepository {
             return this;
         }
 
+        public final Builder serverUser(@Nonnull String serverUser) {
+            this.serverUser = serverUser;
+            return this;
+        }
+
+        public final Builder serverPassword(@Nonnull String serverPassword) {
+            this.serverPassword = serverPassword;
+            return this;
+        }
+
         public final Builder decorate(@Nonnull QueryProvider.Decorator... decorators) {
             this.decorator = this.decorator.andThen(QueryProvider.Decorator.of(decorators));
             return this;
@@ -89,12 +101,14 @@ public class OrientDbRepository {
 
         public final Repository build() {
             Objects.requireNonNull(url);
+            Objects.requireNonNull(serverUser);
+            Objects.requireNonNull(serverPassword);
             Objects.requireNonNull(dbName);
             Objects.requireNonNull(dbType);
             Objects.requireNonNull(user);
             Objects.requireNonNull(password);
 
-            Lazy<OrientDB> dbClient = Lazy.of(() -> createClient(url, dbName, dbType));
+            Lazy<OrientDB> dbClient = Lazy.of(() -> createClient(url, serverUser, serverPassword, dbName, dbType));
             Map<ODatabaseDocument, CompletableSubject> sessions = new ConcurrentHashMap<>();
             CompletableSubject shutdownSubject = CompletableSubject.create();
 
@@ -127,8 +141,8 @@ public class OrientDbRepository {
                     });
         }
 
-        private static OrientDB createClient(String url, String dbName, ODatabaseType dbType) {
-            OrientDB client = new OrientDB(url, OrientDBConfig.defaultConfig());
+        private static OrientDB createClient(String url, String serverUser, String serverPassword, String dbName, ODatabaseType dbType) {
+            OrientDB client = new OrientDB(url, serverUser, serverPassword, OrientDBConfig.defaultConfig());
             if (!client.exists(dbName)) {
                 synchronized (lock) {
                     client.createIfNotExists(dbName, dbType);
