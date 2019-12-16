@@ -17,6 +17,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -41,7 +42,10 @@ public class Notifications {
             @Nullable ObjectExpression<S, T> mapping,
             @Nullable Long limit) {
         Function<S, T> mapper = Expressions.compile(mapping);
-        ObservableTransformer<List<Notification<S>>, List<S>> transformer = NotificationsToSlidingListTransformer.create(metaClass, sortingInfos, limit);
+        ObservableTransformer<List<Notification<S>>, List<S>> transformer =
+                Optional.ofNullable(sortingInfos).map(List::size).map(s -> s > 0).orElse(false)
+                        ? NotificationsToSlidingListTransformer.create(metaClass, sortingInfos, limit)
+                        : NotificationsToListTransformer.create(metaClass, sortingInfos, limit);
         return src -> src
             .compose(transformer)
             .map(objects -> objects.stream().map(mapper).collect(Collectors.toList()));

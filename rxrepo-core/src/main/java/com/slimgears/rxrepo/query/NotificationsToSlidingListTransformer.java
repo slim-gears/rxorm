@@ -37,7 +37,7 @@ public class NotificationsToSlidingListTransformer<K, T> implements ObservableTr
         this.firstItemIndex = firstItemIndex;
         this.comparator = Optional
                 .ofNullable(SortingInfos.toComparator(sortingInfos))
-                .orElseGet(() -> Comparator.<T, String>comparing((item -> metaClass.keyOf(item).toString())));
+                .orElseThrow(() -> new IllegalArgumentException("Query with sorting is expected"));
     }
 
     public static <K, T> NotificationsToSlidingListTransformer<K, T> create(

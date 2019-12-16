@@ -11,7 +11,6 @@ import java.util.function.Function;
 
 public abstract class LiveSelectQuery<T> {
     public abstract Observable<T> first();
-    public abstract Observable<List<T>> toList();
     public abstract LiveSelectQuery<T> properties(Iterable<PropertyExpression<T, ?, ?>> properties);
     public abstract <R> Observable<R> aggregate(Aggregator<T, T, R> aggregator);
     public abstract <R> Observable<R> observeAs(QueryTransformer<T, R> transformer);
@@ -23,7 +22,7 @@ public abstract class LiveSelectQuery<T> {
     }
 
     public Observable<T[]> toArray(IntFunction<T[]> arrayCreator) {
-        return toList().map(list -> list.toArray(arrayCreator.apply(list.size())));
+        return asList().map(list -> list.toArray(arrayCreator.apply(list.size())));
     }
 
     public <R> R apply(Function<LiveSelectQuery<T>, R> mapper) {
@@ -44,5 +43,9 @@ public abstract class LiveSelectQuery<T> {
     @SafeVarargs
     public final LiveSelectQuery<T> properties(PropertyExpression<T, ?, ?>... properties) {
         return properties(Arrays.asList(properties));
+    }
+
+    public final Observable<List<T>> asList() {
+        return observeAs(Notifications.toList());
     }
 }

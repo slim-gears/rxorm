@@ -16,6 +16,9 @@ import com.mongodb.reactivestreams.client.MongoDatabase;
 import com.slimgears.rxrepo.encoding.MetaClassFieldMapper;
 import com.slimgears.rxrepo.encoding.MetaDocument;
 import com.slimgears.rxrepo.expressions.Aggregator;
+import com.slimgears.rxrepo.expressions.CollectionExpression;
+import com.slimgears.rxrepo.expressions.Expression;
+import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.EntityQueryProvider;
@@ -42,10 +45,7 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ConcurrentModificationException;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -157,16 +157,25 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S> {
                 .map(doc -> objectFromDocument(doc, query.objectType()));
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         AggregatePublisher<MetaDocument> publisher = objectCollection.get()
                 .aggregate(MongoPipeline.aggregationPipeline(query, aggregator), MetaDocument.class);
 
         TypeToken<R> resultType = aggregator.objectType(query.objectType());
-        return Observable.fromPublisher(publisher)
+        Maybe<R> result = Observable.fromPublisher(publisher)
                 .doOnNext(doc -> log.debug("Retrieved document: {}", doc))
                 .map(doc -> doc.get(MongoPipeline.aggregationField, resultType))
                 .firstElement();
+
+        // Dirty patch for handling count of empty results
+        Expression.Type type = aggregator.apply(CollectionExpression
+                .indirectArg(TypeTokens.ofParameterized(Collection.class, query.objectType())))
+                .type();
+        return type != Expression.Type.Count
+                ? result
+                : result.defaultIfEmpty((R)Long.valueOf(0));
     }
 
     private Observable<Document> queryDocuments(QueryInfo<K, S, ?> query) {

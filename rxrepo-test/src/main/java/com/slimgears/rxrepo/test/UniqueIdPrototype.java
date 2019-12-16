@@ -16,7 +16,7 @@ import java.io.Serializable;
 public interface UniqueIdPrototype extends Serializable {
     @Filterable @JsonProperty int id();
     @Filterable @JsonProperty int areaId();
-    @Filterable @JsonProperty Class<?> type();
+    @Filterable @JsonProperty String type();
 
     static UniqueIdPrototype productDescriptionId(int id) {
         return UniqueId.create(id, 0, ProductDescription.class);
@@ -36,5 +36,9 @@ public interface UniqueIdPrototype extends Serializable {
 
     static UniqueIdPrototype vendorId(int id) {
         return UniqueId.create(id, 0, Vendor.class);
+    }
+
+    static UniqueIdPrototype create(int id, int areaId, Class<?> type) {
+        return UniqueId.create(id, areaId, type.getName());
     }
 }

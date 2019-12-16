@@ -13,6 +13,10 @@ import java.util.stream.Stream;
 
 public class Products {
     public static Iterable<Product> createMany(int count) {
+        return createMany(0, count);
+    }
+
+    public static Iterable<Product> createMany(int startingId, int count) {
         final Product.Type[] productTypes = {
                 ProductPrototype.Type.ConsumerElectronics,
                 ProductPrototype.Type.ComputeHardware,
@@ -43,7 +47,7 @@ public class Products {
                 .atStartOfDay(ZoneId.of("UTC"))
                 .toInstant());
 
-        return IntStream.range(0, count)
+        return IntStream.range(startingId, startingId + count)
                 .mapToObj(i -> Product.builder()
                         .key(UniqueId.productId(i))
                         .name("Product " + i)
@@ -58,5 +62,9 @@ public class Products {
 
     public static Product createOne() {
         return Iterables.firstOf(createMany(1));
+    }
+
+    public static Product createOne(int id) {
+        return Iterables.firstOf(createMany(id, 1));
     }
 }

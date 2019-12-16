@@ -235,17 +235,6 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     }
 
                     @Override
-                    public Observable<List<T>> toList() {
-                        QueryInfo<K, S, T> query = builder.build();
-                        return queryProvider
-                                .liveQuery(query)
-                                .debounce(config.debounceTimeoutMillis(), TimeUnit.MILLISECONDS)
-                                .concatMapSingle(n -> queryProvider
-                                        .query(query)
-                                        .toList());
-                    }
-
-                    @Override
                     public LiveSelectQuery<T> properties(Iterable<PropertyExpression<T, ?, ?>> properties) {
                         builder.propertiesAddAll(properties);
                         return this;
@@ -254,9 +243,8 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     @Override
                     public <R> Observable<R> aggregate(Aggregator<T, T, R> aggregator) {
                         QueryInfo<K, S, T> query = builder.build();
-                        return queryProvider.aggregate(query, aggregator)
-                                .toObservable()
-                                .concatWith(queryProvider.liveAggregate(query, aggregator))
+                        return queryProvider.liveAggregate(query, aggregator)
+                                .mergeWith(queryProvider.aggregate(query, aggregator).toObservable())
                                 .distinctUntilChanged();
                     }
 
@@ -305,6 +293,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                             .concatWith(queryProvider.liveQuery(observeQuery)
                                                     .doOnNext(n -> updateCount(n, count))
                                                     .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
+                                                    .filter(n -> !n.isEmpty())
                                                     .compose(transformer));
                                 });
                     }
@@ -411,6 +400,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     private static boolean isConcurrencyException(Throwable exception) {
         log.debug("Checking exception: {}", exception.getMessage(), exception);
         return exception instanceof ConcurrentModificationException ||
+                exception instanceof NoSuchElementException ||
                 (exception instanceof CompositeException && ((CompositeException)exception)
                         .getExceptions()
                         .stream()
