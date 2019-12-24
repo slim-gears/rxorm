@@ -83,7 +83,7 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
     }
 
     private String searchTextToWildcard(String searchText) {
-        searchText = searchText.replaceAll("([:+*()\\[\\]{}])", "?");
+        searchText = searchText.replaceAll("([:+*(){}\\[\\]\\\\/;])", "?");
         searchText = Arrays
                 .stream(searchText.split("\\s"))
                 .map(t -> "+*" + t + "*")
