@@ -33,6 +33,7 @@ public interface SqlServiceFactory {
         public abstract Builder referenceResolver(Function<SqlServiceFactory, ReferenceResolver> referenceResolver);
         public abstract Builder expressionGenerator(Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator);
         public abstract Builder assignmentGenerator(Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator);
+        public abstract Builder queryProviderGenerator(Function<SqlServiceFactory, QueryProvider> queryProviderGenerator);
         public abstract Builder shutdownSignal(Completable shutdown);
         public abstract SqlServiceFactory build();
 

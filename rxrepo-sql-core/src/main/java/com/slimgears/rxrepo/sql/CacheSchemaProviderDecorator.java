@@ -1,11 +1,13 @@
 package com.slimgears.rxrepo.sql;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.stream.Lazy;
 import io.reactivex.Completable;
+import io.reactivex.Maybe;
 import io.reactivex.Observable;
 
 import java.util.Map;
@@ -38,10 +40,7 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
     }
 
     private <T> Completable createOrUpdateWithReferences(MetaClass<T> metaClass) {
-        Completable references = Observable
-                .fromIterable(metaClass.properties())
-                .filter(PropertyMetas::isReference)
-                .map(PropertyMeta::type)
+        Completable references = referencedTypesOf(metaClass)
                 .concatMapCompletable(token -> {
                     MetaClass<?> meta = MetaClasses.forTokenUnchecked(token);
                     String tableName = tableName(meta);
@@ -51,6 +50,12 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
                 });
 
         return references.andThen(underlyingProvider.createOrUpdate(metaClass));
+    }
+
+    private <T> Observable<TypeToken<?>> referencedTypesOf(MetaClass<T> metaClass) {
+        return Observable
+                .fromIterable(metaClass.properties())
+                .flatMapMaybe(property -> PropertyMetas.getReferencedType(property).map(Maybe::just).orElseGet(Maybe::empty));
     }
 
     @Override

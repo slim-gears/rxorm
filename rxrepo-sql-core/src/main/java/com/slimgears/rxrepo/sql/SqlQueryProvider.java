@@ -30,12 +30,12 @@ import static com.slimgears.util.generic.LazyString.lazy;
 public class SqlQueryProvider implements QueryProvider {
     private final static Logger log = LoggerFactory.getLogger(SqlQueryProvider.class);
     private final static String aggregationField = "__aggregation";
-    private final SqlStatementProvider statementProvider;
+    protected final SqlStatementProvider statementProvider;
     private final SqlStatementExecutor statementExecutor;
-    private final SchemaProvider schemaProvider;
+    protected final SchemaProvider schemaProvider;
     private final ReferenceResolver referenceResolver;
 
-    SqlQueryProvider(SqlStatementProvider statementProvider,
+    protected SqlQueryProvider(SqlStatementProvider statementProvider,
                      SqlStatementExecutor statementExecutor,
                      SchemaProvider schemaProvider,
                      ReferenceResolver referenceResolver) {

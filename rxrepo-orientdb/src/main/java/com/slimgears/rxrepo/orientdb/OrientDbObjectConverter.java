@@ -3,44 +3,59 @@ package com.slimgears.rxrepo.orientdb;
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.slimgears.rxrepo.sql.SqlStatement;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClass;
-import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.rxrepo.util.PropertyMetas;
+import com.slimgears.util.autovalue.annotations.*;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 class OrientDbObjectConverter {
-    static SqlStatement toOrientDb(SqlStatement statement) {
-        return statement.mapArgs(OrientDbObjectConverter::toOrientDbObject);
+    private final static OrientDbObjectConverter instance = new OrientDbObjectConverter(meta -> new ODocument(), hasMetaClass -> null);
+    private final Function<MetaClass<?>, OElement> elementFactory;
+    private final Function<HasMetaClassWithKey<?, ?>, OElement> elementResolver;
+
+    private OrientDbObjectConverter(Function<MetaClass<?>, OElement> elementFactory, Function<HasMetaClassWithKey<?, ?>, OElement> elementResolver) {
+        this.elementFactory = elementFactory;
+        this.elementResolver = elementResolver;
     }
 
-    static Object[] toOrientDbObjects(Object[] objects) {
-        Object[] newArgs = new Object[objects.length];
-        for (int i = 0; i < objects.length; ++i) {
-            newArgs[i] = toOrientDbObject(objects[i]);
-        }
-        return newArgs;
+    static SqlStatement toOrientDb(SqlStatement statement) {
+        return statement.mapArgs(instance::toOrientDbObject);
+    }
+
+    static OrientDbObjectConverter create(Function<MetaClass<?>, OElement> elementFactory, Function<HasMetaClassWithKey<?, ?>, OElement> elementResolver) {
+        return new OrientDbObjectConverter(elementFactory, elementResolver);
     }
 
     @SuppressWarnings("unchecked")
-    private static Object toOrientDbObject(Object obj) {
-        if (obj instanceof Collection) {
-            return convertCollection((Collection<?>)obj);
-        } else if (obj instanceof Map) {
-            return convertMap((Map<?, ?>)obj);
-        } else if (!(obj instanceof HasMetaClass)) {
-            return obj;
+    <S> Object toOrientDbObject(S entity) {
+        if (entity instanceof Collection) {
+            return convertCollection((Collection<?>)entity);
+        } else if (entity instanceof Map) {
+            return convertMap((Map<?, ?>)entity);
+        } else if (!(entity instanceof HasMetaClass)) {
+            return entity;
         }
 
-        HasMetaClass<?> hasMetaClass = (HasMetaClass)obj;
-        MetaClass<?> metaClass = hasMetaClass.metaClass();
-        OElement oElement = new ODocument();
+        HasMetaClass<S> hasMetaClass = (HasMetaClass<S>)entity;
+        MetaClass<S> metaClass = hasMetaClass.metaClass();
+        OElement oElement = elementFactory.apply(metaClass);
         metaClass.properties().forEach(p -> {
-            oElement.setProperty(p.name(), toOrientDbObject(((PropertyMeta)p).getValue(obj)));
+            if (PropertyMetas.isReference(p) && p.getValue(entity) != null) {
+                MetaClassWithKey<Object, Object> refMetaClass = MetaClasses.forTokenWithKeyUnchecked(p.type());
+                HasMetaClassWithKey<?, ?> referencedEntity = (HasMetaClassWithKey<?, ?>)p.getValue(entity);
+                OElement refElement = Optional
+                        .ofNullable(elementResolver.apply(referencedEntity))
+                        .orElseGet(() -> (OElement)toOrientDbObject(referencedEntity));
+                oElement.setProperty(p.name(), refElement);
+            } else {
+                Optional.ofNullable(toOrientDbObject(p.getValue(entity)))
+                        .ifPresent(value -> oElement.setProperty(p.name(), value));
+            }
+
             if (p.type().isSubtypeOf(HasMetaClass.class) && !p.type().isSubtypeOf(HasMetaClassWithKey.class)) {
-                Optional.ofNullable(((PropertyMeta)p).getValue(obj))
+                Optional.ofNullable(p.getValue(entity))
                         .map(Object::toString)
                         .ifPresent(str -> oElement.setProperty(p.name() + "AsString", str));
             }
@@ -49,17 +64,17 @@ class OrientDbObjectConverter {
         return oElement;
     }
 
-    private static Map<?, ?> convertMap(Map<?, ?> map) {
+    private Map<?, ?> convertMap(Map<?, ?> map) {
         return map.entrySet()
                 .stream()
                 .collect(Collectors.toMap(e -> toOrientDbObject(e.getKey()), e -> toOrientDbObject(e.getValue())));
     }
 
-    private static Collection<?> convertCollection(Collection<?> collection) {
+    private Collection<?> convertCollection(Collection<?> collection) {
         if (collection instanceof List) {
-            return collection.stream().map(OrientDbObjectConverter::toOrientDbObject).collect(Collectors.toList());
+            return collection.stream().map(this::toOrientDbObject).collect(Collectors.toList());
         } else if (collection instanceof Set) {
-            return collection.stream().map(OrientDbObjectConverter::toOrientDbObject).collect(Collectors.toSet());
+            return collection.stream().map(this::toOrientDbObject).collect(Collectors.toSet());
         }
         return collection;
     }

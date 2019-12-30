@@ -24,7 +24,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class OrientDbRepository {
@@ -98,18 +97,20 @@ public class OrientDbRepository {
             Map<ODatabaseDocument, CompletableSubject> sessions = new ConcurrentHashMap<>();
             CompletableSubject shutdownSubject = CompletableSubject.create();
 
-            return serviceFactoryBuilder(
+            OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(
                     () -> {
                         ODatabaseDocument session = createSession(dbClient, dbName, user, password);
                         sessions.put(session, CompletableSubject.create());
                         return session;
                     },
                     session -> Optional.ofNullable(sessions.remove(session))
-                            .ifPresent(CompletableSubject::onComplete))
+                            .ifPresent(CompletableSubject::onComplete));
+
+            return serviceFactoryBuilder(dbSessionProvider)
                     .shutdownSignal(shutdownSubject)
                     .decorate(
                             LiveQueryProviderDecorator.create(),
-                            UpdateReferencesFirstQueryProviderDecorator.create(),
+//                            UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
                             decorator)
                     .buildRepository(configBuilder.build())
@@ -160,15 +161,15 @@ public class OrientDbRepository {
         }
     }
 
-    private static SqlServiceFactory.Builder serviceFactoryBuilder(Supplier<ODatabaseDocument> sessionProvider, Consumer<ODatabaseDocument> sessionCloser) {
-        OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(sessionProvider, sessionCloser);
+    private static SqlServiceFactory.Builder serviceFactoryBuilder(OrientDbSessionProvider dbSessionProvider) {
         return SqlServiceFactory.builder()
                 .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
                 .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider, svc.shutdownSignal())))
                 .expressionGenerator(OrientDbSqlExpressionGenerator::new)
                 .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                 .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
-                .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()));
+                .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
+                .queryProviderGenerator(svc -> OrientDbQueryProvider.create(svc, dbSessionProvider));
     }
 
     @SuppressWarnings("WeakerAccess")
