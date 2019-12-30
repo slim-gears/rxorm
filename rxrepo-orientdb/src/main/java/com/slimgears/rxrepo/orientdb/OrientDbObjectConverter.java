@@ -11,11 +11,15 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 class OrientDbObjectConverter {
-    private final static OrientDbObjectConverter instance = new OrientDbObjectConverter(meta -> new ODocument(), hasMetaClass -> null);
+    private final static OrientDbObjectConverter instance = new OrientDbObjectConverter(meta -> new ODocument(), (converter, hasMetaClass) -> null);
     private final Function<MetaClass<?>, OElement> elementFactory;
-    private final Function<HasMetaClassWithKey<?, ?>, OElement> elementResolver;
+    private final ElementResolver elementResolver;
 
-    private OrientDbObjectConverter(Function<MetaClass<?>, OElement> elementFactory, Function<HasMetaClassWithKey<?, ?>, OElement> elementResolver) {
+    interface ElementResolver {
+        OElement resolve(OrientDbObjectConverter converter, HasMetaClassWithKey<?, ?> entity);
+    }
+
+    private OrientDbObjectConverter(Function<MetaClass<?>, OElement> elementFactory, ElementResolver elementResolver) {
         this.elementFactory = elementFactory;
         this.elementResolver = elementResolver;
     }
@@ -24,7 +28,7 @@ class OrientDbObjectConverter {
         return statement.mapArgs(instance::toOrientDbObject);
     }
 
-    static OrientDbObjectConverter create(Function<MetaClass<?>, OElement> elementFactory, Function<HasMetaClassWithKey<?, ?>, OElement> elementResolver) {
+    static OrientDbObjectConverter create(Function<MetaClass<?>, OElement> elementFactory, ElementResolver elementResolver) {
         return new OrientDbObjectConverter(elementFactory, elementResolver);
     }
 
@@ -43,10 +47,9 @@ class OrientDbObjectConverter {
         OElement oElement = elementFactory.apply(metaClass);
         metaClass.properties().forEach(p -> {
             if (PropertyMetas.isReference(p) && p.getValue(entity) != null) {
-                MetaClassWithKey<Object, Object> refMetaClass = MetaClasses.forTokenWithKeyUnchecked(p.type());
                 HasMetaClassWithKey<?, ?> referencedEntity = (HasMetaClassWithKey<?, ?>)p.getValue(entity);
                 OElement refElement = Optional
-                        .ofNullable(elementResolver.apply(referencedEntity))
+                        .ofNullable(elementResolver.resolve(this, referencedEntity))
                         .orElseGet(() -> (OElement)toOrientDbObject(referencedEntity));
                 oElement.setProperty(p.name(), refElement);
             } else {

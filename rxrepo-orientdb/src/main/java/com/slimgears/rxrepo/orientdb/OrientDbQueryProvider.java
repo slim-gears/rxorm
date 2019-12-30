@@ -71,8 +71,8 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
                     log.debug("Finished creating class {}", lazy(metaClass::simpleName));
                     log.debug("Time to create and update schemas: {}s", stopwatch.elapsed(TimeUnit.SECONDS));
                 })
-                .andThen(Observable.just(entities)
-                        .flatMapSingle(iterable -> dbSessionProvider.withSession(dbSession -> {
+                .andThen(Single.just(entities)
+                        .flatMap(iterable -> dbSessionProvider.withSession(dbSession -> {
                             Stopwatch sw = Stopwatch.createStarted();
                             List<OElement> oElements = Lists.newArrayList();
                             entities.forEach(entity -> oElements.add(toOrientDbObject(entity, queryCache, dbSession)));
@@ -105,12 +105,18 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
     private <S> OElement toOrientDbObject(S entity, Table<MetaClass<?>, Object, OElement> queryCache, ODatabaseDocument dbSession) {
         return toOrientDbObject(entity, OrientDbObjectConverter.create(
                 meta -> dbSession.newElement(schemaProvider.tableName(meta)),
-                (HasMetaClassWithKey<?, ?> hasMetaClass) -> {
+                (converter, hasMetaClass) -> {
                     Object key = keyOf(hasMetaClass);
-                    return Optionals.or(
-                            () -> Optional.ofNullable(queryCache.get(hasMetaClass.metaClass(), key)),
-                            () -> queryDocument(hasMetaClass, queryCache, dbSession))
+                    MetaClass<?> metaClass = hasMetaClass.metaClass();
+                    OElement oElement = Optionals.or(
+                            () -> Optional.ofNullable(queryCache.get(metaClass, key)),
+                            () -> queryDocument(hasMetaClass, queryCache, dbSession),
+                            () -> Optional.ofNullable(converter.toOrientDbObject(hasMetaClass)).map(OElement.class::cast))
                             .orElse(null);
+                    if (oElement != null) {
+                        queryCache.put(metaClass, key, oElement);
+                    }
+                    return oElement;
                 }));
     }
 
