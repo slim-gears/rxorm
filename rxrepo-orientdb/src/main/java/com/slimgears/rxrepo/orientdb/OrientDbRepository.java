@@ -1,7 +1,6 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.google.common.collect.ImmutableMap;
-import com.orientechnologies.orient.core.Orient;
 import com.orientechnologies.orient.core.db.ODatabaseType;
 import com.orientechnologies.orient.core.db.OrientDB;
 import com.orientechnologies.orient.core.db.OrientDBConfig;
@@ -95,7 +94,6 @@ public class OrientDbRepository {
             Objects.requireNonNull(user);
             Objects.requireNonNull(password);
 
-            Orient.instance().startup();
             Lazy<OrientDB> dbClient = Lazy.of(() -> createClient(url, dbName, dbType));
             Map<ODatabaseDocument, CompletableSubject> sessions = new ConcurrentHashMap<>();
             CompletableSubject shutdownSubject = CompletableSubject.create();

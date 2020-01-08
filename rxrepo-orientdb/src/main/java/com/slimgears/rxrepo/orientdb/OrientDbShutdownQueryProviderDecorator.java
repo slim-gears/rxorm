@@ -1,18 +1,21 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.orientechnologies.orient.core.Orient;
-import com.orientechnologies.orient.core.db.OrientDB;
 import com.slimgears.rxrepo.query.decorator.AbstractQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
-import io.reactivex.Completable;
-
-import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("WeakerAccess")
 class OrientDbShutdownQueryProviderDecorator extends AbstractQueryProviderDecorator {
 
+    private static AtomicInteger instances = new AtomicInteger();
+
     private OrientDbShutdownQueryProviderDecorator(QueryProvider underlyingProvider) {
         super(underlyingProvider);
+
+        if (instances.incrementAndGet() == 1) {
+            Orient.instance().startup();
+        }
     }
 
     public static Decorator create() {
@@ -21,6 +24,8 @@ class OrientDbShutdownQueryProviderDecorator extends AbstractQueryProviderDecora
 
     @Override
     public void close() {
-        Orient.instance().shutdown();
+        if (instances.decrementAndGet() == 0) {
+            Orient.instance().shutdown();
+        }
     }
 }
