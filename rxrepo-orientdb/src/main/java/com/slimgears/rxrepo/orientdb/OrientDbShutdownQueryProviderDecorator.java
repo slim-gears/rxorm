@@ -5,7 +5,6 @@ import com.slimgears.rxrepo.query.decorator.AbstractQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@SuppressWarnings("WeakerAccess")
 class OrientDbShutdownQueryProviderDecorator extends AbstractQueryProviderDecorator {
 
     private static AtomicInteger instances = new AtomicInteger();
