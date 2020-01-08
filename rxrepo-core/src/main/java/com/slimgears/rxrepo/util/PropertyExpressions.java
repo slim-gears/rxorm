@@ -82,11 +82,11 @@ public class PropertyExpressions {
                         .flatMap(p -> propertiesOf(p, visitedProps)));
     }
 
-    public static <T> PropertyExpression<T, ?, ?> fromPath(TypeToken<T> origin, String path) {
+    public static <T, V> PropertyExpression<T, ?, V> fromPath(TypeToken<T> origin, String path) {
         return createExpressionFromPath(ObjectExpression.arg(origin), path);
     }
 
-    public static <T> PropertyExpression<T, ?, ?> fromPath(Class<T> origin, String path) {
+    public static <T, V> PropertyExpression<T, ?, V> fromPath(Class<T> origin, String path) {
         return fromPath(TypeToken.of(origin), path);
     }
 
@@ -102,10 +102,10 @@ public class PropertyExpressions {
         return ((PropertyMeta<T, V>)propertyExpression.property())::getValue;
     }
 
-    private static <S, T> PropertyExpression<S, ?, ?> createExpressionFromPath(ObjectExpression<S, T> target, String path) {
+    private static <S, T, V> PropertyExpression<S, ?, V> createExpressionFromPath(ObjectExpression<S, T> target, String path) {
         String head = head(path);
         MetaClass<T> meta = Objects.requireNonNull(MetaClasses.forTokenUnchecked(target.reflect().objectType()));
-        PropertyMeta<T, ?> prop = meta.getProperty(head);
+        PropertyMeta<T, V> prop = meta.getProperty(head);
         if (head.length() == path.length()) {
             return PropertyExpression.ofObject(target, prop);
         }
