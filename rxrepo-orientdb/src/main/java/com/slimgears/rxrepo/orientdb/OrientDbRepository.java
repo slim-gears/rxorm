@@ -111,6 +111,7 @@ public class OrientDbRepository {
                             LiveQueryProviderDecorator.create(),
                             UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
+                            OrientDbShutdownQueryProviderDecorator.create(),
                             decorator)
                     .buildRepository(configBuilder.build())
                     .onClose(repo -> {
