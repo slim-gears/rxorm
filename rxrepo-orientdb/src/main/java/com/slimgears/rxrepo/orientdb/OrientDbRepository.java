@@ -12,6 +12,7 @@ import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
+import com.slimgears.rxrepo.sql.SqlQueryProvider;
 import com.slimgears.rxrepo.sql.SqlServiceFactory;
 import com.slimgears.util.stream.Lazy;
 import io.reactivex.Observable;
@@ -50,12 +51,23 @@ public class OrientDbRepository {
         private ODatabaseType dbType = ODatabaseType.MEMORY;
         private String user = "admin";
         private String password = "admin";
+        private boolean batchSupport = false;
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
         private RepositoryConfig.Builder configBuilder = RepositoryConfig
                 .builder()
                 .retryCount(10)
                 .retryInitialDurationMillis(10)
                 .debounceTimeoutMillis(100);
+
+        public final Builder enableBatchSupport() {
+            return enableBatchSupport(true);
+        }
+
+        public final Builder enableBatchSupport(boolean enable) {
+            this.batchSupport = enable;
+            return this;
+        }
+
         public final Builder url(@Nonnull String url) {
             this.url = url;
             return this;
@@ -110,7 +122,7 @@ public class OrientDbRepository {
                     .shutdownSignal(shutdownSubject)
                     .decorate(
                             LiveQueryProviderDecorator.create(),
-//                            UpdateReferencesFirstQueryProviderDecorator.create(),
+                            batchSupport ? QueryProvider.Decorator.identity() : UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
                             OrientDbShutdownQueryProviderDecorator.create(),
                             decorator)
@@ -160,17 +172,17 @@ public class OrientDbRepository {
             configBuilder.retryInitialDurationMillis(value);
             return this;
         }
-    }
 
-    private static SqlServiceFactory.Builder serviceFactoryBuilder(OrientDbSessionProvider dbSessionProvider) {
-        return SqlServiceFactory.builder()
-                .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
-                .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider, svc.shutdownSignal())))
-                .expressionGenerator(OrientDbSqlExpressionGenerator::new)
-                .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
-                .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
-                .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
-                .queryProviderGenerator(svc -> OrientDbQueryProvider.create(svc, dbSessionProvider));
+        private SqlServiceFactory.Builder serviceFactoryBuilder(OrientDbSessionProvider dbSessionProvider) {
+            return SqlServiceFactory.builder()
+                    .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
+                    .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider, svc.shutdownSignal())))
+                    .expressionGenerator(OrientDbSqlExpressionGenerator::new)
+                    .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
+                    .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
+                    .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
+                    .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider) : SqlQueryProvider.create(svc));
+        }
     }
 
     @SuppressWarnings("WeakerAccess")

@@ -45,6 +45,14 @@ public class SqlQueryProvider implements QueryProvider {
         this.referenceResolver = referenceResolver;
     }
 
+    public static QueryProvider create(SqlServiceFactory serviceFactory) {
+        return new SqlQueryProvider(
+                serviceFactory.statementProvider(),
+                serviceFactory.statementExecutor(),
+                serviceFactory.schemaProvider(),
+                serviceFactory.referenceResolver());
+    }
+
     @Override
     public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
         return Optional
