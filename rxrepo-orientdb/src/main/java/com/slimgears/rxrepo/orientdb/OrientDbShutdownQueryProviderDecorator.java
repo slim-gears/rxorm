@@ -11,10 +11,10 @@ class OrientDbShutdownQueryProviderDecorator extends AbstractQueryProviderDecora
 
     private OrientDbShutdownQueryProviderDecorator(QueryProvider underlyingProvider) {
         super(underlyingProvider);
-//
-//        if (instances.incrementAndGet() == 1) {
-//            Orient.instance().startup();
-//        }
+
+        if (instances.incrementAndGet() == 1) {
+            Orient.instance().startup();
+        }
     }
 
     public static Decorator create() {
@@ -23,8 +23,8 @@ class OrientDbShutdownQueryProviderDecorator extends AbstractQueryProviderDecora
 
     @Override
     public void close() {
-//        if (instances.decrementAndGet() == 0) {
-//            Orient.instance().shutdown();
-//        }
+        if (instances.decrementAndGet() == 0) {
+            Orient.instance().shutdown();
+        }
     }
 }
