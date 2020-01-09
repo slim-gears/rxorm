@@ -8,7 +8,7 @@ import java.util.Comparator;
 @SuppressWarnings("WeakerAccess")
 public class SortingInfos {
     public static <T> Comparator<T> toComparator(SortingInfo<T, ?, ? extends Comparable<?>> sortingInfo) {
-        return Expressions.compileComparator(sortingInfo.property(), sortingInfo.ascending());
+        return Comparator.nullsLast(Expressions.compileComparator(sortingInfo.property(), sortingInfo.ascending()));
     }
 
     public static <T> Comparator<T> toComparator(Iterable<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos) {
