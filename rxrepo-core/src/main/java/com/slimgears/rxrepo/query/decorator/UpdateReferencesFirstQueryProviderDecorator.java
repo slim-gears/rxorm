@@ -33,10 +33,7 @@ public class UpdateReferencesFirstQueryProviderDecorator extends AbstractQueryPr
 
     @Override
     public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
-        Stopwatch sw = Stopwatch.createUnstarted();
         return insertReferences(metaClass, entities)
-                .doOnSubscribe(disposable -> sw.start())
-                .doOnComplete(() -> System.out.println("insertReferences time: " + sw.elapsed(TimeUnit.SECONDS) + "s"))
                 .andThen(super.insert(metaClass, entities));
     }
 
