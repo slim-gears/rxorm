@@ -875,50 +875,51 @@ public abstract class AbstractRepositoryTest {
     @Test
     @UseLogLevel(LogLevel.TRACE)
     public void testObserveAsList() {
-        products.update(Products.createMany(10)).ignoreElement().blockingAwait();
-        TestObserver<List<Product>> productTestObserver = products.query()
-                .orderBy(Product.$.name)
-                .orderByDescending(Product.$.price)
-                .limit(3)
-                .skip(2)
-                .observeAs(Notifications.toSlidingList())
-                .doOnNext(l -> {
-                    System.out.println("List received: ");
-                    l.forEach(System.out::println);
-                })
-                .test()
-                .assertOf(countAtLeast(1))
-                .assertValueAt(0, l -> l.size() == 3)
-                .assertValueAt(0, l -> Objects.equals(l.get(0).name(), "Product 2"))
-                .assertValueAt(0, l -> Objects.equals(l.get(2).name(), "Product 4"));
+        try {
 
-        products.update(Arrays.asList(
-                Product.builder()
-                        .name("Product 3-1")
-                        .key(UniqueId.productId(11))
-                        .price(100)
-                        .type(ProductPrototype.Type.ComputeHardware)
-                        .build(),
-                Product.builder()
-                        .name("Product 1-1")
-                        .key(UniqueId.productId(13))
-                        .price(100)
-                        .type(ProductPrototype.Type.ComputeHardware)
-                        .build(),
-                Product.builder()
-                        .name("Product 5-1")
-                        .key(UniqueId.productId(12))
-                        .price(100)
-                        .type(ProductPrototype.Type.ComputeHardware)
-                        .build()))
-                .ignoreElement().blockingAwait();
+            products.update(Products.createMany(10)).ignoreElement().blockingAwait();
+            TestObserver<List<Product>> productTestObserver = products.query()
+                    .orderBy(Product.$.name)
+                    .orderByDescending(Product.$.price)
+                    .limit(3)
+                    .skip(2)
+                    .observeAs(Notifications.toSlidingList())
+                    .test()
+                    .assertOf(countAtLeast(1))
+                    .assertValueAt(0, l -> l.size() == 3)
+                    .assertValueAt(0, l -> Objects.equals(l.get(0).name(), "Product 2"))
+                    .assertValueAt(0, l -> Objects.equals(l.get(2).name(), "Product 4"));
 
-        productTestObserver
-                .assertOf(countAtLeast(2))
-                .assertValueAt(1, l -> l.size() == 3)
-                .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 2"))
-                .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 3"))
-                .assertValueAt(1, l -> Objects.equals(l.get(2).name(), "Product 3-1"));
+            products.update(Arrays.asList(
+                    Product.builder()
+                            .name("Product 3-1")
+                            .key(UniqueId.productId(11))
+                            .price(100)
+                            .type(ProductPrototype.Type.ComputeHardware)
+                            .build(),
+                    Product.builder()
+                            .name("Product 1-1")
+                            .key(UniqueId.productId(13))
+                            .price(100)
+                            .type(ProductPrototype.Type.ComputeHardware)
+                            .build(),
+                    Product.builder()
+                            .name("Product 5-1")
+                            .key(UniqueId.productId(12))
+                            .price(100)
+                            .type(ProductPrototype.Type.ComputeHardware)
+                            .build()))
+                    .ignoreElement().blockingAwait();
+
+            productTestObserver
+                    .assertOf(countAtLeast(2))
+                    .assertValueAt(1, l -> l.size() == 3)
+                    .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 2"))
+                    .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 3"))
+                    .assertValueAt(1, l -> Objects.equals(l.get(2).name(), "Product 3-1"));
+        } catch (Throwable e) {
+            e.printStackTrace(System.err);
+        }
     }
 
     @Test
