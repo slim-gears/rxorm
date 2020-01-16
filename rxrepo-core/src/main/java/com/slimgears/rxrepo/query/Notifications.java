@@ -93,7 +93,7 @@ public class Notifications {
                         if (compiledPredicate.test(notification.oldValue())) {
                             return Maybe.just(Notification.ofDeleted(notification.oldValue()));
                         }
-                    } else {
+                    } else if (notification.isModify()) {
                         boolean oldMatch = compiledPredicate.test(notification.oldValue());
                         boolean newMatch = compiledPredicate.test(notification.newValue());
                         if (oldMatch && !newMatch) {
@@ -103,6 +103,8 @@ public class Notifications {
                         } else if (oldMatch) {
                             return Maybe.just(notification);
                         }
+                    } else {
+                        return Maybe.just(notification);
                     }
                     return Maybe.empty();
                 });
@@ -110,10 +112,11 @@ public class Notifications {
 
     public static <K, S, T> ObservableTransformer<Notification<S>, Notification<T>> applyQuery(QueryInfo<K, S, T> query) {
         return src -> src
-                .doOnNext(n -> log.debug("Notification: {}", n))
+                .doOnNext(n -> log.trace("Notification (before): {}", n))
                 .compose(filter(query.predicate()))
                 .compose(map(query.mapping()))
-                .compose(fieldsFilter(query.properties()));
+                .compose(fieldsFilter(query.properties()))
+                .doOnNext(n -> log.trace("Notification (after): {}", n));
     }
 
     private static <S, T> ObservableTransformer<Notification<S>, Notification<T>> map(ObjectExpression<S, T> projection) {

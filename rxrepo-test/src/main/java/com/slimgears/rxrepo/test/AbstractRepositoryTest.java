@@ -31,18 +31,18 @@ import static com.slimgears.rxrepo.test.TestUtils.*;
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractRepositoryTest {
-    @Rule
-    public final TestName testNameRule = new TestName();
-    @Rule
-    public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
-    @Rule
-    public final Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
+    @Rule public final TestName testNameRule = new TestName();
+    @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
+    @Rule public final Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
 
     private Repository repository;
+    private EntitySet<UniqueId, Product> products;
+
 
     @Before
     public void setUp() {
         this.repository = createRepository();
+        this.products = repository.entities(Product.metaClass);
         System.out.println("Starting test: " + testNameRule.getMethodName());
     }
 
@@ -221,6 +221,21 @@ public abstract class AbstractRepositoryTest {
                 .test()
                 .assertOf(countAtLeast(200))
                 .assertValueAt(10, NotificationPrototype::isCreate);
+    }
+
+    @Test @UseLogLevel(LogLevel.TRACE)
+    public void testSearchTextWithSpecialChars() {
+        products.update(Products.createOne().toBuilder().name("Product / {with} (special) [chars]; \\").build())
+                .ignoreElement()
+                .blockingAwait();
+
+        Assert.assertEquals(Long.valueOf(0), products.findAll(Product.$.searchText("Product Foo")).count().blockingGet());
+        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product")).count().blockingGet());
+        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product {")).count().blockingGet());
+        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product [")).count().blockingGet());
+        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product \\")).count().blockingGet());
+        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product /")).count().blockingGet());
+        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product ;")).count().blockingGet());
     }
 
     @Test
@@ -820,10 +835,46 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(0, p -> requireNonNull(p.vendor()).id().equals(vendorId));
     }
 
+    @Test @UseLogLevel(LogLevel.TRACE)
+    public void testObserveAsListEmptyCollection() {
+        products.query().observeAsList().test().awaitCount(1)
+                .assertValueCount(1)
+                .assertValue(List::isEmpty);
+
+        products.update(Products.createOne(1)).ignoreElement().blockingAwait();
+
+        TestObserver<List<Product>> productObserver = products.query().where(Product.$.key.id.greaterThan(1))
+                .observeAsList()
+                .doOnNext(l -> System.out.println("List received: " + l.size()))
+                .test()
+                .assertSubscribed();
+
+        productObserver.awaitCount(1)
+                .assertNoErrors()
+                .assertValueCount(1)
+                .assertValue(List::isEmpty);
+
+        products.update(Products.createOne(2)).ignoreElement().blockingAwait();
+        productObserver.awaitCount(2)
+                .assertValueCount(2)
+                .assertValueAt(1, l -> l.size() == 1);
+
+        products.update(Products.createOne(3)).ignoreElement().blockingAwait();
+        products.query()
+                .where(Product.$.key.id.greaterThan(1))
+                .skip(1)
+                .limit(2)
+                .observeAsList()
+                .test()
+                .awaitCount(1)
+                .assertValueCount(1)
+                .assertValue(l -> l.size() == 1)
+                .assertValue(l -> l.get(0).key().id() == 3);
+    }
+
     @Test
     @UseLogLevel(LogLevel.TRACE)
     public void testObserveAsList() {
-        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
         products.update(Products.createMany(10)).ignoreElement().blockingAwait();
         TestObserver<List<Product>> productTestObserver = products.query()
                 .orderBy(Product.$.name)

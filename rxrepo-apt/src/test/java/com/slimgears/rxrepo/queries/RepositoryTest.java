@@ -9,6 +9,7 @@ import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.ReplaySubject;
 import io.reactivex.subjects.Subject;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Answers;
 import org.mockito.Mock;
@@ -47,6 +48,14 @@ public class RepositoryTest {
         when(mockQueryProvider.aggregate(any(), any())).thenReturn(Maybe.just(0L));
         when(mockQueryProvider.query(any())).thenReturn(Observable.empty());
         when(mockQueryProvider.<TestKey, TestEntity, TestEntity>liveQuery(any())).thenReturn(notificationSubject);
+        when(mockQueryProvider.<TestKey, TestEntity, TestEntity>queryAndObserve(any(), any()))
+                .thenReturn(Observable
+                        .just(Notification.<TestEntity>create(null, null))
+                        .concatWith(notificationSubject));
+        when(mockQueryProvider.<TestKey, TestEntity, TestEntity>queryAndObserve(any()))
+                .thenReturn(Observable
+                .just(Notification.<TestEntity>create(null, null))
+                .concatWith(notificationSubject));
 
         notificationSubject.onNext(Notification.ofCreated(TestEntities.testEntity1));
 
@@ -55,17 +64,16 @@ public class RepositoryTest {
                 .observeAsList()
                 .doOnNext(l -> System.out.println("Received list of " + l.size()))
                 .test()
-                .awaitCount(2)
+                .awaitCount(1)
                 .assertNoTimeout()
                 .assertNoErrors()
-                .assertValueAt(0, l -> l.size() == 0)
-                .assertValueAt(1, l -> l.size() == 1);
+                .assertValueAt(0, l -> l.size() == 1);
 
         notificationSubject.onNext(Notification.ofCreated(TestEntities.testEntity2));
-        tester.awaitCount(3)
-                .assertValueCount(3)
+        tester.awaitCount(2)
+                .assertValueCount(2)
                 .assertNoErrors()
                 .assertNoTimeout()
-                .assertValueAt(2, l -> l.size() == 2);
+                .assertValueAt(1, l -> l.size() == 2);
     }
 }

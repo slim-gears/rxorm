@@ -3,12 +3,14 @@ package com.slimgears.rxrepo.orientdb;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.test.Inventory;
 import com.slimgears.rxrepo.test.Product;
+import com.slimgears.rxrepo.test.UniqueId;
 import com.slimgears.rxrepo.util.Expressions;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static com.slimgears.rxrepo.test.UniqueId.inventoryId;
 import static com.slimgears.rxrepo.test.UniqueId.productId;
@@ -53,5 +55,15 @@ public class ExpressionsTest {
         Function<Product, Integer> exp = Expressions.compile(Product.$.key.id.add(Product.$.price).mul(100).div(5));
         Assert.assertEquals(Integer.valueOf(180), exp.apply(product1));
         Assert.assertEquals(Integer.valueOf(380), exp.apply(product2));
+    }
+
+    @Test
+    public void testSearchTextExpression() {
+        Predicate<Product> predicate = Expressions.compilePredicate(Product.$.searchText("Product ["));
+        Assert.assertTrue(predicate.test(Product.builder()
+                .key(UniqueId.productId(1))
+                .price(1)
+                .name("Product 1 - [ test ]")
+                .build()));
     }
 }

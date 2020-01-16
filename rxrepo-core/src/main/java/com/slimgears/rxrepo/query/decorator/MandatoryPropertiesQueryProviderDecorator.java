@@ -32,20 +32,30 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
 
     @Override
     public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
-        return query.properties().isEmpty()
-                ? super.query(query)
-                : super.query(query.toBuilder()
-                        .apply(includeProperties(query.properties(), query.objectType()))
-                        .build());
+        return super.query(includeProperties(query));
+    }
+
+    @Override
+    public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> query) {
+        return super.queryAndObserve(includeProperties(query));
+    }
+
+    @Override
+    public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
+        return super.queryAndObserve(includeProperties(queryInfo), includeProperties(observeInfo));
     }
 
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-        return query.properties().isEmpty()
-                ? super.liveQuery(query)
-                : super.liveQuery(query.toBuilder()
-                        .apply(includeProperties(query.properties(), query.objectType()))
-                        .build());
+        return super.liveQuery(includeProperties(query));
+    }
+
+    private static <K, S, T> QueryInfo<K, S, T> includeProperties(QueryInfo<K, S, T> queryInfo) {
+        return queryInfo.properties().isEmpty()
+                ? queryInfo
+                : queryInfo.toBuilder()
+                .apply(includeProperties(queryInfo.properties(), queryInfo.objectType()))
+                .build();
     }
 
     private static <K, S, T> Consumer<QueryInfo.Builder<K, S, T>> includeProperties(Collection<PropertyExpression<T, ?, ?>> properties, TypeToken<T> typeToken) {

@@ -29,6 +29,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     private final static Logger log = LoggerFactory.getLogger(DefaultEntitySet.class);
@@ -253,7 +254,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     public <R> Observable<R> observeAs(QueryTransformer<T, R> queryTransformer) {
                         QueryInfo<K, S, T> sourceQuery = builder.build();
 
-                        QueryInfo<K, S, S> observeQuery = QueryInfo.<K, S, S>builder()
+                        QueryInfo<K, S, S> newQuery = QueryInfo.<K, S, S>builder()
                             .metaClass(sourceQuery.metaClass())
                             .predicate(sourceQuery.predicate())
                             .properties(Optional
@@ -263,9 +264,6 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                     .map(prop -> Expressions.compose(mapping, prop))
                                     .collect(ImmutableList.toImmutableList()))
                                 .orElse((ImmutableList<PropertyExpression<S, ?, ?>>)(ImmutableList<?>)sourceQuery.properties()))
-                            .build();
-
-                        QueryInfo<K, S, S> retrieveQuery = observeQuery.toBuilder()
                             .limit(limit)
                             .skip(skip)
                             .sortingAddAll(sortingInfos.build())
@@ -277,25 +275,15 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                             .sortingAddAll(sortingInfos.build())
                             .build();
 
-                        return queryProvider.aggregate(observeQuery, Aggregator.count())
-                                .defaultIfEmpty(0L)
-                                .map(AtomicLong::new)
-                                .flatMapObservable(count -> {
-                                    ObservableTransformer<List<Notification<S>>, R> transformer = queryTransformer
-                                        .transformer(transformQuery, count);
-
-                                    return queryProvider
-                                            .query(retrieveQuery)
-                                            .map(Notification::ofCreated)
-                                            .toList()
-                                            .toObservable()
-                                            .compose(transformer)
-                                            .concatWith(queryProvider.liveQuery(observeQuery)
-                                                    .doOnNext(n -> updateCount(n, count))
-                                                    .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
-                                                    .filter(n -> !n.isEmpty())
-                                                    .compose(transformer));
-                                });
+                        AtomicLong count = new AtomicLong();
+                        ObservableTransformer<List<Notification<S>>, R> transformer = queryTransformer
+                            .transformer(transformQuery, count);
+                        return queryProvider.queryAndObserve(newQuery)
+                                .doOnNext(n -> updateCount(n, count))
+                                .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
+                                .filter(n -> !n.isEmpty())
+                                .map(l -> l.stream().filter(n -> n.oldValue() != null || n.newValue() != null).collect(Collectors.toList()))
+                                .compose(transformer);
                     }
 
                     private void updateCount(Notification<S> notification, AtomicLong count) {

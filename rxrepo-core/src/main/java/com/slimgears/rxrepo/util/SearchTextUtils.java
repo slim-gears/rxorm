@@ -8,9 +8,8 @@ class SearchTextUtils {
             return "";
         }
 
-        String searchText = String.join("*", searchExpr.split("\\s"));
-        return searchText
-                .replaceAll("([.$(){}|\\[\\]])", "\\$1")
+        return String.join("*", searchExpr.split("\\s"))
+                .replaceAll("([.$(){}|[\\\\]])", "\\\\$1")
                 .replace("$", "\\$")
                 .replace("[", "\\[")
                 .replace("]", "\\]")
