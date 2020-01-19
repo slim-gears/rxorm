@@ -44,7 +44,7 @@ class OrientDbObjectConverter {
 
         HasMetaClass<S> hasMetaClass = (HasMetaClass<S>)entity;
         MetaClass<S> metaClass = hasMetaClass.metaClass();
-        OElement oElement = elementFactory.apply(metaClass);
+        OElement oElement = entity instanceof HasMetaClassWithKey ? elementFactory.apply(metaClass) : new ODocument();
         metaClass.properties().forEach(p -> {
             if (PropertyMetas.isReference(p) && p.getValue(entity) != null) {
                 HasMetaClassWithKey<?, ?> referencedEntity = (HasMetaClassWithKey<?, ?>)p.getValue(entity);

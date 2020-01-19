@@ -8,7 +8,6 @@ import com.google.common.collect.Table;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
 import com.orientechnologies.orient.core.record.OElement;
-import com.orientechnologies.orient.core.record.ORecord;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
@@ -18,9 +17,8 @@ import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.stream.Optionals;
+import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
-import io.reactivex.Observable;
-import io.reactivex.Single;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +26,7 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.slimgears.util.generic.LazyString.lazy;
 
@@ -59,43 +58,27 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
             return Completable.complete();
         }
 
-        Table<MetaClass<?>, Object, OElement> queryCache = HashBasedTable.create();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
-
+        Stopwatch stopwatch = Stopwatch.createStarted();
         return schemaProvider.createOrUpdate(metaClass)
-                .doOnSubscribe(d -> {
-                    log.debug("Beginning creating class {}", lazy(metaClass::simpleName));
-                    stopwatch.start();
-                })
-                .doOnComplete(() -> {
-                    log.debug("Finished creating class {}", lazy(metaClass::simpleName));
-                    log.debug("Time to create and update schemas: {}s", stopwatch.elapsed(TimeUnit.SECONDS));
-                })
-                .andThen(Single.just(entities)
-                        .flatMap(iterable -> dbSessionProvider.withSession(dbSession -> {
-                            Stopwatch sw = Stopwatch.createStarted();
-                            List<OElement> oElements = Lists.newArrayList();
-                            entities.forEach(entity -> oElements.add(toOrientDbObject(entity, queryCache, dbSession)));
-                            log.debug("Conversion time: {}s", sw.elapsed(TimeUnit.SECONDS));
-                            return Single.just(oElements);
-                        }))
-                        .flatMapCompletable(newElements -> dbSessionProvider.withSession(dbSession -> {
-                                try {
-                                    Stopwatch sw = Stopwatch.createStarted();
-                                    dbSession.begin();
-                                    newElements.forEach(ORecord::save);
-                                    dbSession.commit();
-                                    log.debug("Save time: {}s", sw.elapsed(TimeUnit.SECONDS));
-                                } catch (OConcurrentModificationException | ORecordDuplicatedException e) {
-                                    dbSession.rollback();
-                                    return Completable.error(new ConcurrentModificationException(e.getMessage(), e));
-                                } catch (Exception e) {
-                                    dbSession.rollback();
-                                    return Completable.error(e);
-                                }
-                                return Completable.complete();
-                            })))
+                .andThen(Completable.fromAction(() -> createAndSaveElements(entities)))
                 .doOnComplete(() -> log.debug("Total insert time: {}s", stopwatch.elapsed(TimeUnit.SECONDS)));
+    }
+
+    private <S> void createAndSaveElements(Iterable<S> entities) {
+        Table<MetaClass<?>, Object, OElement> queryCache = HashBasedTable.create();
+        dbSessionProvider.withSession(dbSession -> {
+            try {
+                List<OElement> oElements = Streams.fromIterable(entities)
+                        .map(entity -> toOrientDbObject(entity, queryCache, dbSession))
+                        .collect(Collectors.toList());
+                dbSession.begin();
+                oElements.forEach(OElement::save);
+                dbSession.commit();
+            } catch (OConcurrentModificationException | ORecordDuplicatedException e) {
+                dbSession.rollback();
+                throw new ConcurrentModificationException(e.getMessage(), e);
+            }
+        });
     }
 
     private <S> OElement toOrientDbObject(S entity, OrientDbObjectConverter converter) {
