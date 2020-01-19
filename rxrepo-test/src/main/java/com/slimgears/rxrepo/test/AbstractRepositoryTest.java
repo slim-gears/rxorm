@@ -835,7 +835,7 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(0, p -> requireNonNull(p.vendor()).id().equals(vendorId));
     }
 
-    @Test @UseLogLevel(LogLevel.TRACE)
+    @Test @Ignore
     public void testObserveAsListEmptyCollection() {
         products.query().observeAsList().test().awaitCount(1)
                 .assertValueCount(1)
@@ -873,7 +873,6 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.TRACE)
     public void testObserveAsList() {
         try {
 
