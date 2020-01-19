@@ -53,7 +53,7 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
                 .type(dbType)
                 .name(name)
                 .decorate(SchedulingQueryProviderDecorator.createDefault())
-                .enableBatchSupport(dbType == OrientDbRepository.Type.Persistent)
+                .enableBatchSupport()
                 .build();
     }
 

@@ -1330,24 +1330,27 @@ public abstract class AbstractRepositoryTest {
                 .assertValue(0L);
     }
 
-    @Test @Ignore
+    @Test
     public void testMassiveInsertBatch() {
-        long count = 10000;
+        int count = 1;
 
         Stopwatch stopwatch = Stopwatch.createStarted();
 
-        EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
-        Observable
-                .fromIterable(Products.createMany((int)count))
-                .buffer(1000)
-                .flatMapSingle(products::update)
-                .ignoreElements()
-                .blockingAwait();
+        EntitySet<UniqueId, Product> productEntitySets = repository.entities(Product.metaClass);
+        Iterable<Product> products = Products.createMany(count);
+        productEntitySets.update(products).ignoreElement().blockingAwait();
 
-        stopwatch.stop();
-        System.out.println("Elapsed time: " + stopwatch.elapsed().toMillis() / 1000 + "s");
+        System.out.println("Elapsed time for 1st insert: " + stopwatch.elapsed().toMillis() / 1000 + "s");
 
         Assert.assertEquals(Long.valueOf(count), repository.entities(Product.metaClass).query().count().blockingGet());
+
+        products = Products.createMany(count, count);
+        stopwatch.reset().start();
+        productEntitySets.update(products).ignoreElement().blockingAwait();
+
+        System.out.println("Elapsed time for 2nd insert: " + stopwatch.elapsed().toMillis() / 1000 + "s");
+
+        Assert.assertEquals(Long.valueOf(count * 2), repository.entities(Product.metaClass).query().count().blockingGet());
     }
 
     @Test @Ignore
