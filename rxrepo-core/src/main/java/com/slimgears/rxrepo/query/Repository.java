@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.query;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 public interface Repository extends AutoCloseable {
@@ -15,6 +16,7 @@ public interface Repository extends AutoCloseable {
 
     default Repository onClose(Consumer<Repository> onClose) {
         Repository self = this;
+        AtomicBoolean closed = new AtomicBoolean();
 
         return new Repository() {
             @Override
@@ -29,14 +31,18 @@ public interface Repository extends AutoCloseable {
 
             @Override
             public void clearAndClose() {
-                onClose.accept(this);
-                self.clearAndClose();
+                if (closed.compareAndSet(false, true)) {
+                    onClose.accept(this);
+                    self.clearAndClose();
+                }
             }
 
             @Override
             public void close() {
-                onClose.accept(this);
-                self.close();
+                if (closed.compareAndSet(false, true)) {
+                    onClose.accept(this);
+                    self.close();
+                }
             }
         };
     }

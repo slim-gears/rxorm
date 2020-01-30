@@ -14,6 +14,8 @@ import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.CompletableSubject;
+import io.reactivex.subjects.PublishSubject;
+import io.reactivex.subjects.Subject;
 import org.junit.*;
 import org.junit.rules.MethodRule;
 import org.junit.rules.TestName;
@@ -1369,5 +1371,34 @@ public abstract class AbstractRepositoryTest {
         System.out.println("Elapsed time: " + stopwatch.elapsed().toMillis() / 1000 + "s");
 
         Assert.assertEquals(Long.valueOf(count), repository.entities(Product.metaClass).query().count().blockingGet());
+    }
+
+    @Test
+    public void testUnsubscribeOnClose() {
+        TestObserver<Notification<Product>> productTestObserver1 = repository.entities(Product.metaClass)
+                .observe()
+                .test();
+
+        TestObserver<Notification<Product>> productTestObserver2 = repository.entities(Product.metaClass)
+                .queryAndObserve()
+                .test();
+
+        TestObserver<Long> productTestObserver3 = repository.entities(Product.metaClass)
+                .query().observeCount()
+                .test();
+
+        repository.entities(Product.metaClass).update(Products.createOne()).ignoreElement().blockingAwait();
+        productTestObserver1.awaitCount(1).assertValueCount(1).assertNotComplete();
+        productTestObserver2.awaitCount(1).assertValueCount(1).assertNotComplete();
+        productTestObserver3.awaitCount(1).assertValueCount(1).assertNotComplete();
+
+        repository.close();
+
+        productTestObserver1.awaitDone(1000, TimeUnit.MILLISECONDS);
+
+        repository.close();
+        productTestObserver1.awaitDone(1000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
+        productTestObserver2.awaitDone(1000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
+        productTestObserver3.awaitDone(1000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
     }
 }

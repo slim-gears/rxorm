@@ -249,44 +249,6 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     @SuppressWarnings("unchecked")
                     @Override
                     public <R> Observable<R> observeAs(QueryTransformer<T, R> queryTransformer) {
-//                        QueryInfo<K, S, T> sourceQuery = builder.build();
-//
-//                        QueryInfo<K, S, S> observeQuery = QueryInfo.<K, S, S>builder()
-//                                .metaClass(sourceQuery.metaClass())
-//                                .predicate(sourceQuery.predicate())
-//                                .properties(Optional
-//                                        .ofNullable(sourceQuery.mapping())
-//                                        .<ImmutableList<PropertyExpression<S, ?, ?>>>map(mapping -> sourceQuery.properties()
-//                                                .stream()
-//                                                .map(prop -> Expressions.compose(mapping, prop))
-//                                                .collect(ImmutableList.toImmutableList()))
-//                                        .orElse((ImmutableList<PropertyExpression<S, ?, ?>>)(ImmutableList<?>)sourceQuery.properties()))
-//                                .build();
-//
-//                        QueryInfo<K, S, S> retrieveQuery = observeQuery.toBuilder()
-//                                .limit(limit)
-//                                .skip(skip)
-//                                .sortingAddAll(sortingInfos.build())
-//                                .build();
-//
-//                        QueryInfo<K, S, T> transformQuery = sourceQuery.toBuilder()
-//                                .limit(limit)
-//                                .skip(skip)
-//                                .sortingAddAll(sortingInfos.build())
-//                                .build();
-//
-//                        return queryProvider.aggregate(observeQuery, Aggregator.count())
-//                                .defaultIfEmpty(0L)
-//                                .map(AtomicLong::new)
-//                                .flatMapObservable(count -> {
-//                                    ObservableTransformer<List<Notification<S>>, R> transformer = queryTransformer
-//                                            .transformer(transformQuery, count);
-//
-//                                    return queryProvider
-//                                            .queryAndObserve(retrieveQuery, observeQuery)
-//                                            .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
-//                                            .compose(transformer);
-//                                });
                         QueryInfo<K, S, T> sourceQuery = builder.build();
 
                         QueryInfo<K, S, S> observeQuery = QueryInfo.<K, S, S>builder()
@@ -338,19 +300,6 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                         return queryProvider
                                 .queryAndObserve(query.toBuilder().limit(limit).skip(skip).build(), query)
                                 .filter(n -> n.newValue() != null || n.oldValue() != null);
-//                        return queryProvider
-//                                .query(query
-//                                        .toBuilder()
-//                                        .limit(limit)
-//                                        .skip(skip)
-//                                        .build())
-//                                .map(Notification::ofCreated)
-//                                .concatWith(queryProvider.liveQuery(query));
-//
-//                        return queryProvider.queryAndObserve(builder
-//                                .limit(limit)
-//                                .skip(skip)
-//                                .build());
                     }
 
                     @Override

@@ -40,8 +40,10 @@ public class MongoQueryProvider extends AbstractEntityQueryProviderAdapter {
 
     @Override
     public void close() {
-        isClosed.set(true);
-        client.close();
+        if (isClosed.compareAndSet(false, true)) {
+            super.close();
+            client.close();
+        }
     }
 
     @Override

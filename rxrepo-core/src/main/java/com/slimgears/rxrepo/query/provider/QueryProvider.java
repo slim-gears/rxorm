@@ -1,6 +1,5 @@
 package com.slimgears.rxrepo.query.provider;
 
-import com.google.common.collect.ImmutableList;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;

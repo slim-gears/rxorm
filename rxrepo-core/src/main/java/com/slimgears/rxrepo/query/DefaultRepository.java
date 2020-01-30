@@ -1,14 +1,19 @@
 package com.slimgears.rxrepo.query;
 
 import com.slimgears.rxrepo.query.decorator.MandatoryPropertiesQueryProviderDecorator;
+import com.slimgears.rxrepo.query.decorator.TakeUntilCloseQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import io.reactivex.Completable;
+import io.reactivex.subjects.CompletableSubject;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DefaultRepository implements Repository {
+    private final AtomicBoolean closed = new AtomicBoolean(false);
     private final static RepositoryConfigModel defaultConfig = RepositoryConfig
             .builder()
             .retryCount(10)
@@ -19,9 +24,11 @@ public class DefaultRepository implements Repository {
     private final RepositoryConfigModel config;
     private final QueryProvider queryProvider;
     private final Map<MetaClassWithKey<?, ?>, EntitySet<?, ?>> entitySetMap = new HashMap<>();
+    private final CompletableSubject onCloseSubject = CompletableSubject.create();
 
     DefaultRepository(QueryProvider queryProvider, RepositoryConfigModel config) {
         this.queryProvider = QueryProvider.Decorator.of(
+                TakeUntilCloseQueryProviderDecorator.create(onCloseSubject),
                 MandatoryPropertiesQueryProviderDecorator.create())
                 .apply(queryProvider);
         this.config = Optional.ofNullable(config).orElse(defaultConfig);
@@ -40,8 +47,10 @@ public class DefaultRepository implements Repository {
 
     @Override
     public void clearAndClose() {
-        queryProvider.dropAll().blockingAwait();
-        close();
+        if (closed.compareAndSet(false, true)) {
+            queryProvider.dropAll().blockingAwait();
+            close();
+        }
     }
 
     private <K, T> EntitySet<K, T> createEntitySet(MetaClassWithKey<K, T> metaClass) {
@@ -50,6 +59,9 @@ public class DefaultRepository implements Repository {
 
     @Override
     public void close() {
-        this.queryProvider.close();
+        if (closed.compareAndSet(false, true)) {
+            onCloseSubject.onComplete();
+            this.queryProvider.close();
+        }
     }
 }

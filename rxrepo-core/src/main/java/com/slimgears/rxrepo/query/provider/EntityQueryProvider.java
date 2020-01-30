@@ -12,7 +12,7 @@ import io.reactivex.functions.Function;
 
 import java.util.concurrent.TimeUnit;
 
-public interface EntityQueryProvider<K, S> {
+public interface EntityQueryProvider<K, S> extends AutoCloseable {
     MetaClassWithKey<K, S> metaClass();
     Maybe<S> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> entityUpdater);
     <T> Observable<T> query(QueryInfo<K, S, T> query);

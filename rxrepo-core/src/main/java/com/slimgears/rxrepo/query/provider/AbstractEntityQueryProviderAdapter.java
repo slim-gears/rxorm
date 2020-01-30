@@ -77,6 +77,17 @@ public abstract class AbstractEntityQueryProviderAdapter implements QueryProvide
         return entities(query.metaClass()).liveAggregate(query, aggregator);
     }
 
+    @Override
+    public void close() {
+        providerCache.values().forEach(p -> {
+            try {
+                p.close();
+            } catch (Exception ignored) {
+
+            }
+        });
+    }
+
     protected abstract Completable dropAllProviders();
     protected abstract <K, S> EntityQueryProvider<K, S> createProvider(MetaClassWithKey<K, S> metaClass);
 }

@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S> {
+class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoCloseable {
     private final static Logger log = LoggerFactory.getLogger(MongoEntityQueryProvider.class);
     private final MetaClassWithKey<K, S> metaClass;
     private final Lazy<MongoCollection<Document>> objectCollection;
@@ -364,6 +364,12 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S> {
     private <T> T fromAggregation(BsonDocument doc, TypeToken<T> type) {
         Decoder<T> decoder = codecRegistry.get(TypeTokens.asClass(type));
         return new AggregationResultDecoder<>(decoder).decode(doc.asBsonReader(), AggregationResultDecoder.defaultContext);
+    }
+
+    @Override
+    public void close() {
+        this.notificationCollection.close();
+        this.objectCollection.close();
     }
 
     static class AggregationResultDecoder<T> implements Decoder<T>  {
