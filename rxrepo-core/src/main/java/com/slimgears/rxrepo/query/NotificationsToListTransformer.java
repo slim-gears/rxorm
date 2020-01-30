@@ -40,10 +40,11 @@ public class NotificationsToListTransformer<K, T> implements ObservableTransform
     }
 
     @Override
-    public ObservableSource<List<T>> apply(Observable<List<Notification<T>>> src) {
+    public Observable<List<T>> apply(Observable<List<Notification<T>>> src) {
         return src
                 .doOnNext(this::updateMap)
-                .map(n -> toList());
+                .<List<T>>map(n -> toList())
+                .doOnNext(l -> log.trace("List update: {} items", l.size()));
     }
 
     private ImmutableList<T> toList() {

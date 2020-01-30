@@ -12,6 +12,7 @@ import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
+import com.slimgears.rxrepo.sql.SqlQueryProvider;
 import com.slimgears.rxrepo.sql.SqlServiceFactory;
 import com.slimgears.util.stream.Lazy;
 import io.reactivex.Observable;
@@ -24,7 +25,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class OrientDbRepository {
@@ -53,12 +53,23 @@ public class OrientDbRepository {
         private String password = "admin";
         private String serverUser = "root";
         private String serverPassword = "root";
+        private boolean batchSupport = false;
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
         private RepositoryConfig.Builder configBuilder = RepositoryConfig
                 .builder()
                 .retryCount(10)
                 .retryInitialDurationMillis(10)
                 .debounceTimeoutMillis(100);
+
+        public final Builder enableBatchSupport() {
+            return enableBatchSupport(true);
+        }
+
+        public final Builder enableBatchSupport(boolean enable) {
+            this.batchSupport = enable;
+            return this;
+        }
+
         public final Builder url(@Nonnull String url) {
             this.url = url;
             return this;
@@ -112,19 +123,22 @@ public class OrientDbRepository {
             Map<ODatabaseDocument, CompletableSubject> sessions = new ConcurrentHashMap<>();
             CompletableSubject shutdownSubject = CompletableSubject.create();
 
-            return serviceFactoryBuilder(
+            OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(
                     () -> {
                         ODatabaseDocument session = createSession(dbClient, dbName, user, password);
                         sessions.put(session, CompletableSubject.create());
                         return session;
                     },
                     session -> Optional.ofNullable(sessions.remove(session))
-                            .ifPresent(CompletableSubject::onComplete))
+                            .ifPresent(CompletableSubject::onComplete));
+
+            return serviceFactoryBuilder(dbSessionProvider)
                     .shutdownSignal(shutdownSubject)
                     .decorate(
                             LiveQueryProviderDecorator.create(),
-                            UpdateReferencesFirstQueryProviderDecorator.create(),
+                            batchSupport ? QueryProvider.Decorator.identity() : UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
+                            //OrientDbShutdownQueryProviderDecorator.create(),
                             decorator)
                     .buildRepository(configBuilder.build())
                     .onClose(repo -> {
@@ -172,17 +186,17 @@ public class OrientDbRepository {
             configBuilder.retryInitialDurationMillis(value);
             return this;
         }
-    }
 
-    private static SqlServiceFactory.Builder serviceFactoryBuilder(Supplier<ODatabaseDocument> sessionProvider, Consumer<ODatabaseDocument> sessionCloser) {
-        OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(sessionProvider, sessionCloser);
-        return SqlServiceFactory.builder()
-                .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
-                .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider, svc.shutdownSignal())))
-                .expressionGenerator(OrientDbSqlExpressionGenerator::new)
-                .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
-                .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
-                .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()));
+        private SqlServiceFactory.Builder serviceFactoryBuilder(OrientDbSessionProvider dbSessionProvider) {
+            return SqlServiceFactory.builder()
+                    .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
+                    .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider, svc.shutdownSignal())))
+                    .expressionGenerator(OrientDbSqlExpressionGenerator::new)
+                    .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
+                    .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
+                    .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
+                    .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider) : SqlQueryProvider.create(svc));
+        }
     }
 
     @SuppressWarnings("WeakerAccess")

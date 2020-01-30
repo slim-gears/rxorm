@@ -82,6 +82,12 @@ public class MetricsQueryProviderDecorator implements QueryProvider.Decorator, M
         }
 
         @Override
+        public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> query) {
+            return super.queryAndObserve(query)
+                    .lift(asyncCollector("queryAndObserve", query.metaClass()).forObservable());
+        }
+
+        @Override
         public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
             return super.aggregate(query, aggregator)
                     .lift(asyncCollector("aggregate", query.metaClass()).forMaybe());

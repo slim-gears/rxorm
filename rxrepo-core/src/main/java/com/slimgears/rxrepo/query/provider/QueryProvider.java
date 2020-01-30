@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.query.provider;
 
+import com.google.common.collect.ImmutableList;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -64,5 +65,25 @@ public interface QueryProvider extends AutoCloseable {
                     .reduce((first, second) -> first.andThen(second))
                     .orElseGet(Decorator::identity);
         }
+    }
+
+    default <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> query) {
+        return queryAndObserve(
+                query,
+                query.toBuilder()
+                        .limit(null)
+                        .skip(null)
+                        .sorting(ImmutableList.of())
+                        .build());
+    }
+
+    default <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
+        return this.query(queryInfo)
+                .map(Notification::fromNewValue)
+                .toList()
+                .flatMapObservable(l -> l.isEmpty()
+                        ? Observable.just(Notification.<T>create(null, null))
+                        : Observable.fromIterable(l))
+                .concatWith(liveQuery(observeInfo));
     }
 }

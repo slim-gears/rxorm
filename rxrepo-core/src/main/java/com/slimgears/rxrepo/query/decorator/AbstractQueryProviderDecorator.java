@@ -47,6 +47,16 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
     }
 
     @Override
+    public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> query) {
+        return underlyingProvider.queryAndObserve(query);
+    }
+
+    @Override
+    public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
+        return underlyingProvider.queryAndObserve(queryInfo, observeInfo);
+    }
+
+    @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         return underlyingProvider.liveQuery(query)
             .doOnNext(n -> log.trace("[{}] Received notification: {}", lazy(() -> getClass().getSimpleName()), n));

@@ -26,7 +26,17 @@ public class Expressions {
     }
 
     public static <S, V extends Comparable<V>> Comparator<S> compileComparator(PropertyExpression<S, ?, V> property, boolean ascending) {
-        return ascending ? Comparator.comparing(compile(property)) : Comparator.comparing(compile(property)).reversed();
+        Function<S, V> propertyGetter = compile(property);
+        Comparator<S> comparator = (c1, c2) -> Optional
+                .ofNullable(propertyGetter.apply(c1))
+                .map(cc1 -> Optional.ofNullable(propertyGetter.apply(c2))
+                        .map(cc1::compareTo)
+                        .orElse(-1))
+                .orElseGet(() -> Optional
+                        .ofNullable(propertyGetter.apply(c2))
+                        .map(cc2 -> 1)
+                        .orElse(0));
+        return ascending ? comparator : comparator.reversed();
     }
 
     public static <S, V extends Comparable<V>> Comparator<S> compileComparator(PropertyExpression<S, ?, V> property) {

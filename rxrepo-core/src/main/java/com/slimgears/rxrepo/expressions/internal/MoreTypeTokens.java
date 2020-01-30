@@ -21,12 +21,12 @@ public class MoreTypeTokens {
         return argType(mapToken, Map.class, 1);
     }
 
-    private static <T> TypeToken<T> argType(TypeToken<?> type, Class<?> rawClass) {
+    public static <T> TypeToken<T> argType(TypeToken<?> type, Class<?> rawClass) {
         return argType(type, rawClass, 0);
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> TypeToken<T> argType(TypeToken<?> type, Class<?> rawClass, int argNum) {
+    public static <T> TypeToken<T> argType(TypeToken<?> type, Class<?> rawClass, int argNum) {
         return (TypeToken<T>)type.resolveType(rawClass.getTypeParameters()[argNum]);
     }
 

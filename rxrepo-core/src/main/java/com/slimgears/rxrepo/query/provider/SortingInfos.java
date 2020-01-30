@@ -18,5 +18,4 @@ public class SortingInfos {
                 .reduce(Comparator::thenComparing)
                 .orElse(null);
     }
-
 }
