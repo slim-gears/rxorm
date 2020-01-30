@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -276,14 +277,30 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                             .build();
 
                         AtomicLong count = new AtomicLong();
+                        AtomicBoolean retrieveComplete = new AtomicBoolean();
                         ObservableTransformer<List<Notification<S>>, R> transformer = queryTransformer
                             .transformer(transformQuery, count);
-                        return queryProvider.queryAndObserve(retrieveQuery, observeQuery)
-                                .doOnNext(n -> updateCount(n, count))
-                                .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
-                                .filter(n -> !n.isEmpty())
-                                .map(l -> l.stream().filter(n -> n.oldValue() != null || n.newValue() != null).collect(Collectors.toList()))
-                                .compose(transformer);
+                        return query().count()
+                                .doOnSuccess(count::set)
+                                .flatMapObservable(c ->
+                                        queryProvider.queryAndObserve(retrieveQuery, observeQuery)
+                                        .doOnNext(n -> {
+                                            if (retrieveComplete.get()) updateCount(n, count);
+                                        })
+                                        .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
+                                        .filter(n -> !n.isEmpty())
+                                        .map(l -> retrieveComplete.get()
+                                                ? l
+                                                : l.stream()
+                                                .filter(n -> {
+                                                    if (n.isEmpty()) {
+                                                        retrieveComplete.set(true);
+                                                        return false;
+                                                    }
+                                                    return true;
+                                                })
+                                                .collect(Collectors.toList()))
+                                        .compose(transformer));
                     }
 
                     private void updateCount(Notification<S> notification, AtomicLong count) {

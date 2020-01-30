@@ -6,16 +6,16 @@ import com.google.common.collect.ImmutableMap;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.query.*;
+import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
+import io.reactivex.ObservableTransformer;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.CompletableSubject;
-import io.reactivex.subjects.PublishSubject;
-import io.reactivex.subjects.Subject;
 import org.junit.*;
 import org.junit.rules.MethodRule;
 import org.junit.rules.TestName;
@@ -26,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -924,6 +925,27 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
+    public void testObserveAsSlidingListCorrectCount() {
+        products.update(Products.createMany(100)).ignoreElement().blockingAwait();
+        AtomicLong lastCount = new AtomicLong();
+        QueryTransformer<Product, List<Product>> toListTransformer = Notifications.toList();
+        List<Product> productList = products.query()
+                .skip(10)
+                .limit(20)
+                .observeAs(new QueryTransformer<Product, List<Product>>() {
+                    @Override
+                    public <K, S> ObservableTransformer<List<Notification<S>>, List<Product>> transformer(QueryInfo<K, S, Product> query, AtomicLong count) {
+                        return src -> src.compose(toListTransformer.transformer(query, count))
+                                .doOnNext(n -> lastCount.set(count.get()));
+                    }
+                })
+                .take(1)
+                .blockingFirst();
+        Assert.assertEquals(20, productList.size());
+        Assert.assertEquals(100, lastCount.get());
+    }
+
+    @Test
     public void testObserveAsListWithProperties() {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
         products.update(Products.createMany(10)).ignoreElement().blockingAwait();
@@ -1401,4 +1423,6 @@ public abstract class AbstractRepositoryTest {
         productTestObserver2.awaitDone(1000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
         productTestObserver3.awaitDone(1000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
     }
+
+
 }

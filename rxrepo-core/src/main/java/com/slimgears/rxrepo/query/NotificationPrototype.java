@@ -23,6 +23,8 @@ public interface NotificationPrototype<T> {
         return oldValue() == null && newValue() != null;
     }
 
+    default boolean isEmpty() { return oldValue() == null && newValue() == null; }
+
     default <R> Notification<R> map(Function<T, R> mapper) {
         return Notification.ofModified(
                 Optional.ofNullable(oldValue()).map(mapper).orElse(null),

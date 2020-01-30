@@ -9,6 +9,7 @@ import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.RepositoryConfigModelBuilder;
 import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
+import com.slimgears.rxrepo.query.decorator.RecursiveLiveQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
@@ -135,10 +136,10 @@ public class OrientDbRepository {
             return serviceFactoryBuilder(dbSessionProvider)
                     .shutdownSignal(shutdownSubject)
                     .decorate(
+                            RecursiveLiveQueryProviderDecorator.create(),
                             LiveQueryProviderDecorator.create(),
                             batchSupport ? QueryProvider.Decorator.identity() : UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
-                            //OrientDbShutdownQueryProviderDecorator.create(),
                             decorator)
                     .buildRepository(configBuilder.build())
                     .onClose(repo -> {
