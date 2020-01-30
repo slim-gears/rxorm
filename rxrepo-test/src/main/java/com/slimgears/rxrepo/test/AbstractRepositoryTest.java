@@ -1416,13 +1416,9 @@ public abstract class AbstractRepositoryTest {
         productTestObserver3.awaitCount(1).assertValueCount(1).assertNotComplete();
 
         repository.close();
-
-        productTestObserver1.awaitDone(1000, TimeUnit.MILLISECONDS);
-
-        repository.close();
-        productTestObserver1.awaitDone(1000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
-        productTestObserver2.awaitDone(1000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
-        productTestObserver3.awaitDone(1000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
+        productTestObserver1.awaitDone(5000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
+        productTestObserver2.awaitDone(5000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
+        productTestObserver3.awaitDone(5000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
     }
 
 
