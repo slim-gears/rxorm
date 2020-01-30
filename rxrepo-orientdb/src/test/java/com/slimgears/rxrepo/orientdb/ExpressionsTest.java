@@ -66,4 +66,9 @@ public class ExpressionsTest {
                 .name("Product 1 - [ test ]")
                 .build()));
     }
+
+    @Test
+    public void testExpressionToString() {
+        Assert.assertEquals("Equals(Length(Argument(Product).name), Argument(Product).price)", Product.$.name.length().eq(Product.$.price).toString());
+    }
 }

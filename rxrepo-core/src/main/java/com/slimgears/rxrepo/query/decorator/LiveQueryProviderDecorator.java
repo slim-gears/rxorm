@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.query.decorator;
 
 import com.google.common.collect.ImmutableList;
 import com.slimgears.rxrepo.expressions.Aggregator;
+import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.Notification;
@@ -18,6 +19,8 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
+    private final static Logger log = LoggerFactory.getLogger(LiveQueryProviderDecorator.class);
+
     private LiveQueryProviderDecorator(QueryProvider upstream) {
         super(upstream);
     }
@@ -35,18 +38,12 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
     }
 
     @Override
-    public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo) {
-        return queryAndObserve(
-                queryInfo,
-                queryInfo.toBuilder()
-                        .limit(null)
-                        .skip(null)
-                        .sorting(ImmutableList.of())
-                        .build());
-    }
-
-    @Override
     public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
+//        return this
+//                .query(queryInfo)
+//                .map(Notification::ofCreated)
+////                .concatWith(Observable.just(Notification.create(null, null)))
+//                .concatWith(this.liveQuery(observeInfo));
         return super.queryAndObserve(
                 unmapQuery(queryInfo),
                 QueryInfo.<K, S, S>builder()
@@ -57,8 +54,9 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
 
     @SuppressWarnings("unchecked")
     private static <K, S, T> QueryInfo<K, S, S> unmapQuery(QueryInfo<K, S, T> query) {
-        return Optional.ofNullable(query.mapping())
-                .map(q -> QueryInfo
+        QueryInfo<K, S, S> unmappedQuery = Optional.ofNullable(query.mapping())
+                .filter(m -> m.type().operationType() != Expression.OperationType.Argument)
+                .map(m -> QueryInfo
                         .<K, S, S>builder()
                         .metaClass(query.metaClass())
                         .sorting(query.sorting())
@@ -68,10 +66,18 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                         .properties(unmapProperties(query.properties(), query.mapping()))
                         .build())
                 .orElseGet(() -> (QueryInfo<K, S, S>)query);
+        log.trace("Unmapped query: {} -> {}", query, unmappedQuery);
+        return unmappedQuery;
     }
 
     private static <S, T> ImmutableList<PropertyExpression<S, ?, ?>> unmapProperties(ImmutableList<PropertyExpression<T, ?, ?>> properties, ObjectExpression<S, T> mapping) {
-        return properties.stream().map(p -> Expressions.compose(mapping, p)).collect(ImmutableList.toImmutableList());
+        return properties.stream().map(p -> unmapProperty(p, mapping)).collect(ImmutableList.toImmutableList());
+    }
+
+    private static <S, T> PropertyExpression<S, ?, ?> unmapProperty(PropertyExpression<T, ?, ?> propertyExpression, ObjectExpression<S, T> mapping) {
+        PropertyExpression<S, ?, ?> unmappedProp = Expressions.compose(mapping, propertyExpression);
+        log.trace("Unmapped property (mapping: {}) {} -> {}", mapping, propertyExpression, unmappedProp);
+        return unmappedProp;
     }
 
     @Override

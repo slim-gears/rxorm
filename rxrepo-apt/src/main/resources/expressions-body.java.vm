@@ -131,4 +131,9 @@
         public int hashCode() {
             return lazyHash.get();
         }
+
+        @Override
+        public String toString() {
+            return target.toString() + "." + property.name();
+        }
     }

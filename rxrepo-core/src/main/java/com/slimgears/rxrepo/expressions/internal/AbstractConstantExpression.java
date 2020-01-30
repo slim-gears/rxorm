@@ -18,4 +18,9 @@ public abstract class AbstractConstantExpression<S, T> extends AbstractObjectExp
             }
         };
     }
+
+    @Override
+    public String toString() {
+        return value().toString();
+    }
 }

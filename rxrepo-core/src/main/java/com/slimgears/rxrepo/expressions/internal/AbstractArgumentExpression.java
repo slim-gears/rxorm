@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.expressions.internal;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ArgumentExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.util.generic.MoreStrings;
 
 @SuppressWarnings("UnstableApiUsage")
 public abstract class AbstractArgumentExpression<S, T> extends AbstractObjectExpression<S, T> implements ArgumentExpression<S, T> {
@@ -24,5 +25,10 @@ public abstract class AbstractArgumentExpression<S, T> extends AbstractObjectExp
                 return converter.convert(AbstractArgumentExpression.this);
             }
         };
+    }
+
+    @Override
+    public String toString() {
+        return MoreStrings.format("{}({})", type().name(), reflect().objectType().getRawType().getSimpleName());
     }
 }

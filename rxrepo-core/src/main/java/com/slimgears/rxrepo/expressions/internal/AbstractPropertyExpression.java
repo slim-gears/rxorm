@@ -47,4 +47,9 @@ public abstract class AbstractPropertyExpression<S, T, V>
             }
         };
     }
+
+    @Override
+    public String toString() {
+        return target().toString() + "." + property().name();
+    }
 }

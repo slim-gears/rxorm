@@ -52,7 +52,7 @@ public class RepositoryTest {
                 .thenReturn(Observable
                         .just(Notification.<TestEntity>create(null, null))
                         .concatWith(notificationSubject));
-        when(mockQueryProvider.<TestKey, TestEntity, TestEntity>queryAndObserve(any()))
+        when(mockQueryProvider.<TestKey, TestEntity, TestEntity>queryAndObserve(any(), any()))
                 .thenReturn(Observable
                 .just(Notification.<TestEntity>create(null, null))
                 .concatWith(notificationSubject));

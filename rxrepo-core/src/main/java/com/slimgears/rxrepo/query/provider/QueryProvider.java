@@ -67,23 +67,20 @@ public interface QueryProvider extends AutoCloseable {
         }
     }
 
-    default <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> query) {
-        return queryAndObserve(
-                query,
-                query.toBuilder()
-                        .limit(null)
-                        .skip(null)
-                        .sorting(ImmutableList.of())
-                        .build());
-    }
-
     default <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
-        return this.query(queryInfo)
-                .map(Notification::fromNewValue)
-                .toList()
-                .flatMapObservable(l -> l.isEmpty()
-                        ? Observable.just(Notification.<T>create(null, null))
-                        : Observable.fromIterable(l))
-                .concatWith(liveQuery(observeInfo));
+        return this
+                .query(queryInfo)
+                .map(Notification::ofCreated)
+                .concatWith(Observable.just(Notification.create(null, null)))
+                .concatWith(this.liveQuery(observeInfo));
+
+//
+//        return this.query(queryInfo)
+//                .map(Notification::fromNewValue)
+//                .toList()
+//                .flatMapObservable(l -> l.isEmpty()
+//                        ? Observable.just(Notification.<T>create(null, null))
+//                        : Observable.fromIterable(l))
+//                .concatWith(liveQuery(observeInfo));
     }
 }

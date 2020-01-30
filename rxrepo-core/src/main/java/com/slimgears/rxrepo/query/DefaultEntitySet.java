@@ -1,10 +1,7 @@
 package com.slimgears.rxrepo.query;
 
 import com.google.common.collect.ImmutableList;
-import com.slimgears.rxrepo.expressions.Aggregator;
-import com.slimgears.rxrepo.expressions.BooleanExpression;
-import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.expressions.*;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
 import com.slimgears.rxrepo.query.provider.*;
@@ -187,7 +184,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                             .limit(limit)
                             .skip(skip)
                             .sorting(sortingInfos.build())
-                            .mapping(expression)
+                            .mapping(omitEmptyMapping(expression))
                             .distinct(distinct);
 
                     @Override
@@ -225,7 +222,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     private final QueryInfo.Builder<K, S, T> builder = QueryInfo.<K, S, T>builder()
                             .metaClass(metaClass)
                             .predicate(predicate.get())
-                            .mapping(expression);
+                            .mapping(omitEmptyMapping(expression));
 
                     @Override
                     public Observable<T> first() {
@@ -252,22 +249,63 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     @SuppressWarnings("unchecked")
                     @Override
                     public <R> Observable<R> observeAs(QueryTransformer<T, R> queryTransformer) {
+//                        QueryInfo<K, S, T> sourceQuery = builder.build();
+//
+//                        QueryInfo<K, S, S> observeQuery = QueryInfo.<K, S, S>builder()
+//                                .metaClass(sourceQuery.metaClass())
+//                                .predicate(sourceQuery.predicate())
+//                                .properties(Optional
+//                                        .ofNullable(sourceQuery.mapping())
+//                                        .<ImmutableList<PropertyExpression<S, ?, ?>>>map(mapping -> sourceQuery.properties()
+//                                                .stream()
+//                                                .map(prop -> Expressions.compose(mapping, prop))
+//                                                .collect(ImmutableList.toImmutableList()))
+//                                        .orElse((ImmutableList<PropertyExpression<S, ?, ?>>)(ImmutableList<?>)sourceQuery.properties()))
+//                                .build();
+//
+//                        QueryInfo<K, S, S> retrieveQuery = observeQuery.toBuilder()
+//                                .limit(limit)
+//                                .skip(skip)
+//                                .sortingAddAll(sortingInfos.build())
+//                                .build();
+//
+//                        QueryInfo<K, S, T> transformQuery = sourceQuery.toBuilder()
+//                                .limit(limit)
+//                                .skip(skip)
+//                                .sortingAddAll(sortingInfos.build())
+//                                .build();
+//
+//                        return queryProvider.aggregate(observeQuery, Aggregator.count())
+//                                .defaultIfEmpty(0L)
+//                                .map(AtomicLong::new)
+//                                .flatMapObservable(count -> {
+//                                    ObservableTransformer<List<Notification<S>>, R> transformer = queryTransformer
+//                                            .transformer(transformQuery, count);
+//
+//                                    return queryProvider
+//                                            .queryAndObserve(retrieveQuery, observeQuery)
+//                                            .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
+//                                            .compose(transformer);
+//                                });
                         QueryInfo<K, S, T> sourceQuery = builder.build();
 
-                        QueryInfo<K, S, S> newQuery = QueryInfo.<K, S, S>builder()
-                            .metaClass(sourceQuery.metaClass())
-                            .predicate(sourceQuery.predicate())
-                            .properties(Optional
-                                .ofNullable(sourceQuery.mapping())
-                                .<ImmutableList<PropertyExpression<S, ?, ?>>>map(mapping -> sourceQuery.properties()
-                                    .stream()
-                                    .map(prop -> Expressions.compose(mapping, prop))
-                                    .collect(ImmutableList.toImmutableList()))
-                                .orElse((ImmutableList<PropertyExpression<S, ?, ?>>)(ImmutableList<?>)sourceQuery.properties()))
-                            .limit(limit)
-                            .skip(skip)
-                            .sortingAddAll(sortingInfos.build())
-                            .build();
+                        QueryInfo<K, S, S> observeQuery = QueryInfo.<K, S, S>builder()
+                                .metaClass(sourceQuery.metaClass())
+                                .predicate(sourceQuery.predicate())
+                                .properties(Optional
+                                        .ofNullable(sourceQuery.mapping())
+                                        .<ImmutableList<PropertyExpression<S, ?, ?>>>map(mapping -> sourceQuery.properties()
+                                                .stream()
+                                                .map(prop -> Expressions.compose(mapping, prop))
+                                                .collect(ImmutableList.toImmutableList()))
+                                        .orElse((ImmutableList<PropertyExpression<S, ?, ?>>)(ImmutableList<?>)sourceQuery.properties()))
+                                .build();
+
+                        QueryInfo<K, S, S> retrieveQuery = observeQuery.toBuilder()
+                                .limit(limit)
+                                .skip(skip)
+                                .sortingAddAll(sortingInfos.build())
+                                .build();
 
                         QueryInfo<K, S, T> transformQuery = sourceQuery.toBuilder()
                             .limit(limit)
@@ -278,7 +316,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                         AtomicLong count = new AtomicLong();
                         ObservableTransformer<List<Notification<S>>, R> transformer = queryTransformer
                             .transformer(transformQuery, count);
-                        return queryProvider.queryAndObserve(newQuery)
+                        return queryProvider.queryAndObserve(retrieveQuery, observeQuery)
                                 .doOnNext(n -> updateCount(n, count))
                                 .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
                                 .filter(n -> !n.isEmpty())
@@ -298,13 +336,21 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     public Observable<Notification<T>> queryAndObserve() {
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider
-                                .query(query
-                                        .toBuilder()
-                                        .limit(limit)
-                                        .skip(skip)
-                                        .build())
-                                .map(Notification::ofCreated)
-                                .concatWith(queryProvider.liveQuery(query));
+                                .queryAndObserve(query.toBuilder().limit(limit).skip(skip).build(), query)
+                                .filter(n -> n.newValue() != null || n.oldValue() != null);
+//                        return queryProvider
+//                                .query(query
+//                                        .toBuilder()
+//                                        .limit(limit)
+//                                        .skip(skip)
+//                                        .build())
+//                                .map(Notification::ofCreated)
+//                                .concatWith(queryProvider.liveQuery(query));
+//
+//                        return queryProvider.queryAndObserve(builder
+//                                .limit(limit)
+//                                .skip(skip)
+//                                .build());
                     }
 
                     @Override
@@ -400,5 +446,11 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
             .ofNullable(exp)
             .<ObjectExpression<S, Boolean>>map(ex -> BooleanExpression.and(ex, predicate))
             .orElse(predicate));
+    }
+
+    private static <S, T> ObjectExpression<S, T> omitEmptyMapping(ObjectExpression<S, T> expression) {
+        return Optional.ofNullable(expression)
+                .filter(m -> m.type().operationType() != Expression.OperationType.Argument)
+                .orElse(null);
     }
 }

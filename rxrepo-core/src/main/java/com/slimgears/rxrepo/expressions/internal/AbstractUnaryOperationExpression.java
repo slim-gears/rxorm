@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.expressions.internal;
 
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
+import com.slimgears.util.generic.MoreStrings;
 
 public abstract class AbstractUnaryOperationExpression<S, T, R> implements UnaryOperationExpression<S, T, R> {
     @Override
@@ -20,5 +21,10 @@ public abstract class AbstractUnaryOperationExpression<S, T, R> implements Unary
                     : ObjectUnaryOperationExpression.create(type(), operand));
             }
         };
+    }
+
+    @Override
+    public String toString() {
+        return MoreStrings.format("{}({})", type().name(), operand());
     }
 }

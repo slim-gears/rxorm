@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.expressions.internal;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ComposedExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.util.generic.MoreStrings;
 
 public abstract class AbstractComposedExpression<S, T, R>
     extends AbstractObjectExpression<S, R>
@@ -32,5 +33,10 @@ public abstract class AbstractComposedExpression<S, T, R>
                     : ObjectComposedExpression.create(type(), source, expression));
             }
         };
+    }
+
+    @Override
+    public String toString() {
+        return MoreStrings.format("{}({}, {})", type().name(), source(), expression());
     }
 }

@@ -12,4 +12,9 @@ public abstract class AbstractObjectExpression<S, T> implements ObjectExpression
     }
 
     protected abstract Reflect<S, T> createReflect();
+
+    @Override
+    public String toString() {
+        return type().name();
+    }
 }

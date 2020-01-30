@@ -3,7 +3,6 @@ package com.slimgears.rxrepo.orientdb;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Table;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
@@ -27,8 +26,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import static com.slimgears.util.generic.LazyString.lazy;
 
 public class OrientDbQueryProvider extends SqlQueryProvider {
     private final static Logger log = LoggerFactory.getLogger(OrientDbQueryProvider.class);

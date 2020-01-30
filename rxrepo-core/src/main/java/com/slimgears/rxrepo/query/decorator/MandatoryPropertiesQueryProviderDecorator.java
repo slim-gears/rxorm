@@ -36,11 +36,6 @@ public class MandatoryPropertiesQueryProviderDecorator extends AbstractQueryProv
     }
 
     @Override
-    public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> query) {
-        return super.queryAndObserve(includeProperties(query));
-    }
-
-    @Override
     public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
         return super.queryAndObserve(includeProperties(queryInfo), includeProperties(observeInfo));
     }

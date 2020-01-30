@@ -82,9 +82,9 @@ public class MetricsQueryProviderDecorator implements QueryProvider.Decorator, M
         }
 
         @Override
-        public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> query) {
-            return super.queryAndObserve(query)
-                    .lift(asyncCollector("queryAndObserve", query.metaClass()).forObservable());
+        public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
+            return super.queryAndObserve(queryInfo, observeInfo)
+                    .lift(asyncCollector("queryAndObserve", queryInfo.metaClass()).forObservable());
         }
 
         @Override

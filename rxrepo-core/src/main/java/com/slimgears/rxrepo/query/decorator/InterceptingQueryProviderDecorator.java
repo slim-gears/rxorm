@@ -42,11 +42,6 @@ public class InterceptingQueryProviderDecorator implements QueryProvider.Decorat
             return super.liveQuery(query).compose(applyOnLiveQuery(query));
         }
 
-        @Override
-        public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> query) {
-            return super.queryAndObserve(query).compose(applyOnLiveQuery(query));
-        }
-
         public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
             return super.queryAndObserve(queryInfo, observeInfo).compose(applyOnLiveQuery(queryInfo));
         }

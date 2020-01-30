@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.query.decorator;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Sets;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.util.PropertyMetas;

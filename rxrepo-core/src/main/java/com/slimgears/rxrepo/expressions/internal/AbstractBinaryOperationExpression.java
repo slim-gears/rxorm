@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.expressions.internal;
 
 import com.slimgears.rxrepo.expressions.BinaryOperationExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.util.generic.MoreStrings;
 
 public abstract class AbstractBinaryOperationExpression<S, T1, T2, R>
     extends AbstractObjectExpression<S, R>
@@ -24,5 +25,10 @@ public abstract class AbstractBinaryOperationExpression<S, T1, T2, R>
                     : ObjectBinaryOperationExpression.create(type(), left, right));
             }
         };
+    }
+
+    @Override
+    public String toString() {
+        return MoreStrings.format("{}({}, {})", type().name(), left(), right());
     }
 }
