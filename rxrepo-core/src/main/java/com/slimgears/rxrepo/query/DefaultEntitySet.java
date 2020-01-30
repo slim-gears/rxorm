@@ -280,7 +280,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                         AtomicBoolean retrieveComplete = new AtomicBoolean();
                         ObservableTransformer<List<Notification<S>>, R> transformer = queryTransformer
                             .transformer(transformQuery, count);
-                        return query().count()
+                        return queryProvider.aggregate(sourceQuery, Aggregator.count())
                                 .doOnSuccess(count::set)
                                 .flatMapObservable(c ->
                                         queryProvider.queryAndObserve(retrieveQuery, observeQuery)

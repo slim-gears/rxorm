@@ -930,6 +930,7 @@ public abstract class AbstractRepositoryTest {
         AtomicLong lastCount = new AtomicLong();
         QueryTransformer<Product, List<Product>> toListTransformer = Notifications.toList();
         List<Product> productList = products.query()
+                .where(Product.$.key.id.greaterThan(10))
                 .skip(10)
                 .limit(20)
                 .observeAs(new QueryTransformer<Product, List<Product>>() {
@@ -942,7 +943,7 @@ public abstract class AbstractRepositoryTest {
                 .take(1)
                 .blockingFirst();
         Assert.assertEquals(20, productList.size());
-        Assert.assertEquals(100, lastCount.get());
+        Assert.assertEquals(89, lastCount.get());
     }
 
     @Test
