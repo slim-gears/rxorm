@@ -122,7 +122,6 @@ public class OrientDbRepository {
 
             Lazy<OrientDB> dbClient = Lazy.of(() -> createClient(url, serverUser, serverPassword, dbName, dbType));
             Map<ODatabaseDocument, CompletableSubject> sessions = new ConcurrentHashMap<>();
-            CompletableSubject shutdownSubject = CompletableSubject.create();
 
             OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(
                     () -> {
@@ -134,7 +133,6 @@ public class OrientDbRepository {
                             .ifPresent(CompletableSubject::onComplete));
 
             return serviceFactoryBuilder(dbSessionProvider)
-                    .shutdownSignal(shutdownSubject)
                     .decorate(
                             RecursiveLiveQueryProviderDecorator.create(),
                             LiveQueryProviderDecorator.create(),
@@ -143,7 +141,6 @@ public class OrientDbRepository {
                             decorator)
                     .buildRepository(configBuilder.build())
                     .onClose(repo -> {
-                        shutdownSubject.onComplete();
                         if (!Observable.fromIterable(sessions.values())
                                 .flatMapCompletable(Functions.identity())
                                 .blockingAwait(4, TimeUnit.SECONDS)) {
@@ -191,7 +188,7 @@ public class OrientDbRepository {
         private SqlServiceFactory.Builder serviceFactoryBuilder(OrientDbSessionProvider dbSessionProvider) {
             return SqlServiceFactory.builder()
                     .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
-                    .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider, svc.shutdownSignal())))
+                    .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider)))
                     .expressionGenerator(OrientDbSqlExpressionGenerator::new)
                     .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                     .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))

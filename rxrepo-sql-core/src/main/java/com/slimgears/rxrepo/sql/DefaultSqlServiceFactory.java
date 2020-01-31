@@ -19,7 +19,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     private final Lazy<SqlExpressionGenerator> expressionGenerator;
     private final Lazy<SqlAssignmentGenerator> assignmentGenerator;
     private final Lazy<QueryProvider> queryProvider;
-    private final Completable shutdownSignal;
 
     private DefaultSqlServiceFactory(
             @Nonnull Function<SqlServiceFactory, SqlStatementProvider> statementProvider,
@@ -28,8 +27,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             @Nonnull Function<SqlServiceFactory, SchemaProvider> schemaProvider,
             @Nonnull Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
             @Nonnull Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator,
-            @Nonnull Function<SqlServiceFactory, QueryProvider> queryProviderGenerator,
-            @Nonnull Completable shutdownSignal) {
+            @Nonnull Function<SqlServiceFactory, QueryProvider> queryProviderGenerator) {
 
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
         this.statementExecutor = Lazy.of(() -> statementExecutor.apply(this));
@@ -38,7 +36,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         this.expressionGenerator = Lazy.of(() -> expressionGenerator.apply(this));
         this.assignmentGenerator = Lazy.of(() -> assignmentGenerator.apply(this));
         this.queryProvider = Lazy.of(() -> queryProviderGenerator.apply(this));
-        this.shutdownSignal = shutdownSignal;
     }
 
     @Override
@@ -64,11 +61,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     @Override
     public SqlAssignmentGenerator assignmentGenerator() {
         return assignmentGenerator.get();
-    }
-
-    @Override
-    public Completable shutdownSignal() {
-        return shutdownSignal;
     }
 
     @Override
@@ -103,7 +95,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                 factory.schemaProvider(),
                 factory.referenceResolver());
         private Scheduler scheduler = Schedulers.single();
-        private Completable shutdownSignal = Completable.never();
 
         @Override
         public SqlServiceFactory.Builder statementProvider(Function<SqlServiceFactory, SqlStatementProvider> statementProvider) {
@@ -148,12 +139,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         }
 
         @Override
-        public SqlServiceFactory.Builder shutdownSignal(Completable shutdown) {
-            this.shutdownSignal = shutdown;
-            return this;
-        }
-
-        @Override
         public SqlServiceFactory build() {
             return new DefaultSqlServiceFactory(
                     requireNonNull(statementProvider),
@@ -162,8 +147,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                     requireNonNull(schemaProvider),
                     requireNonNull(expressionGenerator),
                     requireNonNull(assignmentGenerator),
-                    requireNonNull(queryProviderGenerator),
-                    shutdownSignal);
+                    requireNonNull(queryProviderGenerator));
         }
     }
 }

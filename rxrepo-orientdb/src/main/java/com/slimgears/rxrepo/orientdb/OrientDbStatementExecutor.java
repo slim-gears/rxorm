@@ -30,10 +30,8 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
     private final static AtomicLong operationCounter = new AtomicLong();
     private final static Logger log = LoggerFactory.getLogger(OrientDbStatementExecutor.class);
     private final OrientDbSessionProvider sessionProvider;
-    private final Completable shutdown;
 
-    OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider, Completable shutdown) {
-        this.shutdown = shutdown;
+    OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider) {
         this.sessionProvider = sessionProvider;
     }
 
@@ -97,8 +95,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                                 .orElse(null),
                         Optional.ofNullable(res.newResult())
                                 .map(or -> OResultPropertyResolver.create(OrientDbSessionProvider.create(res.database()), or))
-                                .orElse(null)))
-                .takeUntil(shutdown.andThen(Observable.just(0)));
+                                .orElse(null)));
     }
 
     private Observable<PropertyResolver> toObservable(Function<ODatabaseDocument, OResultSet> resultSetSupplier) {

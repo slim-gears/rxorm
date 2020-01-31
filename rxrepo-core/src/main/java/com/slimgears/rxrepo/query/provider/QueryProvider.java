@@ -70,16 +70,7 @@ public interface QueryProvider extends AutoCloseable {
         return this
                 .query(queryInfo)
                 .map(Notification::ofCreated)
-                .concatWith(Observable.just(Notification.create(null, null)))
+                .concatWith(Observable.just(Notification.create()))
                 .concatWith(this.liveQuery(observeInfo));
-
-//
-//        return this.query(queryInfo)
-//                .map(Notification::fromNewValue)
-//                .toList()
-//                .flatMapObservable(l -> l.isEmpty()
-//                        ? Observable.just(Notification.<T>create(null, null))
-//                        : Observable.fromIterable(l))
-//                .concatWith(liveQuery(observeInfo));
     }
 }

@@ -94,7 +94,11 @@ public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecor
 
     @Override
     public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
-        return super.queryAndObserve(queryInfo, observeInfo).subscribeOn(queryScheduler);
+        return this
+                .query(queryInfo)
+                .map(Notification::ofCreated)
+                .concatWith(Observable.just(Notification.create()))
+                .concatWith(this.liveQuery(observeInfo));
     }
 
     @Override

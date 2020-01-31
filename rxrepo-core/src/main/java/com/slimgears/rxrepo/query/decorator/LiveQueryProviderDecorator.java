@@ -39,11 +39,6 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
 
     @Override
     public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
-//        return this
-//                .query(queryInfo)
-//                .map(Notification::ofCreated)
-////                .concatWith(Observable.just(Notification.create(null, null)))
-//                .concatWith(this.liveQuery(observeInfo));
         return super.queryAndObserve(
                 unmapQuery(queryInfo),
                 QueryInfo.<K, S, S>builder()

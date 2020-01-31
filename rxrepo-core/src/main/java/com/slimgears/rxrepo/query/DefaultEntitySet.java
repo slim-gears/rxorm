@@ -271,36 +271,38 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                 .build();
 
                         QueryInfo<K, S, T> transformQuery = sourceQuery.toBuilder()
-                            .limit(limit)
-                            .skip(skip)
-                            .sortingAddAll(sortingInfos.build())
-                            .build();
+                                .limit(limit)
+                                .skip(skip)
+                                .sortingAddAll(sortingInfos.build())
+                                .build();
 
-                        AtomicLong count = new AtomicLong();
-                        AtomicBoolean retrieveComplete = new AtomicBoolean();
-                        ObservableTransformer<List<Notification<S>>, R> transformer = queryTransformer
-                            .transformer(transformQuery, count);
-                        return queryProvider.aggregate(sourceQuery, Aggregator.count())
-                                .doOnSuccess(count::set)
-                                .flatMapObservable(c ->
-                                        queryProvider.queryAndObserve(retrieveQuery, observeQuery)
-                                        .doOnNext(n -> {
-                                            if (retrieveComplete.get()) updateCount(n, count);
-                                        })
-                                        .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
-                                        .filter(n -> !n.isEmpty())
-                                        .map(l -> retrieveComplete.get()
-                                                ? l
-                                                : l.stream()
-                                                .filter(n -> {
-                                                    if (n.isEmpty()) {
-                                                        retrieveComplete.set(true);
-                                                        return false;
-                                                    }
-                                                    return true;
-                                                })
-                                                .collect(Collectors.toList()))
-                                        .compose(transformer));
+                        return queryProvider.aggregate(observeQuery, Aggregator.count())
+                                .defaultIfEmpty(0L)
+                                .map(AtomicLong::new)
+                                .flatMapObservable(count -> {
+                                    AtomicBoolean retrieveComplete = new AtomicBoolean();
+                                    ObservableTransformer<List<Notification<S>>, R> transformer = queryTransformer
+                                            .transformer(transformQuery, count);
+                                    return queryProvider
+                                            .queryAndObserve(retrieveQuery, observeQuery)
+                                            .doOnNext(n -> {
+                                                if (retrieveComplete.get()) updateCount(n, count);
+                                            })
+                                            .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
+                                            .filter(n -> !n.isEmpty())
+                                            .map(l -> retrieveComplete.get()
+                                                    ? l
+                                                    : l.stream()
+                                                    .filter(n -> {
+                                                        if (n.isEmpty()) {
+                                                            retrieveComplete.set(true);
+                                                            return false;
+                                                        }
+                                                        return true;
+                                                    })
+                                                    .collect(Collectors.toList()))
+                                            .compose(transformer);
+                                });
                     }
 
                     private void updateCount(Notification<S> notification, AtomicLong count) {
@@ -316,7 +318,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider
                                 .queryAndObserve(query.toBuilder().limit(limit).skip(skip).build(), query)
-                                .filter(n -> n.newValue() != null || n.oldValue() != null);
+                                .filter(n -> !n.isEmpty());
                     }
 
                     @Override

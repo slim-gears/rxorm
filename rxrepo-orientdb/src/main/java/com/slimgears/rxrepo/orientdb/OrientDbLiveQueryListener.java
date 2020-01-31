@@ -6,11 +6,16 @@ import com.orientechnologies.orient.core.db.OLiveQueryResultListener;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import io.reactivex.ObservableEmitter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import static com.slimgears.util.generic.MoreStrings.lazy;
+
 class OrientDbLiveQueryListener implements OLiveQueryResultListener {
     private final ObservableEmitter<LiveQueryNotification> emitter;
+    private final static Logger log = LoggerFactory.getLogger(OrientDbLiveQueryListener.class);
 
     OrientDbLiveQueryListener(ObservableEmitter<LiveQueryNotification> emitter) {
         this.emitter = emitter;
@@ -29,21 +34,25 @@ class OrientDbLiveQueryListener implements OLiveQueryResultListener {
 
     @Override
     public void onCreate(ODatabaseDocument database, OResult data) {
+        log.trace("onCreate Notification received: {}", lazy(data::toJSON));
         emitter.onNext(LiveQueryNotification.create(database, null, data));
     }
 
     @Override
     public void onUpdate(ODatabaseDocument database, OResult before, OResult after) {
+        log.trace("onUpdate Notification received: {} -> {}", lazy(before::toJSON), lazy(after::toJSON));
         emitter.onNext(LiveQueryNotification.create(database, before, after));
     }
 
     @Override
     public void onDelete(ODatabaseDocument database, OResult data) {
+        log.trace("onDeleted Notification received: {}", lazy(data::toJSON));
         emitter.onNext(LiveQueryNotification.create(database, data, null));
     }
 
     @Override
     public void onError(ODatabaseDocument database, OException exception) {
+        log.error("onError notification received", exception);
         emitter.onError(exception);
     }
 
