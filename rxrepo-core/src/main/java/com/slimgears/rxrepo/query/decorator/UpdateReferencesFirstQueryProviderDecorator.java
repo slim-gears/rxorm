@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 public class UpdateReferencesFirstQueryProviderDecorator extends AbstractQueryProviderDecorator {
     private final static Logger log = LoggerFactory.getLogger(UpdateReferencesFirstQueryProviderDecorator.class);
 
-    private UpdateReferencesFirstQueryProviderDecorator(QueryProvider underlyingProvider) {
+    protected UpdateReferencesFirstQueryProviderDecorator(QueryProvider underlyingProvider) {
         super(underlyingProvider);
     }
 

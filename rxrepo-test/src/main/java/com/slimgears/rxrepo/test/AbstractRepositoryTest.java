@@ -120,6 +120,28 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
+    public void testUpdateReferencedEntity() throws InterruptedException {
+        EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
+        Product product = Product.builder()
+                .name("Product 1")
+                .key(UniqueId.productId(1))
+                .price(1001)
+                .build();
+
+        productSet.update(product).test().await().assertNoErrors();
+        product = productSet.query().where(Product.$.key.eq(UniqueId.productId(1))).first().blockingGet();
+        Assert.assertNull(product.inventory());
+        Inventory inventory = Inventory.builder()
+                .id(UniqueId.inventoryId(1))
+                .name("Inventory 1")
+                .build();
+        Product updatedProduct = product.toBuilder().inventory(inventory).build();
+        productSet.update(updatedProduct).test().await().assertNoErrors();
+        product = productSet.query().where(Product.$.key.eq(UniqueId.productId(1))).first().blockingGet();
+        Assert.assertNotNull(product.inventory());
+    }
+
+    @Test
     public void testAddAlreadyExistingObject() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Product product = Product.builder()
