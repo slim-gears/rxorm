@@ -48,8 +48,8 @@ public class DefaultRepository implements Repository {
     @Override
     public void clearAndClose() {
         if (closed.compareAndSet(false, true)) {
-            queryProvider.dropAll().blockingAwait();
             close();
+            queryProvider.dropAll().blockingAwait();
         }
     }
 
