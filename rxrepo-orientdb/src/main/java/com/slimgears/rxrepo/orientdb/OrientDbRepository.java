@@ -136,7 +136,7 @@ public class OrientDbRepository {
                     .decorate(
                             RecursiveLiveQueryProviderDecorator.create(),
                             LiveQueryProviderDecorator.create(),
-                            batchSupport ? QueryProvider.Decorator.identity() : UpdateReferencesFirstQueryProviderDecorator.create(),
+                            batchSupport ? OrientDbUpdateReferencesFirstQueryProviderDecorator.create() : UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
                             decorator)
                     .buildRepository(configBuilder.build())
