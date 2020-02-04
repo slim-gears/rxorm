@@ -8,10 +8,12 @@ import com.slimgears.util.test.logging.UseLogLevel;
 import com.slimgears.util.test.logging.UseLogLevels;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 
 @UseLogLevels(
         @UseLogLevel(logger = "org.mongodb.driver", value = LogLevel.INFO)
 )
+@Ignore
 public class MongoQueryProviderTest extends AbstractRepositoryTest {
     private static AutoCloseable mongoProcess;
 
