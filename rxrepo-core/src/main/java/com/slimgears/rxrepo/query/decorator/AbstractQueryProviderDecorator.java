@@ -28,68 +28,72 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
 
     @Override
     public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
-        return underlyingProvider.insert(metaClass, entities);
+        return getUnderlyingProvider().insert(metaClass, entities);
     }
 
     @Override
     public <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
-        return underlyingProvider.insertOrUpdate(metaClass, entity);
+        return getUnderlyingProvider().insertOrUpdate(metaClass, entity);
     }
 
     @Override
     public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return underlyingProvider.insertOrUpdate(metaClass, key, entityUpdater);
+        return getUnderlyingProvider().insertOrUpdate(metaClass, key, entityUpdater);
     }
 
     @Override
     public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
-        return underlyingProvider.query(query);
+        return getUnderlyingProvider().query(query);
     }
 
     @Override
     public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
-        return underlyingProvider.queryAndObserve(queryInfo, observeInfo);
+        return getUnderlyingProvider().queryAndObserve(queryInfo, observeInfo);
     }
 
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-        return underlyingProvider.liveQuery(query)
+        return getUnderlyingProvider().liveQuery(query)
             .doOnNext(n -> log.trace("[{}] Received notification: {}", lazy(() -> getClass().getSimpleName()), n));
     }
 
     @Override
     public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return underlyingProvider.aggregate(query, aggregator);
+        return getUnderlyingProvider().aggregate(query, aggregator);
     }
 
     @Override
     public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return underlyingProvider.liveAggregate(query, aggregator)
+        return getUnderlyingProvider().liveAggregate(query, aggregator)
             .doOnNext(n -> log.trace("[{}] Received aggregation notification: {}", lazy(() -> getClass().getSimpleName()), n));
     }
 
     @Override
     public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
-        return underlyingProvider.update(update);
+        return getUnderlyingProvider().update(update);
     }
 
     @Override
     public <K, S> Single<Integer> delete(DeleteInfo<K, S> delete) {
-        return underlyingProvider.delete(delete);
+        return getUnderlyingProvider().delete(delete);
     }
 
     @Override
     public <K, S> Completable drop(MetaClassWithKey<K, S> metaClass) {
-        return underlyingProvider.drop(metaClass);
+        return getUnderlyingProvider().drop(metaClass);
     }
 
     @Override
     public Completable dropAll() {
-        return underlyingProvider.dropAll();
+        return getUnderlyingProvider().dropAll();
     }
 
     @Override
     public void close() {
-        underlyingProvider.close();
+        getUnderlyingProvider().close();
+    }
+
+    protected QueryProvider getUnderlyingProvider() {
+        return underlyingProvider;
     }
 }

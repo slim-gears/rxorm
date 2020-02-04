@@ -46,11 +46,12 @@ class OrientDbSchemaProvider implements SchemaProvider {
         return toClassName(metaClass);
     }
 
-    private OClass getOrCreateClass(ODatabaseDocument dbSession, MetaClass<?> metaClass) {
-        return Optional.ofNullable(dbSession.getClass(toClassName(metaClass)))
-                .orElseGet(() -> createClass(dbSession, metaClass));
+    @Override
+    public void clear() {
+
     }
 
+    @SuppressWarnings("rawtypes")
     private synchronized OClass createClass(ODatabaseDocument dbSession, MetaClass<?> metaClass) {
         String className = toClassName(metaClass);
         log.debug("Creating class: {}", className);
@@ -132,8 +133,8 @@ class OrientDbSchemaProvider implements SchemaProvider {
         log.trace("<< {}: Adding property {} index of type {}", oClass.getName(), propertyName, indexType);
     }
 
-    private static <T extends HasMetaClass<T>> MetaClass<T> toMetaClass(TypeToken typeToken) {
-        //noinspection unchecked
+    @SuppressWarnings("unchecked")
+    private static <T extends HasMetaClass<T>> MetaClass<T> toMetaClass(TypeToken<?> typeToken) {
         return MetaClasses.forToken((TypeToken<T>)typeToken);
     }
 

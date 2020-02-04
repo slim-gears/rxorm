@@ -207,7 +207,8 @@ public class SqlQueryProvider implements QueryProvider {
     public Completable dropAll() {
         return Completable.defer(() -> {
             SqlStatement statement = statementProvider.forDrop();
-            return statementExecutor.executeCommand(statement);
+            return statementExecutor.executeCommand(statement)
+                    .doOnComplete(schemaProvider::clear);
         });
     }
 

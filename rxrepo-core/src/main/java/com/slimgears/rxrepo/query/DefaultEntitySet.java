@@ -17,13 +17,11 @@ import io.reactivex.ObservableTransformer;
 import io.reactivex.Single;
 import io.reactivex.exceptions.CompositeException;
 import io.reactivex.functions.Function;
-import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -377,9 +375,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                 .onErrorResumeNext(e -> isConcurrencyException(e)
                         ? Single.defer(() -> Observable
                                 .fromIterable(entities)
-                                .window(100)
-                                .observeOn(Schedulers.newThread())
-                                .concatMap(w -> w.flatMapSingle(this::update))
+                                .flatMapSingle(this::update)
                                 .toList())
                         : Single.error(e));
     }

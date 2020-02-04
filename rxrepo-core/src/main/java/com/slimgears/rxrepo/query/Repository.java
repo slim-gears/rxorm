@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.query;
 
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import io.reactivex.Completable;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -12,7 +13,7 @@ public interface Repository extends AutoCloseable {
     Iterable<EntitySet<?, ?>> allEntitySets();
 
     void close();
-    void clearAndClose();
+    Completable clear();
 
     default Repository onClose(Consumer<Repository> onClose) {
         Repository self = this;
@@ -30,11 +31,8 @@ public interface Repository extends AutoCloseable {
             }
 
             @Override
-            public void clearAndClose() {
-                if (closed.compareAndSet(false, true)) {
-                    onClose.accept(this);
-                    self.clearAndClose();
-                }
+            public Completable clear() {
+                return self.clear();
             }
 
             @Override

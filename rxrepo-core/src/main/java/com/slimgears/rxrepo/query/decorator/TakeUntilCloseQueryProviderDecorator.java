@@ -7,17 +7,18 @@ import com.slimgears.rxrepo.query.provider.QueryProvider;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
+import io.reactivex.subjects.CompletableSubject;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decorator {
     private final static Object onCloseToken = new Object();
-    private final Completable closeCompletable;
 
-    private TakeUntilCloseQueryProviderDecorator(Completable closeCompletable) {
-        this.closeCompletable = closeCompletable;
+    private TakeUntilCloseQueryProviderDecorator() {
     }
 
-    public static QueryProvider.Decorator create(Completable closeCompletable) {
-        return new TakeUntilCloseQueryProviderDecorator(closeCompletable);
+    public static QueryProvider.Decorator create() {
+        return new TakeUntilCloseQueryProviderDecorator();
     }
 
     @Override
@@ -25,7 +26,10 @@ public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decor
         return new Decorator(queryProvider);
     }
 
-    class Decorator extends AbstractQueryProviderDecorator {
+    static class Decorator extends AbstractQueryProviderDecorator {
+        private final CompletableSubject closeSubject = CompletableSubject.create();
+        private final AtomicBoolean wasClosed = new AtomicBoolean();
+
         private Decorator(QueryProvider underlyingProvider) {
             super(underlyingProvider);
         }
@@ -45,8 +49,21 @@ public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decor
             return super.liveAggregate(query, aggregator).compose(applyTakeUntilClose());
         }
 
+        @Override
+        public void close() {
+            if (wasClosed.compareAndSet(false, true)) {
+                closeSubject.onComplete();
+                super.close();
+            }
+        }
+
+        @Override
+        protected QueryProvider getUnderlyingProvider() {
+            return wasClosed.get() ? EmptyQueryProvider.instance : super.getUnderlyingProvider();
+        }
+
         private <T> ObservableTransformer<T, T> applyTakeUntilClose() {
-            return src -> src.takeUntil(closeCompletable.andThen(Observable.just(onCloseToken)));
+            return src -> src.takeUntil(closeSubject.andThen(Observable.just(onCloseToken)));
         }
     }
 }

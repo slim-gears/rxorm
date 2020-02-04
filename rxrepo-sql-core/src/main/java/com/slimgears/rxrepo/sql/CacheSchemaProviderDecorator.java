@@ -62,4 +62,9 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
     public <T> String tableName(MetaClass<T> metaClass) {
         return underlyingProvider.tableName(metaClass);
     }
+
+    @Override
+    public void clear() {
+        cache.clear();
+    }
 }

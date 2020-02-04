@@ -13,7 +13,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DefaultRepository implements Repository {
-    private final AtomicBoolean closed = new AtomicBoolean(false);
     private final static RepositoryConfigModel defaultConfig = RepositoryConfig
             .builder()
             .retryCount(10)
@@ -24,11 +23,10 @@ public class DefaultRepository implements Repository {
     private final RepositoryConfigModel config;
     private final QueryProvider queryProvider;
     private final Map<MetaClassWithKey<?, ?>, EntitySet<?, ?>> entitySetMap = new HashMap<>();
-    private final CompletableSubject onCloseSubject = CompletableSubject.create();
 
     DefaultRepository(QueryProvider queryProvider, RepositoryConfigModel config) {
         this.queryProvider = QueryProvider.Decorator.of(
-                TakeUntilCloseQueryProviderDecorator.create(onCloseSubject),
+                TakeUntilCloseQueryProviderDecorator.create(),
                 MandatoryPropertiesQueryProviderDecorator.create())
                 .apply(queryProvider);
         this.config = Optional.ofNullable(config).orElse(defaultConfig);
@@ -46,11 +44,8 @@ public class DefaultRepository implements Repository {
     }
 
     @Override
-    public void clearAndClose() {
-        if (closed.compareAndSet(false, true)) {
-            close();
-            queryProvider.dropAll().blockingAwait();
-        }
+    public Completable clear() {
+        return queryProvider.dropAll();
     }
 
     private <K, T> EntitySet<K, T> createEntitySet(MetaClassWithKey<K, T> metaClass) {
@@ -59,9 +54,6 @@ public class DefaultRepository implements Repository {
 
     @Override
     public void close() {
-        if (closed.compareAndSet(false, true)) {
-            onCloseSubject.onComplete();
-            this.queryProvider.close();
-        }
+        this.queryProvider.close();
     }
 }
