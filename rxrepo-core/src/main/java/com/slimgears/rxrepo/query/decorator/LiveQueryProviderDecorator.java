@@ -14,7 +14,6 @@ import io.reactivex.Observable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -78,8 +77,8 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
     @Override
     public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return liveQuery(query)
-            .debounce(500, TimeUnit.MILLISECONDS)
-            .switchMapMaybe(n -> aggregate(query, aggregator))
-            .distinctUntilChanged();
+                .throttleLatest(1, TimeUnit.SECONDS)
+                .switchMapMaybe(n -> aggregate(query, aggregator))
+                .distinctUntilChanged();
     }
 }
