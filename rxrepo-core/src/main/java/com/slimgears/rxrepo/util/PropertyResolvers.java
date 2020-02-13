@@ -37,7 +37,10 @@ public class PropertyResolvers {
 
     public static <S, T> T withProperties(ImmutableSet<PropertyExpression<S, ?, ?>> properties, Callable<T> callable) {
         return properties != null && !properties.isEmpty()
-            ? withProperties(properties.stream().map(PropertyExpression::property).collect(Collectors.toSet()), callable)
+            ? withProperties(properties.stream()
+                .flatMap(p -> Stream.concat(Stream.of(p), PropertyExpressions.parentProperties(p)))
+                .map(PropertyExpression::property)
+                .collect(Collectors.toSet()), callable)
             : Safe.ofCallable(callable).get();
     }
 

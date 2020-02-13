@@ -178,7 +178,6 @@ public class SqlQueryProvider implements QueryProvider {
         return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
                 .executeLiveQuery(statementProvider.forQuery(query.toBuilder().properties(ImmutableSet.of()).build()))
                 .observeOn(scheduler)
-                .doFinally(executorService::shutdown)
                 .map(notification -> notification.map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType)))));
     }
 

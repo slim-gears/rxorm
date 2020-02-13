@@ -991,6 +991,10 @@ public abstract class AbstractRepositoryTest {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
         Product product2 = Product.builder()
                 .name("Product 2")
+                .inventory(Inventory.builder()
+                        .id(UniqueId.inventoryId(1))
+                        .name("Inventory 1")
+                        .build())
                 .key(UniqueId.productId(2))
                 .price(100)
                 .type(ProductPrototype.Type.ComputeHardware)
@@ -1000,7 +1004,7 @@ public abstract class AbstractRepositoryTest {
 
         TestObserver<List<Product>> productTestObserver = products.query()
                 .where(Product.$.price.eq(100))
-                .observeAsList(Product.$.name)
+                .observeAsList(Product.$.name, Product.$.inventory.name)
                 .doOnNext(l -> {
                     System.out.println("List received: ");
                     l.forEach(System.out::println);
@@ -1011,6 +1015,10 @@ public abstract class AbstractRepositoryTest {
 
         Product product1 = Product.builder()
                 .name("Product 1")
+                .inventory(Inventory.builder()
+                        .name("Inventory 1")
+                        .id(UniqueId.inventoryId(1))
+                        .build())
                 .key(UniqueId.productId(1))
                 .price(100)
                 .type(ProductPrototype.Type.ComputeHardware)
@@ -1022,7 +1030,9 @@ public abstract class AbstractRepositoryTest {
                 .assertOf(countAtLeast(2))
                 .assertValueAt(1, l -> l.size() == 2)
                 .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 2"))
-                .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 1"));
+                .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 1"))
+                .assertValueAt(1, l -> Objects.nonNull(l.get(0).inventory()))
+                .assertValueAt(1, l -> Objects.equals(l.get(0).inventory().name(), "Inventory 1"));
 
         products.update(product1.toBuilder().name("Product 1-1").build()).ignoreElement().blockingAwait();
 
