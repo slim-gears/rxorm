@@ -11,6 +11,8 @@ import io.reactivex.*;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
+import java.util.function.Supplier;
+
 public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecorator {
     private final Scheduler updateScheduler;
     private final Scheduler queryScheduler;
@@ -43,18 +45,18 @@ public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecor
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
-        return super.insert(metaClass, entities).subscribeOn(updateScheduler);
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
+        return super.insert(metaClass, entities, recursive).subscribeOn(updateScheduler);
     }
 
     @Override
-    public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return super.insertOrUpdate(metaClass, key, entityUpdater).subscribeOn(updateScheduler);
+    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+        return super.insertOrUpdate(metaClass, key, recursive, entityUpdater).subscribeOn(updateScheduler);
     }
 
     @Override
-    public <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
-        return super.insertOrUpdate(metaClass, entity).subscribeOn(updateScheduler);
+    public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
+        return super.insertOrUpdate(metaClass, entity, recursive).subscribeOn(updateScheduler);
     }
 
     @Override
@@ -70,11 +72,6 @@ public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecor
     @Override
     public <K, S> Completable drop(MetaClassWithKey<K, S> metaClass) {
         return super.drop(metaClass).subscribeOn(updateScheduler);
-    }
-
-    @Override
-    public Completable dropAll() {
-        return super.dropAll().subscribeOn(updateScheduler);
     }
 
     @Override

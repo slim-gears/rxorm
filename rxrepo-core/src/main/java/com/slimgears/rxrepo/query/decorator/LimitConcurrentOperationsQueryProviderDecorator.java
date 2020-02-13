@@ -14,6 +14,7 @@ import io.reactivex.functions.Function;
 
 import java.util.Collections;
 import java.util.concurrent.Semaphore;
+import java.util.function.Supplier;
 
 public class LimitConcurrentOperationsQueryProviderDecorator extends AbstractQueryProviderDecorator {
     private final Semaphore availableOperations;
@@ -28,23 +29,23 @@ public class LimitConcurrentOperationsQueryProviderDecorator extends AbstractQue
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
         return Observable.fromIterable(entities)
-                .flatMapCompletable(e -> super.insert(metaClass, Collections.singleton(e))
+                .flatMapCompletable(e -> super.insert(metaClass, Collections.singleton(e), recursive)
                         .doOnSubscribe(d -> doOnSubscribe())
                         .doFinally(this::doFinally));
     }
 
     @Override
-    public <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
-        return super.insertOrUpdate(metaClass, entity)
+    public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
+        return super.insertOrUpdate(metaClass, entity, recursive)
                 .doOnSubscribe(d -> doOnSubscribe())
                 .doFinally(this::doFinally);
     }
 
     @Override
-    public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return super.insertOrUpdate(metaClass, key, entityUpdater)
+    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+        return super.insertOrUpdate(metaClass, key, recursive, entityUpdater)
                 .doOnSubscribe(d -> doOnSubscribe())
                 .doFinally(this::doFinally);
     }

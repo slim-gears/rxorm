@@ -13,6 +13,7 @@ import io.reactivex.*;
 import io.reactivex.functions.Function;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 public class MetricsQueryProviderDecorator implements QueryProvider.Decorator, MetricCollector.Binder, AutoCloseable {
     private final AtomicReference<MetricCollector> metricCollector;
@@ -50,22 +51,22 @@ public class MetricsQueryProviderDecorator implements QueryProvider.Decorator, M
         }
 
         @Override
-        public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
             return super
-                    .insert(metaClass, entities)
+                    .insert(metaClass, entities, recursive)
                     .lift(asyncCollector("insert", metaClass).forCompletable());
         }
 
         @Override
-        public <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
+        public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
             return super
-                    .insertOrUpdate(metaClass, entity)
+                    .insertOrUpdate(metaClass, entity, recursive)
                     .lift(asyncCollector("insertOrUpdate", metaClass).forSingle());
         }
 
         @Override
-        public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-            return super.insertOrUpdate(metaClass, key, entityUpdater)
+        public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+            return super.insertOrUpdate(metaClass, key, recursive, entityUpdater)
                     .lift(asyncCollector("insertOrUpdateAtomic", metaClass).forMaybe());
         }
 

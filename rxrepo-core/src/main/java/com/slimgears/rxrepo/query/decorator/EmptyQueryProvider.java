@@ -13,11 +13,13 @@ import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
+import java.util.function.Supplier;
+
 public class EmptyQueryProvider implements QueryProvider {
     public static QueryProvider instance = new EmptyQueryProvider();
 
     @Override
-    public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return Maybe.empty();
     }
 

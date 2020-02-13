@@ -18,7 +18,7 @@ public class OrientDbUpdateReferencesFirstQueryProviderDecorator extends UpdateR
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
-        return underlyingProvider.insert(metaClass, entities);
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
+        return underlyingProvider.insert(metaClass, entities, recursive);
     }
 }

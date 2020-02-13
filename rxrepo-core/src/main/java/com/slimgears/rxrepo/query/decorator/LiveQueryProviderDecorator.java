@@ -1,6 +1,6 @@
 package com.slimgears.rxrepo.query.decorator;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
@@ -10,11 +10,11 @@ import com.slimgears.rxrepo.query.Notifications;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.util.Expressions;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import io.reactivex.Observable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -33,8 +33,17 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         return super.liveQuery(QueryInfo.<K, S, S>builder()
                         .metaClass(query.metaClass())
+                        .properties(findRequiredProperties(query))
                         .build())
                 .compose(Notifications.applyQuery(query));
+    }
+
+    private <K, S, T> ImmutableSet<PropertyExpression<S, ?, ?>> findRequiredProperties(QueryInfo<K, S, T> query) {
+        return ImmutableSet.<PropertyExpression<S, ?, ?>>builder()
+                .addAll(unmapProperties(query.properties(), query.mapping()))
+                .addAll(PropertyExpressions.allReferencedProperties(query.mapping()))
+                .addAll(PropertyExpressions.allReferencedProperties(query.predicate()))
+                .build();
     }
 
     @Override
@@ -65,8 +74,10 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
         return unmappedQuery;
     }
 
-    private static <S, T> ImmutableList<PropertyExpression<S, ?, ?>> unmapProperties(ImmutableList<PropertyExpression<T, ?, ?>> properties, ObjectExpression<S, T> mapping) {
-        return properties.stream().map(p -> unmapProperty(p, mapping)).collect(ImmutableList.toImmutableList());
+    private static <S, T> ImmutableSet<PropertyExpression<S, ?, ?>> unmapProperties(ImmutableSet<PropertyExpression<T, ?, ?>> properties, ObjectExpression<S, T> mapping) {
+        return Optional.ofNullable(properties)
+                .<ImmutableSet<PropertyExpression<S, ?, ?>>>map(pp -> pp.stream().map(p -> unmapProperty(p, mapping)).collect(ImmutableSet.toImmutableSet()))
+                .orElse(null);
     }
 
     private static <S, T> PropertyExpression<S, ?, ?> unmapProperty(PropertyExpression<T, ?, ?> propertyExpression, ObjectExpression<S, T> mapping) {
@@ -78,7 +89,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
     @Override
     public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return liveQuery(query)
-            .debounce(500, TimeUnit.MILLISECONDS)
+            .throttleLatest(2000, TimeUnit.MILLISECONDS)
             .switchMapMaybe(n -> aggregate(query, aggregator))
             .distinctUntilChanged();
     }

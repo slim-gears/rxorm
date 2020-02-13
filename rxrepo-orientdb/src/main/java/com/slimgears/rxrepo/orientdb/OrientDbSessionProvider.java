@@ -37,8 +37,8 @@ class OrientDbSessionProvider {
     }
 
     <T> T withSession(Function<ODatabaseDocument, T> func) {
+        ODatabaseDocument dbSession = databaseSessionProvider.acquire();
         try {
-            ODatabaseDocument dbSession = databaseSessionProvider.acquire();
             return func.apply(dbSession);
         } finally {
             databaseSessionProvider.release();

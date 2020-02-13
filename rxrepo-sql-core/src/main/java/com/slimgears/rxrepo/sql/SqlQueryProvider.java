@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.sql;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.Aggregator;
@@ -8,10 +9,13 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.query.decorator.CacheQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
+import com.slimgears.rxrepo.util.PropertyResolvers;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
+import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeTokens;
@@ -19,11 +23,19 @@ import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static com.slimgears.util.generic.LazyString.lazy;
 
@@ -54,7 +66,7 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
         return Optional
                 .of(entities)
                 .filter(e -> !Iterables.isEmpty(e))
@@ -68,12 +80,12 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
+    public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
         return insertOrUpdate(metaClass, PropertyResolver.fromObject(metaClass, entity));
     }
 
     @Override
-    public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         SqlStatement statement = statementProvider.forQuery(QueryInfo
                 .<K, S, S>builder()
                 .metaClass(metaClass)
@@ -98,24 +110,24 @@ public class SqlQueryProvider implements QueryProvider {
                         .flatMap(e -> insert(metaClass, e).toMaybe()))));
     }
 
-    private <K, S> Single<S> update(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
+    private <K, S> Single<Supplier<S>> update(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
         SqlStatement statement = statementProvider.forUpdate(metaClass, propertyResolver, referenceResolver);
         return insertOrUpdate(metaClass, statement);
     }
 
-    private <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
+    private <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
         SqlStatement statement = statementProvider.forInsertOrUpdate(metaClass, propertyResolver, referenceResolver);
         return insertOrUpdate(metaClass, statement);
     }
 
-    private <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, SqlStatement statement) {
+    private <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, SqlStatement statement) {
         return schemaProvider.createOrUpdate(metaClass)
                 .doOnSubscribe(d -> log.trace("Ensuring class {}", metaClass.simpleName()))
                 .doOnError(e -> log.trace("Error when updating class: {}", metaClass.simpleName(), e))
                 .doOnComplete(() -> log.trace("Class updated {}", metaClass.simpleName()))
                 .andThen(statementExecutor
                         .executeCommandReturnEntries(statement)
-                        .map(pr -> pr.toObject(metaClass))
+                        .<Supplier<S>>map(pr -> () -> pr.toObject(metaClass))
                         .doOnSubscribe(d -> log.trace("Executing statement: {}", statement.statement()))
                         .doOnError(e -> log.trace("Failed to execute statement: {}", statement.statement(), e))
                         .doOnComplete(() -> log.trace("Execution complete: {}", statement.statement()))
@@ -124,7 +136,7 @@ public class SqlQueryProvider implements QueryProvider {
                         .singleOrError());
     }
 
-    private <K, S> Single<S> insert(MetaClassWithKey<K, S> metaClass, S entity) {
+    private <K, S> Single<Supplier<S>> insert(MetaClassWithKey<K, S> metaClass, S entity) {
         SqlStatement statement = statementProvider.forInsert(metaClass, entity, referenceResolver);
         return insertOrUpdate(metaClass, statement);
     }
@@ -136,11 +148,13 @@ public class SqlQueryProvider implements QueryProvider {
                 .createOrUpdate(query.metaClass())
                 .andThen(statementExecutor
                         .executeQuery(statementProvider.forQuery(query))
-                        .compose(toObjects(objectType, query.mapping())));
+                        .compose(toObjects(objectType, query.mapping(), query.properties())));
     }
 
     @SuppressWarnings("unchecked")
-    private <T> ObservableTransformer<PropertyResolver, T> toObjects(TypeToken<? extends T> objectType, ObjectExpression<?, T> mapping) {
+    private <T> ObservableTransformer<PropertyResolver, T> toObjects(TypeToken<? extends T> objectType,
+                                                                     ObjectExpression<?, T> mapping,
+                                                                     ImmutableSet<PropertyExpression<T, ?, ?>> properties) {
         Function<PropertyResolver, Maybe<T>> mapper = Optional
                 .ofNullable(mapping)
                 .flatMap(Optionals.ofType(PropertyExpression.class))
@@ -148,7 +162,7 @@ public class SqlQueryProvider implements QueryProvider {
                 .<Function<PropertyResolver, Maybe<T>>>map(path -> pr -> Optional
                         .ofNullable(pr.getProperty(path, TypeTokens.asClass(objectType)))
                         .map(obj -> obj instanceof PropertyResolver
-                                ? ((PropertyResolver) obj).toObject(objectType)
+                                ? PropertyResolvers.withProperties(properties, () -> (PropertyResolver) obj).toObject(objectType)
                                 : (T)obj)
                         .map(Maybe::just)
                         .orElseGet(Maybe::empty))
@@ -159,9 +173,13 @@ public class SqlQueryProvider implements QueryProvider {
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        Scheduler scheduler = Schedulers.from(executorService);
         return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
-                .executeLiveQuery(statementProvider.forQuery(query))
-                .map(notification -> notification.map(pr -> pr.toObject(objectType))));
+                .executeLiveQuery(statementProvider.forQuery(query.toBuilder().properties(ImmutableSet.of()).build()))
+                .observeOn(scheduler)
+                .doFinally(executorService::shutdown)
+                .map(notification -> notification.map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType)))));
     }
 
     @Override

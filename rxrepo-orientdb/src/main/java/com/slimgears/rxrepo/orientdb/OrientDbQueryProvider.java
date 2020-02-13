@@ -50,7 +50,7 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
         if (entities == null || Iterables.isEmpty(entities)) {
             return Completable.complete();
         }

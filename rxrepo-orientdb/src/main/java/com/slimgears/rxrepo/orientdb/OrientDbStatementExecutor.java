@@ -91,10 +91,10 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                 })
                 .map(res -> Notification.ofModified(
                         Optional.ofNullable(res.oldResult())
-                                .map(or -> OResultPropertyResolver.create(OrientDbSessionProvider.create(res.database()), or))
+                                .map(or -> OResultPropertyResolver.create(sessionProvider, or))
                                 .orElse(null),
                         Optional.ofNullable(res.newResult())
-                                .map(or -> OResultPropertyResolver.create(OrientDbSessionProvider.create(res.database()), or))
+                                .map(or -> OResultPropertyResolver.create(sessionProvider, or))
                                 .orElse(null)));
     }
 

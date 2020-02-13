@@ -13,6 +13,7 @@ import io.reactivex.functions.Function;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Supplier;
 
 public interface EntitySet<K, S> {
     MetaClassWithKey<K, S> metaClass();
@@ -21,12 +22,17 @@ public interface EntitySet<K, S> {
 
     EntityUpdateQuery<S> update();
 
-    Single<S> update(S entity);
-    Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater);
-    Single<List<S>> update(Iterable<S> entities);
+    Single<Supplier<S>> update(S entity);
+    Single<Supplier<S>> updateNonRecursive(S entity);
 
-    default Observable<S> update(Observable<S> entities) {
-        return entities.flatMapSingle(this::update);
+    Maybe<Supplier<S>> update(K key, Function<Maybe<S>, Maybe<S>> updater);
+    Maybe<Supplier<S>> updateNonRecursive(K key, Function<Maybe<S>, Maybe<S>> updater);
+
+    Completable update(Iterable<S> entities);
+    Completable updateNonRecursive(Iterable<S> entities);
+
+    default Completable update(Observable<S> entities) {
+        return entities.flatMapSingle(this::update).ignoreElements();
     }
 
     default Observable<S> findAll() {
@@ -49,9 +55,11 @@ public interface EntitySet<K, S> {
         return query().where(predicate).limit(1).select().first();
     }
 
-    default Single<S[]> udpate(S[] entities) {
-        return update(Arrays.asList(entities))
-                .map(l -> l.toArray(entities.clone()));
+    default Completable udpate(S[] entities) {
+        return update(Arrays.asList(entities));
+    }
+    default Completable udpateNonRecursive(S[] entities) {
+        return updateNonRecursive(Arrays.asList(entities));
     }
 
     default Completable clear() {

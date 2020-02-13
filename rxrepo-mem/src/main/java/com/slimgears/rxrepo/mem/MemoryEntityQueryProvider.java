@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.mem;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.slimgears.rxrepo.encoding.MetaObjectResolver;
 import com.slimgears.rxrepo.expressions.*;
 import com.slimgears.rxrepo.query.Notification;
@@ -62,7 +63,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     }
 
     @Override
-    public Maybe<S> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+    public Maybe<Supplier<S>> insertOrUpdate(K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return Maybe.defer(() -> {
             Supplier<AtomicReference<S>> referenceResolver = () -> objects.computeIfAbsent(key, k -> new AtomicReference<>());
             S oldValue = referenceResolver.get().get();
@@ -77,7 +78,8 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
                             notificationSubject.onNext(notification);
                             log.debug("Published notification: {}", notification);
                         }
-                    });
+                    })
+                    .map(e -> () -> e);
         });
     }
 
@@ -111,7 +113,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
                 .doOnNext(val -> log.trace("Emitting object: {}", val));
     }
 
-    private <T> java.util.function.Function<T, T> maskProperties(ImmutableList<PropertyExpression<T, ?, ?>> properties) {
+    private <T> java.util.function.Function<T, T> maskProperties(ImmutableSet<PropertyExpression<T, ?, ?>> properties) {
         if (properties.isEmpty()) {
             return java.util.function.Function.identity();
         }

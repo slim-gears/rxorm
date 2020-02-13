@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoCloseable {
@@ -81,7 +82,7 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
     }
 
     @Override
-    public Completable insert(Iterable<S> entities) {
+    public Completable insert(Iterable<S> entities, boolean recursive) {
         List<Document> documents = Streams
                 .fromIterable(entities)
                 .map(e -> objectToDocument(e, 0))
@@ -100,7 +101,7 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
     }
 
     @Override
-    public Maybe<S> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> update) {
+    public Maybe<Supplier<S>> insertOrUpdate(K key, boolean recursive, Function<Maybe<S>, Maybe<S>> update) {
         AtomicLong version = new AtomicLong();
         AtomicReference<S> oldObject = new AtomicReference<>();
         AtomicReference<S> newObject = new AtomicReference<>();
@@ -147,7 +148,8 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
                                 .map(res -> newObject.get())
                                 .onErrorResumeNext((Throwable e) -> Maybe.error(convertError(e)))))
                 .doOnSuccess(obj -> log.trace("Final object after update/insert: {}", obj))
-                .doOnError(e -> log.trace("Could not update object: ", e));
+                .doOnError(e -> log.trace("Could not update object: ", e))
+                .map(e -> () -> e);
     }
 
     @Override

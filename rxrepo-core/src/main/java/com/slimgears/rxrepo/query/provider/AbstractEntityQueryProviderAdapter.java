@@ -11,19 +11,20 @@ import io.reactivex.functions.Function;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 public abstract class AbstractEntityQueryProviderAdapter implements QueryProvider {
     private final Map<Class<?>, EntityQueryProvider<?, ?>> providerCache = new ConcurrentHashMap<>();
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
-        return entities(metaClass).insert(entities);
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
+        return entities(metaClass).insert(entities, recursive);
     }
 
     @Override
-    public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return entities(metaClass)
-                .insertOrUpdate(key, entityUpdater);
+                .insertOrUpdate(key, recursive, entityUpdater);
     }
 
     @Override

@@ -15,6 +15,8 @@ import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.function.Supplier;
+
 import static com.slimgears.util.generic.LazyString.lazy;
 
 public class AbstractQueryProviderDecorator implements QueryProvider {
@@ -27,18 +29,18 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
-        return getUnderlyingProvider().insert(metaClass, entities);
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
+        return getUnderlyingProvider().insert(metaClass, entities, recursive);
     }
 
     @Override
-    public <K, S> Single<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
-        return getUnderlyingProvider().insertOrUpdate(metaClass, entity);
+    public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
+        return getUnderlyingProvider().insertOrUpdate(metaClass, entity, recursive);
     }
 
     @Override
-    public <K, S> Maybe<S> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return getUnderlyingProvider().insertOrUpdate(metaClass, key, entityUpdater);
+    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+        return getUnderlyingProvider().insertOrUpdate(metaClass, key, recursive, entityUpdater);
     }
 
     @Override

@@ -4,24 +4,47 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.reflect.TypeToken;
+import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.util.autovalue.annotations.*;
+import com.slimgears.util.generic.ScopedInstance;
 import com.slimgears.util.stream.Lazy;
+import com.slimgears.util.stream.Safe;
 import com.slimgears.util.stream.Streams;
 
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-class PropertyResolvers {
+public class PropertyResolvers {
+    private final static ScopedInstance<Set<PropertyMeta<?, ?>>> requiredProperties = ScopedInstance.create();
+
     static <T> T toObject(PropertyResolver resolver, MetaClass<T> metaClass) {
         BuilderPrototype<T, ?> builder = metaClass.createBuilder();
         Streams.fromIterable(metaClass.properties())
+                .filter(PropertyResolvers::isRequiredProperty)
                 .map(prop -> PropertyValue.toValue(resolver, prop))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .forEach(pv -> pv.set(builder));
         return builder.build();
+    }
+
+    static <T> T withProperties(Set<PropertyMeta<?, ?>> properties, Callable<T> callable) {
+        return requiredProperties.withScope(properties, callable);
+    }
+
+    public static <S, T> T withProperties(ImmutableSet<PropertyExpression<S, ?, ?>> properties, Callable<T> callable) {
+        return properties != null && !properties.isEmpty()
+            ? withProperties(properties.stream().map(PropertyExpression::property).collect(Collectors.toSet()), callable)
+            : Safe.ofCallable(callable).get();
+    }
+
+    private static boolean isRequiredProperty(PropertyMeta<?, ?> prop) {
+        return Optional.ofNullable(requiredProperties.current())
+                .map(set -> set.contains(prop) || PropertyMetas.isMandatory(prop))
+                .orElse(true);
     }
 
     static PropertyResolver empty() {

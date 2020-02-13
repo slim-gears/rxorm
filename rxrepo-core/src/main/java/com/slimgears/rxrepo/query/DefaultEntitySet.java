@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.query;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.slimgears.rxrepo.expressions.*;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
@@ -11,10 +12,8 @@ import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.rx.Maybes;
 import com.slimgears.util.rx.Observables;
 import com.slimgears.util.rx.Singles;
-import io.reactivex.Maybe;
+import io.reactivex.*;
 import io.reactivex.Observable;
-import io.reactivex.ObservableTransformer;
-import io.reactivex.Single;
 import io.reactivex.exceptions.CompositeException;
 import io.reactivex.functions.Function;
 import org.slf4j.Logger;
@@ -25,6 +24,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
@@ -255,11 +255,11 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                 .predicate(sourceQuery.predicate())
                                 .properties(Optional
                                         .ofNullable(sourceQuery.mapping())
-                                        .<ImmutableList<PropertyExpression<S, ?, ?>>>map(mapping -> sourceQuery.properties()
+                                        .<ImmutableSet<PropertyExpression<S, ?, ?>>>map(mapping -> sourceQuery.properties()
                                                 .stream()
                                                 .map(prop -> Expressions.compose(mapping, prop))
-                                                .collect(ImmutableList.toImmutableList()))
-                                        .orElse((ImmutableList<PropertyExpression<S, ?, ?>>)(ImmutableList<?>)sourceQuery.properties()))
+                                                .collect(ImmutableSet.toImmutableSet()))
+                                        .orElse((ImmutableSet<PropertyExpression<S, ?, ?>>)(ImmutableSet<?>)sourceQuery.properties()))
                                 .build();
 
                         QueryInfo<K, S, S> retrieveQuery = observeQuery.toBuilder()
@@ -355,12 +355,16 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     }
 
     @Override
-    public Single<S> update(S entity) {
-        return queryProvider.insert(metaClass, Collections.singleton(entity))
-                .andThen(Single.just(entity))
+    public Single<Supplier<S>> update(S entity) {
+        return update(entity, true);
+    }
+
+    private Single<Supplier<S>> update(S entity, boolean recursive) {
+        return queryProvider.insert(metaClass, Collections.singleton(entity), recursive)
+                .andThen(Single.<Supplier<S>>just(() -> entity))
                 .onErrorResumeNext(e ->
                         isConcurrencyException(e)
-                        ? Single.defer(() -> queryProvider.insertOrUpdate(metaClass, entity))
+                        ? Single.defer(() -> queryProvider.insertOrUpdate(metaClass, entity, recursive))
                                 .compose(Singles.backOffDelayRetry(
                                         DefaultEntitySet::isConcurrencyException,
                                         Duration.ofMillis(config.retryInitialDurationMillis()),
@@ -369,26 +373,48 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     }
 
     @Override
-    public Single<List<S>> update(Iterable<S> entities) {
-        return queryProvider.insert(metaClass, entities)
-                .andThen(Single.<List<S>>fromCallable(() -> ImmutableList.copyOf(entities)))
-                .onErrorResumeNext(e -> isConcurrencyException(e)
-                        ? Single.defer(() -> Observable
-                                .fromIterable(entities)
-                                .flatMapSingle(this::update)
-                                .toList())
-                        : Single.error(e));
+    public Single<Supplier<S>> updateNonRecursive(S entity) {
+        return update(entity, false);
     }
 
     @Override
-    public Maybe<S> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
+    public Completable update(Iterable<S> entities) {
+        return update(entities, true);
+    }
+
+    @Override
+    public Completable updateNonRecursive(Iterable<S> entities) {
+        return update(entities, false);
+    }
+
+    private Completable update(Iterable<S> entities, boolean recursive) {
+        return queryProvider.insert(metaClass, entities, recursive)
+                .onErrorResumeNext(e -> isConcurrencyException(e)
+                        ? Completable.defer(() -> Observable
+                                .fromIterable(entities)
+                                .flatMapSingle(this::update)
+                                .ignoreElements())
+                        : Completable.error(e));
+    }
+
+    @Override
+    public Maybe<Supplier<S>> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
+        return update(key, true, updater);
+    }
+
+    @Override
+    public Maybe<Supplier<S>> updateNonRecursive(K key, Function<Maybe<S>, Maybe<S>> updater) {
+        return update(key, false, updater);
+    }
+
+    private Maybe<Supplier<S>> update(K key, boolean recursive, Function<Maybe<S>, Maybe<S>> updater) {
         Function<Maybe<S>, Maybe<S>> filteredUpdater = maybe -> {
             AtomicReference<S> entity = new AtomicReference<>();
             return updater.apply(maybe.doOnSuccess(entity::set))
                     .filter(e -> !Objects.equals(entity.get(), e))
                     .switchIfEmpty(Maybe.fromCallable(entity::get));
         };
-        return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, filteredUpdater))
+        return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, recursive, filteredUpdater))
                 .compose(Maybes.backOffDelayRetry(
                         DefaultEntitySet::isConcurrencyException,
                         Duration.ofMillis(config.retryInitialDurationMillis()),

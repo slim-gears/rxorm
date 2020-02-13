@@ -1,7 +1,10 @@
 package com.slimgears.rxrepo.util;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
+import com.slimgears.rxrepo.expressions.Expression;
+import com.slimgears.rxrepo.expressions.ExpressionVisitor;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.util.autovalue.annotations.MetaClass;
@@ -37,6 +40,49 @@ public class PropertyExpressions {
 
     public static <K, S> PropertyExpression<S, S, K> keyOf(MetaClassWithKey<K, S> metaClass) {
         return PropertyExpression.ofObject(metaClass.keyProperty());
+    }
+
+    public static <S> ImmutableSet<PropertyExpression<S, ?, ?>> allReferencedProperties(ObjectExpression<S, ?> expression) {
+        if (expression == null) {
+            return ImmutableSet.of();
+        }
+
+        ImmutableSet.Builder<PropertyExpression<S, ?, ?>> referencedPropertiesBuilder = ImmutableSet.builder();
+        ExpressionVisitor<Void, Void> visitor = new ExpressionVisitor<Void, Void>() {
+            @Override
+            protected Void reduceBinary(ObjectExpression<?, ?> expression, Expression.Type type, Void first, Void second) {
+                return null;
+            }
+
+            @Override
+            protected Void reduceUnary(ObjectExpression<?, ?> expression, Expression.Type type, Void first) {
+                return null;
+            }
+
+            @SuppressWarnings("unchecked")
+            @Override
+            protected <_S, T, V> Void visitProperty(PropertyExpression<_S, T, V> expression, Void arg) {
+                referencedPropertiesBuilder.add((PropertyExpression<S, ?, ?>)expression);
+                return super.visitProperty(expression, arg);
+            }
+
+            @Override
+            protected <T, V> Void visitProperty(PropertyMeta<T, V> propertyMeta, Void arg) {
+                return null;
+            }
+
+            @Override
+            protected <V> Void visitConstant(Expression.Type type, V value, Void arg) {
+                return null;
+            }
+
+            @Override
+            protected <T> Void visitArgument(TypeToken<T> argType, Void arg) {
+                return null;
+            }
+        };
+        visitor.visit(expression, null);
+        return referencedPropertiesBuilder.build();
     }
 
     @SuppressWarnings("unchecked")

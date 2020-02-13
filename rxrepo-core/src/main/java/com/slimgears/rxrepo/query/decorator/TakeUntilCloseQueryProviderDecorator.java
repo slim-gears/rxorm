@@ -2,14 +2,17 @@ package com.slimgears.rxrepo.query.decorator;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
-import io.reactivex.Completable;
-import io.reactivex.Observable;
-import io.reactivex.ObservableTransformer;
+import com.slimgears.rxrepo.query.provider.UpdateInfo;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import io.reactivex.*;
+import io.reactivex.functions.Function;
 import io.reactivex.subjects.CompletableSubject;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decorator {
     private final static Object onCloseToken = new Object();
@@ -28,10 +31,46 @@ public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decor
 
     static class Decorator extends AbstractQueryProviderDecorator {
         private final CompletableSubject closeSubject = CompletableSubject.create();
+        private final Observable<Object> closeObservable = closeSubject.andThen(Observable.just(onCloseToken));
         private final AtomicBoolean wasClosed = new AtomicBoolean();
 
         private Decorator(QueryProvider underlyingProvider) {
             super(underlyingProvider);
+        }
+
+        @Override
+        public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
+            return super.update(update).takeUntil(closeSubject);
+        }
+
+        @Override
+        public <K, S> Single<Integer> delete(DeleteInfo<K, S> delete) {
+            return super.delete(delete).takeUntil(closeSubject);
+        }
+
+        @Override
+        public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
+            return super.insert(metaClass, entities, recursive).takeUntil(closeSubject);
+        }
+
+        @Override
+        public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+            return super.insertOrUpdate(metaClass, key, recursive, entityUpdater).takeUntil(closeObservable.firstElement());
+        }
+
+        @Override
+        public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
+            return super.insertOrUpdate(metaClass, entity, recursive).takeUntil(closeSubject);
+        }
+
+        @Override
+        public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
+            return super.aggregate(query, aggregator).takeUntil(closeObservable.firstElement());
+        }
+
+        @Override
+        public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
+            return super.query(query).compose(applyTakeUntilClose());
         }
 
         @Override
@@ -47,6 +86,12 @@ public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decor
         @Override
         public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
             return super.liveAggregate(query, aggregator).compose(applyTakeUntilClose());
+        }
+
+        @Override
+        public Completable dropAll() {
+            closeSubject.onComplete();
+            return super.dropAll();
         }
 
         @Override

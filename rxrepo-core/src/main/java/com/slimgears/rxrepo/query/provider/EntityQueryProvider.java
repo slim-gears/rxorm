@@ -11,10 +11,11 @@ import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public interface EntityQueryProvider<K, S> extends AutoCloseable {
     MetaClassWithKey<K, S> metaClass();
-    Maybe<S> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> entityUpdater);
+    Maybe<Supplier<S>> insertOrUpdate(K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater);
     <T> Observable<T> query(QueryInfo<K, S, T> query);
     <T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query);
     <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator);
@@ -22,15 +23,15 @@ public interface EntityQueryProvider<K, S> extends AutoCloseable {
     Single<Integer> delete(DeleteInfo<K, S> delete);
     Completable drop();
 
-    default Completable insert(Iterable<S> entities) {
+    default Completable insert(Iterable<S> entities, boolean recursive) {
         return Observable.fromIterable(entities)
-                .concatMapEager(e -> insertOrUpdate(e).toObservable())
+                .concatMapEager(e -> insertOrUpdate(e, recursive).toObservable())
                 .ignoreElements();
     }
 
-    default Single<S> insertOrUpdate(S entity) {
+    default Single<Supplier<S>> insertOrUpdate(S entity, boolean recursive) {
         K key = metaClass().keyOf(entity);
-        return insertOrUpdate(key, val -> val
+        return insertOrUpdate(key, recursive, val -> val
                 .map(e -> MetaClasses.merge(metaClass(), e, entity))
                 .switchIfEmpty(Maybe.just(entity)))
                 .toSingle();

@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.sql;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.PropertyUpdateInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
@@ -36,7 +37,7 @@ public class SqlStatementProviderTest {
                 .predicate(Product.$.name.contains("substr")
                         .and(Product.$.price.lessThan(100))
                         .and(Product.$.type.in(ProductPrototype.Type.ComputeHardware, ProductPrototype.Type.ComputerSoftware)))
-                .properties(ImmutableList.of(Product.$.name, Product.$.price, Product.$.id))
+                .properties(ImmutableSet.of(Product.$.name, Product.$.price, Product.$.id))
                 .sortAscending(Product.$.name)
                 .sortDescending(Product.$.id)
                 .limit(100L)

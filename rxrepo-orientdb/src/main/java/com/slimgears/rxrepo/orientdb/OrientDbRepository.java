@@ -8,6 +8,7 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.RepositoryConfigModelBuilder;
+import com.slimgears.rxrepo.query.decorator.CacheQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.RecursiveLiveQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
@@ -129,11 +130,15 @@ public class OrientDbRepository {
                         sessions.put(session, CompletableSubject.create());
                         return session;
                     },
-                    session -> Optional.ofNullable(sessions.remove(session))
-                            .ifPresent(CompletableSubject::onComplete));
+                    session -> {
+                        Optional.ofNullable(sessions.remove(session))
+                                .ifPresent(CompletableSubject::onComplete);
+                        session.close();
+                    });
 
             return serviceFactoryBuilder(dbSessionProvider)
                     .decorate(
+                            CacheQueryProviderDecorator.create(),
                             RecursiveLiveQueryProviderDecorator.create(),
                             LiveQueryProviderDecorator.create(),
                             batchSupport ? OrientDbUpdateReferencesFirstQueryProviderDecorator.create() : UpdateReferencesFirstQueryProviderDecorator.create(),
@@ -143,7 +148,7 @@ public class OrientDbRepository {
                     .onClose(repo -> {
                         if (!Observable.fromIterable(sessions.values())
                                 .flatMapCompletable(Functions.identity())
-                                .blockingAwait(4, TimeUnit.SECONDS)) {
+                                .blockingAwait(2, TimeUnit.SECONDS)) {
                             sessions.keySet().forEach(dbSession -> {
                                 dbSession.activateOnCurrentThread();
                                 dbSession.close();
