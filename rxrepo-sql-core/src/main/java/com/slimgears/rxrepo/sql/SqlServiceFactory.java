@@ -33,6 +33,7 @@ public interface SqlServiceFactory {
         public abstract Builder expressionGenerator(Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator);
         public abstract Builder assignmentGenerator(Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator);
         public abstract Builder queryProviderGenerator(Function<SqlServiceFactory, QueryProvider> queryProviderGenerator);
+        public abstract Builder maxNotificationQueues(int maxNotificationQueues);
         public abstract SqlServiceFactory build();
 
         public final Repository buildRepository(RepositoryConfigModel config, QueryProvider.Decorator... decorators) {

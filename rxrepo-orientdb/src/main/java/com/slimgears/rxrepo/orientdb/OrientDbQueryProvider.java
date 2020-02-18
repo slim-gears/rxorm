@@ -35,18 +35,20 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
                           SqlStatementExecutor statementExecutor,
                           SchemaProvider schemaProvider,
                           ReferenceResolver referenceResolver,
-                          OrientDbSessionProvider dbSessionProvider) {
-        super(statementProvider, statementExecutor, schemaProvider, referenceResolver);
+                          OrientDbSessionProvider dbSessionProvider,
+                          int maxNotificationQueues) {
+        super(statementProvider, statementExecutor, schemaProvider, referenceResolver, maxNotificationQueues);
         this.dbSessionProvider = dbSessionProvider;
     }
 
-    static OrientDbQueryProvider create(SqlServiceFactory serviceFactory, OrientDbSessionProvider sessionProvider) {
+    static OrientDbQueryProvider create(SqlServiceFactory serviceFactory, OrientDbSessionProvider sessionProvider, int maxNotificationQueues) {
         return new OrientDbQueryProvider(
                 serviceFactory.statementProvider(),
                 serviceFactory.statementExecutor(),
                 serviceFactory.schemaProvider(),
                 serviceFactory.referenceResolver(),
-                sessionProvider);
+                sessionProvider,
+                maxNotificationQueues);
     }
 
     @Override

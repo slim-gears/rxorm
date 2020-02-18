@@ -7,6 +7,7 @@ import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
 import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.rxrepo.util.Expressions;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.rx.Maybes;
@@ -250,16 +251,10 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     public <R> Observable<R> observeAs(QueryTransformer<T, R> queryTransformer) {
                         QueryInfo<K, S, T> sourceQuery = builder.build();
 
-                        QueryInfo<K, S, S> observeQuery = QueryInfo.<K, S, S>builder()
-                                .metaClass(sourceQuery.metaClass())
-                                .predicate(sourceQuery.predicate())
-                                .properties(Optional
-                                        .ofNullable(sourceQuery.mapping())
-                                        .<ImmutableSet<PropertyExpression<S, ?, ?>>>map(mapping -> sourceQuery.properties()
-                                                .stream()
-                                                .map(prop -> Expressions.compose(mapping, prop))
-                                                .collect(ImmutableSet.toImmutableSet()))
-                                        .orElse((ImmutableSet<PropertyExpression<S, ?, ?>>)(ImmutableSet<?>)sourceQuery.properties()))
+                        QueryInfo<K, S, S> observeQuery = QueryInfos
+                                .unmapQuery(sourceQuery)
+                                .toBuilder()
+                                .propertiesAddAll(QueryInfos.allReferencedProperties(sourceQuery))
                                 .build();
 
                         QueryInfo<K, S, S> retrieveQuery = observeQuery.toBuilder()

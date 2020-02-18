@@ -7,12 +7,15 @@ import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ExpressionVisitor;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -23,6 +26,7 @@ import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
 public class PropertyExpressions {
+    private final static Logger log = LoggerFactory.getLogger(PropertyExpressions.class);
     private final static Map<PropertyExpression<?, ?, ?>, Collection<PropertyExpression<?, ?, ?>>> relatedMandatoryPropertiesCache = new ConcurrentHashMap<>();
     private final static Map<TypeToken<?>, Collection<PropertyExpression<?, ?, ?>>> mandatoryPropertiesCache = new ConcurrentHashMap<>();
     private final static Map<PropertyExpression<?, ?, ?>, Collection<PropertyExpression<?, ?, ?>>> parentProperties = new ConcurrentHashMap<>();
@@ -223,6 +227,18 @@ public class PropertyExpressions {
     public static <S, T, V> Stream<PropertyExpression<S, ?, ?>> parentProperties(PropertyExpression<S, T, V> property) {
         return ((Collection<PropertyExpression<S, ?, ?>>)(Collection<?>)parentProperties.computeIfAbsent(property, p -> parentPropertiesNonCached(property).collect(Collectors.toList())))
                 .stream();
+    }
+
+    public static <S, T> ImmutableSet<PropertyExpression<S, ?, ?>> unmapProperties(ImmutableSet<PropertyExpression<T, ?, ?>> properties, ObjectExpression<S, T> mapping) {
+        return Optional.ofNullable(properties)
+                .<ImmutableSet<PropertyExpression<S, ?, ?>>>map(pp -> pp.stream().map(p -> unmapProperty(p, mapping)).collect(ImmutableSet.toImmutableSet()))
+                .orElse(null);
+    }
+
+    private static <S, T> PropertyExpression<S, ?, ?> unmapProperty(PropertyExpression<T, ?, ?> propertyExpression, ObjectExpression<S, T> mapping) {
+        PropertyExpression<S, ?, ?> unmappedProp = Expressions.compose(mapping, propertyExpression);
+        log.trace("Unmapped property (mapping: {}) {} -> {}", mapping, propertyExpression, unmappedProp);
+        return unmappedProp;
     }
 
     private static <S, T, V> Stream<PropertyExpression<S, ?, ?>> parentPropertiesNonCached(PropertyExpression<S, T, V> property) {

@@ -12,7 +12,6 @@ import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.function.Supplier;
 
 public interface EntitySet<K, S> {
@@ -88,7 +87,23 @@ public interface EntitySet<K, S> {
         return query().liveSelect().observe();
     }
 
+    default Observable<Notification<S>> observe(PropertyExpression<S, ?, ?>... properties) {
+        return query().liveSelect().observe(properties);
+    }
+
     default Observable<Notification<S>> queryAndObserve() {
         return query().liveSelect().queryAndObserve();
+    }
+
+    default Observable<Notification<S>> queryAndObserve(PropertyExpression<S, ?, ?>... properties) {
+        return query().liveSelect().queryAndObserve(properties);
+    }
+
+    default <R> Observable<R> observeAs(QueryTransformer<S, R> queryTransformer) {
+        return query().liveSelect().observeAs(queryTransformer);
+    }
+
+    default <R> Observable<R> observeAs(QueryTransformer<S, R> queryTransformer, PropertyExpression<S, ?, ?>... properties) {
+        return query().liveSelect().observeAs(queryTransformer, properties);
     }
 }

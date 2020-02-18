@@ -56,6 +56,7 @@ public class OrientDbRepository {
         private String serverUser = "root";
         private String serverPassword = "root";
         private boolean batchSupport = false;
+        private int maxNotificationQueues = 10;
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
         private RepositoryConfig.Builder configBuilder = RepositoryConfig
                 .builder()
@@ -69,6 +70,11 @@ public class OrientDbRepository {
 
         public final Builder enableBatchSupport(boolean enable) {
             this.batchSupport = enable;
+            return this;
+        }
+
+        public final Builder maxNotificationQueues(int maxNotificationQueues) {
+            this.maxNotificationQueues = maxNotificationQueues;
             return this;
         }
 
@@ -198,7 +204,7 @@ public class OrientDbRepository {
                     .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                     .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
                     .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
-                    .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider) : SqlQueryProvider.create(svc));
+                    .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider, maxNotificationQueues) : SqlQueryProvider.create(svc, maxNotificationQueues));
         }
     }
 

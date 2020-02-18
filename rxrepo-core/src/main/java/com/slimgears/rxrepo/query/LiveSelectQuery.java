@@ -48,4 +48,14 @@ public abstract class LiveSelectQuery<T> {
     public final Observable<List<T>> asList() {
         return observeAs(Notifications.toList());
     }
+
+    @SafeVarargs
+    public final Observable<List<T>> asList(PropertyExpression<T, ?, ?>... properties) {
+        return observeAs(Notifications.toList(), properties);
+    }
+
+    @SafeVarargs
+    public final <R> Observable<R> observeAs(QueryTransformer<T, R> transformer, PropertyExpression<T, ?, ?>... properties) {
+        return properties(properties).observeAs(transformer);
+    }
 }

@@ -9,31 +9,26 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.rxrepo.query.Notification;
-import com.slimgears.rxrepo.query.decorator.CacheQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.rxrepo.util.PropertyResolvers;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.*;
+import io.reactivex.Observable;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -46,23 +41,29 @@ public class SqlQueryProvider implements QueryProvider {
     private final SqlStatementExecutor statementExecutor;
     protected final SchemaProvider schemaProvider;
     private final ReferenceResolver referenceResolver;
+    private final int maxNotificationQueues;
+    private final AtomicInteger nextQueueIndex = new AtomicInteger();
+    private final List<ExecutorService> queues = new ArrayList<>();
 
     protected SqlQueryProvider(SqlStatementProvider statementProvider,
-                     SqlStatementExecutor statementExecutor,
-                     SchemaProvider schemaProvider,
-                     ReferenceResolver referenceResolver) {
+                               SqlStatementExecutor statementExecutor,
+                               SchemaProvider schemaProvider,
+                               ReferenceResolver referenceResolver,
+                               int maxNotificationQueues) {
         this.statementProvider = statementProvider;
         this.statementExecutor = statementExecutor;
         this.schemaProvider = schemaProvider;
         this.referenceResolver = referenceResolver;
+        this.maxNotificationQueues = maxNotificationQueues;
     }
 
-    public static QueryProvider create(SqlServiceFactory serviceFactory) {
+    public static QueryProvider create(SqlServiceFactory serviceFactory, int maxNotificationQueues) {
         return new SqlQueryProvider(
                 serviceFactory.statementProvider(),
                 serviceFactory.statementExecutor(),
                 serviceFactory.schemaProvider(),
-                serviceFactory.referenceResolver());
+                serviceFactory.referenceResolver(),
+                maxNotificationQueues);
     }
 
     @Override
@@ -173,11 +174,9 @@ public class SqlQueryProvider implements QueryProvider {
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Scheduler scheduler = Schedulers.from(executorService);
         return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
                 .executeLiveQuery(statementProvider.forQuery(query.toBuilder().properties(ImmutableSet.of()).build()))
-                .observeOn(scheduler)
+                .compose(applyScheduler())
                 .map(notification -> notification.map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType)))));
     }
 
@@ -242,5 +241,24 @@ public class SqlQueryProvider implements QueryProvider {
         return Optional.ofNullable(nonNullProperty.get())
                 .map(PropertyMetas::isKey)
                 .orElse(true);
+    }
+
+    private synchronized ExecutorService getQueue() {
+        if (queues.size() < maxNotificationQueues) {
+            ExecutorService executorService = createQueue();
+            queues.add(executorService);
+            return executorService;
+        }
+        return queues.get(nextQueueIndex.getAndUpdate(index -> (index + 1) % queues.size()));
+    }
+
+    private ExecutorService createQueue() {
+        return new ThreadPoolExecutor(0, 1,
+                30L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>());
+    }
+
+    private <T> ObservableTransformer<T, T> applyScheduler() {
+        return src -> src.observeOn(Schedulers.from(getQueue()));
     }
 }

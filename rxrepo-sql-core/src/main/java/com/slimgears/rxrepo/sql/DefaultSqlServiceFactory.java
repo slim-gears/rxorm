@@ -28,7 +28,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             @Nonnull Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
             @Nonnull Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator,
             @Nonnull Function<SqlServiceFactory, QueryProvider> queryProviderGenerator) {
-
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
         this.statementExecutor = Lazy.of(() -> statementExecutor.apply(this));
         this.referenceResolver = Lazy.of(() -> referenceResolver.apply(this));
@@ -83,6 +82,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     }
 
     static class Builder extends SqlServiceFactory.Builder {
+        private int maxNotificationQueues = 10;
         private Function<SqlServiceFactory, SqlStatementProvider> statementProvider;
         private Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor;
         private Function<SqlServiceFactory, SchemaProvider> schemaProvider;
@@ -93,8 +93,8 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                 factory.statementProvider(),
                 factory.statementExecutor(),
                 factory.schemaProvider(),
-                factory.referenceResolver());
-        private Scheduler scheduler = Schedulers.single();
+                factory.referenceResolver(),
+                maxNotificationQueues);
 
         @Override
         public SqlServiceFactory.Builder statementProvider(Function<SqlServiceFactory, SqlStatementProvider> statementProvider) {
@@ -135,6 +135,12 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         @Override
         public SqlServiceFactory.Builder queryProviderGenerator(Function<SqlServiceFactory, QueryProvider> queryProviderGenerator) {
             this.queryProviderGenerator = queryProviderGenerator;
+            return this;
+        }
+
+        @Override
+        public SqlServiceFactory.Builder maxNotificationQueues(int maxNotificationQueues) {
+            this.maxNotificationQueues = maxNotificationQueues;
             return this;
         }
 
