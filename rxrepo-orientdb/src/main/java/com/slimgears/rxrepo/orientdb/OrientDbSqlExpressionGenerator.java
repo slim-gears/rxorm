@@ -8,6 +8,7 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.rxrepo.sql.DefaultSqlExpressionGenerator;
 import com.slimgears.rxrepo.util.ExpressionTextGenerator;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 
@@ -36,6 +37,17 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
     }
 
     @SuppressWarnings("unchecked")
+//    private String onVisitSearchTextExpression(Function<? super ObjectExpression<?, ?>, String> visitor, BooleanBinaryOperationExpression<?, ?, String> expression, Supplier<String> visitedExpression) {
+//        TypeToken<?> argType = expression.left().reflect().objectType();
+//        String searchText = ((ConstantExpression<?, String>)expression.right()).value();
+//        String[] words = searchText.split("\\s");
+//        if (words.length == 0) {
+//            return "";
+//        }
+//
+//        PropertyExpressions.searchableProperties(expression.left())
+//                .map(p -> )
+//    }
     private String onVisitSearchTextExpression(Function<? super ObjectExpression<?, ?>, String> visitor, BooleanBinaryOperationExpression<?, ?, String> expression, Supplier<String> visitedExpression) {
         TypeToken<?> argType = expression.left().reflect().objectType();
         String searchText = ((ConstantExpression<?, String>)expression.right()).value();
@@ -83,7 +95,7 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
     }
 
     private String searchTextToWildcard(String searchText) {
-        searchText = searchText.replaceAll("([:+*(){}\\[\\]\\\\/;])", "?");
+        searchText = searchText.replaceAll("([:+\\-*(){}\\[\\]\\\\/;%])", "?");
         searchText = Arrays
                 .stream(searchText.split("\\s"))
                 .map(t -> "+*" + t + "*")

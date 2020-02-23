@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.util;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
+import com.slimgears.rxrepo.annotations.Searchable;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ExpressionVisitor;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
@@ -207,7 +208,7 @@ public class PropertyExpressions {
                 .collect(Collectors.toCollection(Sets::newLinkedHashSet));
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static <S, T> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(ObjectExpression<S, T> target, MetaClass<T> metaClass, Set<PropertyExpression<S, ?, ?>> visitedProperties) {
         return Streams.fromIterable(metaClass.properties())
                 .filter(p -> !p.hasAnnotation(Nullable.class))
@@ -233,6 +234,21 @@ public class PropertyExpressions {
         return Optional.ofNullable(properties)
                 .<ImmutableSet<PropertyExpression<S, ?, ?>>>map(pp -> pp.stream().map(p -> unmapProperty(p, mapping)).collect(ImmutableSet.toImmutableSet()))
                 .orElse(null);
+    }
+
+    private static boolean isSearchable(PropertyMeta<?, ?> property) {
+        return property.hasAnnotation(Searchable.class);
+    }
+
+    public static <S, T> Stream<PropertyExpression<S, ?, ?>> searchableProperties(ObjectExpression<S, T> parent) {
+        TypeToken<T> objectType = parent.reflect().objectType();
+        MetaClass<T> metaClass = MetaClasses.forTokenUnchecked(objectType);
+        return Streams.fromIterable(metaClass.properties())
+                .filter(PropertyExpressions::isSearchable)
+                .map(p -> PropertyExpression.ofObject(parent, p))
+                .flatMap(p -> PropertyMetas.isReference(p.property())
+                        ? searchableProperties(p)
+                        : Stream.of(p));
     }
 
     private static <S, T> PropertyExpression<S, ?, ?> unmapProperty(PropertyExpression<T, ?, ?> propertyExpression, ObjectExpression<S, T> mapping) {

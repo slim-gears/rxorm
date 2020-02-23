@@ -253,17 +253,22 @@ public abstract class AbstractRepositoryTest {
 
     @Test @UseLogLevel(LogLevel.TRACE)
     public void testSearchTextWithSpecialChars() {
-        products.update(Products.createOne().toBuilder().name("Product / {with} (special) [chars]; \\").build())
+        products.update(Products.createOne().toBuilder()
+                .key(UniqueId.productId(1))
+                .name("Product / {with} (special) [chars]; - and more\\").build())
                 .ignoreElement()
                 .blockingAwait();
 
+        // Sanity check
         Assert.assertEquals(Long.valueOf(0), products.findAll(Product.$.searchText("Product Foo")).count().blockingGet());
-        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product")).count().blockingGet());
+
         Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product {")).count().blockingGet());
         Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product [")).count().blockingGet());
         Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product \\")).count().blockingGet());
         Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product /")).count().blockingGet());
         Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product ;")).count().blockingGet());
+        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product -")).count().blockingGet());
+        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product +")).count().blockingGet());
     }
 
     @Test
@@ -1031,8 +1036,7 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(1, l -> l.size() == 2)
                 .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 2"))
                 .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 1"))
-                .assertValueAt(1, l -> Objects.nonNull(l.get(0).inventory()))
-                .assertValueAt(1, l -> Objects.equals(l.get(0).inventory().name(), "Inventory 1"));
+                .assertValueAt(1, l -> Optional.ofNullable(l.get(0).inventory()).map(Inventory::name).map("Inventory 1"::equals).orElse(false));
 
         products.update(product1.toBuilder().name("Product 1-1").build()).ignoreElement().blockingAwait();
 
