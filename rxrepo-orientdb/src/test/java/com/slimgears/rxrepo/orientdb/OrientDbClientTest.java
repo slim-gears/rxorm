@@ -1,10 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.orientechnologies.common.serialization.types.OBinaryTypeSerializer;
-import com.orientechnologies.orient.core.db.ODatabaseSession;
-import com.orientechnologies.orient.core.db.ODatabaseType;
-import com.orientechnologies.orient.core.db.OrientDB;
-import com.orientechnologies.orient.core.db.OrientDBConfig;
+import com.orientechnologies.orient.core.db.*;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
@@ -141,7 +138,8 @@ public class OrientDbClientTest {
         OrientDB dbClient = new OrientDB(dbUrl, OrientDBConfig.defaultConfig());
         dbClient.createIfNotExists(dbName, ODatabaseType.MEMORY);
         try {
-            Supplier<ODatabaseDocument> dbSessionSupplier = () -> dbClient.open(dbName, "admin", "admin");
+            ODatabasePool oDatabasePool = new ODatabasePool(dbClient, dbName, "admin", "admin");
+            Supplier<ODatabaseDocument> dbSessionSupplier = oDatabasePool::acquire;
             SchemaProvider schemaProvider = new OrientDbSchemaProvider(OrientDbSessionProvider.create(dbSessionSupplier));
             SchemaProvider cachedSchemaProvider = CacheSchemaProviderDecorator.decorate(schemaProvider);
             cachedSchemaProvider.createOrUpdate(Inventory.metaClass)

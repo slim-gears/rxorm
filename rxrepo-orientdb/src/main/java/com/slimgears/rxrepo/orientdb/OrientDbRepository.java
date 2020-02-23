@@ -1,9 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.google.common.collect.ImmutableMap;
-import com.orientechnologies.orient.core.db.ODatabaseType;
-import com.orientechnologies.orient.core.db.OrientDB;
-import com.orientechnologies.orient.core.db.OrientDBConfig;
+import com.orientechnologies.orient.core.db.*;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfig;
@@ -128,19 +126,11 @@ public class OrientDbRepository {
             Objects.requireNonNull(password);
 
             Lazy<OrientDB> dbClient = Lazy.of(() -> createClient(url, serverUser, serverPassword, dbName, dbType));
-            Map<ODatabaseDocument, CompletableSubject> sessions = new ConcurrentHashMap<>();
+            Lazy<ODatabasePool> dbPool = Lazy.of(() -> new ODatabasePool(dbClient.get(), dbName, user, password));
 
             OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(
-                    () -> {
-                        ODatabaseDocument session = createSession(dbClient, dbName, user, password);
-                        sessions.put(session, CompletableSubject.create());
-                        return session;
-                    },
-                    session -> {
-                        Optional.ofNullable(sessions.remove(session))
-                                .ifPresent(CompletableSubject::onComplete);
-                        session.close();
-                    });
+                    () -> dbPool.get().acquire(),
+                    ODatabase::close);
 
             return serviceFactoryBuilder(dbSessionProvider)
                     .decorate(
@@ -151,17 +141,7 @@ public class OrientDbRepository {
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
                             decorator)
                     .buildRepository(configBuilder.build())
-                    .onClose(repo -> {
-                        if (!Observable.fromIterable(sessions.values())
-                                .flatMapCompletable(Functions.identity())
-                                .blockingAwait(2, TimeUnit.SECONDS)) {
-                            sessions.keySet().forEach(dbSession -> {
-                                dbSession.activateOnCurrentThread();
-                                dbSession.close();
-                            });
-                        }
-                        dbClient.close();
-                    });
+                    .onClose(repo -> dbPool.close());
         }
 
         private static OrientDB createClient(String url, String serverUser, String serverPassword, String dbName, ODatabaseType dbType) {
@@ -172,10 +152,6 @@ public class OrientDbRepository {
                 }
             }
             return client;
-        }
-
-        private static ODatabaseDocument createSession(Supplier<OrientDB> clientSupplier, String dbName, String user, String password) {
-            return clientSupplier.get().open(dbName, user, password);
         }
 
         @Override
