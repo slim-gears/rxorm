@@ -19,6 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -31,6 +33,15 @@ public class PropertyExpressions {
     private final static Map<PropertyExpression<?, ?, ?>, Collection<PropertyExpression<?, ?, ?>>> relatedMandatoryPropertiesCache = new ConcurrentHashMap<>();
     private final static Map<TypeToken<?>, Collection<PropertyExpression<?, ?, ?>>> mandatoryPropertiesCache = new ConcurrentHashMap<>();
     private final static Map<PropertyExpression<?, ?, ?>, Collection<PropertyExpression<?, ?, ?>>> parentProperties = new ConcurrentHashMap<>();
+    private final static ImmutableSet<TypeToken<?>> numericTypes = ImmutableSet.<TypeToken<?>>builder()
+            .add(TypeToken.of(int.class), TypeToken.of(Integer.class))
+            .add(TypeToken.of(short.class), TypeToken.of(Short.class))
+            .add(TypeToken.of(long.class), TypeToken.of(Long.class))
+            .add(TypeToken.of(byte.class), TypeToken.of(Byte.class))
+            .add(TypeToken.of(float.class), TypeToken.of(Float.class))
+            .add(TypeToken.of(double.class), TypeToken.of(Double.class))
+            .add(TypeToken.of(BigInteger.class), TypeToken.of(BigDecimal.class))
+            .build();
 
     public static String pathOf(PropertyExpression<?, ?, ?> propertyExpression) {
         return Optional.ofNullable(parentOf(propertyExpression))
@@ -45,6 +56,28 @@ public class PropertyExpressions {
 
     public static <K, S> PropertyExpression<S, S, K> keyOf(MetaClassWithKey<K, S> metaClass) {
         return PropertyExpression.ofObject(metaClass.keyProperty());
+    }
+
+    public static <S, V> PropertyExpression<S, S, V> fromMeta(PropertyMeta<S, V> meta) {
+        return fromMeta(ObjectExpression.arg(meta.declaringType().asType()), meta);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static <S, T, V> PropertyExpression<S, T, V> fromMeta(ObjectExpression<S, T> target, PropertyMeta<T, V> propertyMeta) {
+        TypeToken<V> type = propertyMeta.type();
+
+        if (type.isSubtypeOf(String.class)) {
+            return (PropertyExpression<S, T, V>)PropertyExpression.ofString(target, (PropertyMeta<T, String>)propertyMeta);
+        } else if (numericTypes.contains(type) || type.isSubtypeOf(Number.class)) {
+            return (PropertyExpression<S, T, V>)PropertyExpression.ofNumeric(target, (PropertyMeta)propertyMeta);
+        } else if (type.isSubtypeOf(Boolean.class) || type.equals(TypeToken.of(boolean.class))) {
+            return (PropertyExpression<S, T, V>)PropertyExpression.ofBoolean(target, (PropertyMeta)propertyMeta);
+        } else if (type.isSubtypeOf(Comparable.class)) {
+            return (PropertyExpression<S, T, V>)PropertyExpression.ofComparable(target, (PropertyMeta)propertyMeta);
+        } else if (type.isSubtypeOf(Collection.class)) {
+            return (PropertyExpression<S, T, V>)PropertyExpression.ofCollection(target, (PropertyMeta)propertyMeta);
+        }
+        return PropertyExpression.ofObject(target, propertyMeta);
     }
 
     public static <S> ImmutableSet<PropertyExpression<S, ?, ?>> allReferencedProperties(ObjectExpression<S, ?> expression) {
@@ -245,7 +278,7 @@ public class PropertyExpressions {
         MetaClass<T> metaClass = MetaClasses.forTokenUnchecked(objectType);
         return Streams.fromIterable(metaClass.properties())
                 .filter(PropertyExpressions::isSearchable)
-                .map(p -> PropertyExpression.ofObject(parent, p))
+                .map(p -> fromMeta(parent, p))
                 .flatMap(p -> PropertyMetas.isReference(p.property())
                         ? searchableProperties(p)
                         : Stream.of(p));

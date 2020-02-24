@@ -2,15 +2,12 @@ package com.slimgears.rxrepo.orientdb;
 
 import com.google.common.reflect.TypeToken;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
-import com.orientechnologies.orient.core.index.OIndexException;
 import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OProperty;
 import com.orientechnologies.orient.core.metadata.schema.OType;
-import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.serialization.serializer.binary.impl.OLinkSerializer;
 import com.slimgears.rxrepo.annotations.Indexable;
-import com.slimgears.rxrepo.annotations.Searchable;
 import com.slimgears.rxrepo.sql.SchemaProvider;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
@@ -20,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
-import java.util.Optional;
 
 class OrientDbSchemaProvider implements SchemaProvider {
     private final static Logger log = LoggerFactory.getLogger(OrientDbSchemaProvider.class);
@@ -91,25 +87,6 @@ class OrientDbSchemaProvider implements SchemaProvider {
         Streams.fromIterable(metaClass.properties())
                 .filter(p -> p.hasAnnotation(Indexable.class) && !p.hasAnnotation(Key.class))
                 .forEach(p -> addIndex(oClass, p, p.getAnnotation(Indexable.class).unique()));
-
-        String[] textFields = Streams
-                .fromIterable(metaClass.properties())
-                .filter(p -> p.hasAnnotation(Searchable.class))
-                .map(PropertyMeta::name)
-                .toArray(String[]::new);
-
-        if (OrientDbRepository.Properties.isLuceneEnabled() && textFields.length > 0) {
-            try {
-                ODocument metaData = new ODocument();
-                metaData.setProperty("allowLeadingWildcard", true);
-                //metaData.setProperty("analyzer", "org.apache.lucene.analysis.core.WhitespaceAnalyzer");
-                metaData.setProperty("analyzer", "org.apache.lucene.analysis.core.KeywordAnalyzer");
-
-                oClass.createIndex(className + ".textIndex", "FULLTEXT", null, metaData, "LUCENE", textFields);
-            } catch (OIndexException e) {
-                log.warn("Full text creation index failed", e);
-            }
-        }
 
         log.trace("Class {} creation finished", className);
         return oClass;

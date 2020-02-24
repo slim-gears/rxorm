@@ -13,7 +13,11 @@ public interface PropertyExpression<S, T, V> extends ObjectExpression<S, V> {
 
     String path();
 
+    @SuppressWarnings("unchecked")
     default StringExpression<S> asString() {
+        if (this instanceof StringExpression) {
+            return (StringExpression<S>)this;
+        }
         return StringUnaryOperationExpression.create(Type.AsString, this);
     }
 

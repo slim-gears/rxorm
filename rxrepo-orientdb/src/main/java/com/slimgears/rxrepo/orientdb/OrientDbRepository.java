@@ -1,8 +1,8 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.google.common.collect.ImmutableMap;
+import com.orientechnologies.orient.core.config.OGlobalConfiguration;
 import com.orientechnologies.orient.core.db.*;
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.RepositoryConfigModelBuilder;
@@ -15,17 +15,11 @@ import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
 import com.slimgears.rxrepo.sql.SqlQueryProvider;
 import com.slimgears.rxrepo.sql.SqlServiceFactory;
 import com.slimgears.util.stream.Lazy;
-import io.reactivex.Observable;
-import io.reactivex.internal.functions.Functions;
-import io.reactivex.subjects.CompletableSubject;
 
 import javax.annotation.Nonnull;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 
 public class OrientDbRepository {
     public enum Type {
@@ -38,7 +32,7 @@ public class OrientDbRepository {
     }
 
     public static class Builder implements RepositoryConfigModelBuilder<Builder> {
-
+        private final static int pageSize = 64 * 1024;
         private final static Object lock = new Object();
         private final static ImmutableMap<Type, ODatabaseType> dbTypeMap = ImmutableMap
                 .<Type, ODatabaseType>builder()
@@ -61,6 +55,7 @@ public class OrientDbRepository {
                 .retryCount(10)
                 .retryInitialDurationMillis(10)
                 .debounceTimeoutMillis(100);
+        private final Map<OGlobalConfiguration, Object> customConfig = new HashMap<>();
 
         public final Builder enableBatchSupport() {
             return enableBatchSupport(true);
@@ -73,6 +68,21 @@ public class OrientDbRepository {
 
         public final Builder maxNotificationQueues(int maxNotificationQueues) {
             this.maxNotificationQueues = maxNotificationQueues;
+            return this;
+        }
+
+        public final Builder maxConnections(int maxConnections) {
+            this.customConfig.put(OGlobalConfiguration.DB_POOL_MAX, maxConnections);
+            return this;
+        }
+
+        public final Builder maxNonHeapMemory(int maxNonHeapMemoryBytes) {
+            this.customConfig.put(OGlobalConfiguration.DIRECT_MEMORY_POOL_LIMIT, maxNonHeapMemoryBytes / pageSize);
+            return this;
+        }
+
+        public final Builder setProperty(String key, Object value) {
+            customConfig.put(OGlobalConfiguration.findByKey(key), value);
             return this;
         }
 
@@ -144,8 +154,12 @@ public class OrientDbRepository {
                     .onClose(repo -> dbPool.close());
         }
 
-        private static OrientDB createClient(String url, String serverUser, String serverPassword, String dbName, ODatabaseType dbType) {
-            OrientDB client = new OrientDB(url, serverUser, serverPassword, OrientDBConfig.defaultConfig());
+        private OrientDB createClient(String url, String serverUser, String serverPassword, String dbName, ODatabaseType dbType) {
+            OrientDBConfig config = OrientDBConfig.builder()
+                    .fromGlobalMap(customConfig)
+                    .build();
+
+            OrientDB client = new OrientDB(url, serverUser, serverPassword, config);
             if (!client.exists(dbName)) {
                 synchronized (lock) {
                     client.createIfNotExists(dbName, dbType);
@@ -181,15 +195,6 @@ public class OrientDbRepository {
                     .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
                     .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
                     .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider, maxNotificationQueues) : SqlQueryProvider.create(svc, maxNotificationQueues));
-        }
-    }
-
-    @SuppressWarnings("WeakerAccess")
-    public static class Properties {
-        public static final String disableLucene = "rxrepo.orientdb.doNotUseLuceneIndex";
-
-        public static boolean isLuceneEnabled() {
-            return System.getProperty(OrientDbRepository.Properties.disableLucene) == null;
         }
     }
 }

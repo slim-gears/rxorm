@@ -54,6 +54,7 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
                 .name(name)
                 .decorate(SchedulingQueryProviderDecorator.createDefault())
                 .enableBatchSupport()
+                .maxConnections(100)
                 .build();
     }
 

@@ -17,6 +17,7 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+@SuppressWarnings("rawtypes")
 public class Expressions {
     @SuppressWarnings("unchecked")
     public static <S, T> Function<S, T> compile(ObjectExpression<S, T> exp) {
@@ -313,10 +314,11 @@ public class Expressions {
     private static BiFunction<Object, String, Boolean> searchText() {
         return (obj, str) -> Optional.ofNullable(obj)
                 .map(MetaClassSearchableFields::searchableTextFromObject)
-                .map(text -> {
-                    Pattern pattern = Pattern.compile(SearchTextUtils.searchTextToRegex(getStringOrEmpty(str)), Pattern.CASE_INSENSITIVE);
-                    return pattern.matcher(text).find();
-                })
+                .map(text -> text.contains(getStringOrEmpty(str)))
+//                .map(text -> {
+//                    Pattern pattern = Pattern.compile(SearchTextUtils.searchTextToRegex(getStringOrEmpty(str)), Pattern.CASE_INSENSITIVE);
+//                    return pattern.matcher(text).find();
+//                })
                 .orElse(false);
     }
 

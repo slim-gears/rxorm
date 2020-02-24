@@ -59,7 +59,7 @@ public class ExpressionsTest {
 
     @Test
     public void testSearchTextExpression() {
-        Predicate<Product> predicate = Expressions.compilePredicate(Product.$.searchText("Product ["));
+        Predicate<Product> predicate = Expressions.compilePredicate(Product.$.searchText("Product 1 - ["));
         Assert.assertTrue(predicate.test(Product.builder()
                 .key(UniqueId.productId(1))
                 .price(1)

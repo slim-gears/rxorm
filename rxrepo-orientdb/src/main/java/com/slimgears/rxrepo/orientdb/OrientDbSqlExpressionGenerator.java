@@ -1,22 +1,25 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.TypeToken;
-import com.slimgears.rxrepo.expressions.ConstantExpression;
-import com.slimgears.rxrepo.expressions.Expression;
-import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.expressions.*;
 import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.rxrepo.sql.DefaultSqlExpressionGenerator;
 import com.slimgears.rxrepo.util.ExpressionTextGenerator;
 import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.rxrepo.util.PropertyMetas;
+import com.slimgears.rxrepo.util.SearchTextUtils;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
+import com.slimgears.util.generic.MoreStrings;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerator {
     private final ExpressionTextGenerator.Interceptor searchTextInterceptor = ExpressionTextGenerator.Interceptor.builder()
@@ -37,23 +40,16 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
     }
 
     @SuppressWarnings("unchecked")
-//    private String onVisitSearchTextExpression(Function<? super ObjectExpression<?, ?>, String> visitor, BooleanBinaryOperationExpression<?, ?, String> expression, Supplier<String> visitedExpression) {
-//        TypeToken<?> argType = expression.left().reflect().objectType();
-//        String searchText = ((ConstantExpression<?, String>)expression.right()).value();
-//        String[] words = searchText.split("\\s");
-//        if (words.length == 0) {
-//            return "";
-//        }
-//
-//        PropertyExpressions.searchableProperties(expression.left())
-//                .map(p -> )
-//    }
     private String onVisitSearchTextExpression(Function<? super ObjectExpression<?, ?>, String> visitor, BooleanBinaryOperationExpression<?, ?, String> expression, Supplier<String> visitedExpression) {
-        TypeToken<?> argType = expression.left().reflect().objectType();
-        String searchText = ((ConstantExpression<?, String>)expression.right()).value();
-        String wildcard = searchTextToWildcard(searchText);
-        return String.format("(search_index('" + OrientDbSchemaProvider.toClassName(argType) + ".textIndex', %s) = true)", visitor.apply(ConstantExpression.of(wildcard)));
-        //return String.format("SEARCH_CLASS(%s) = true", visitor.apply(ConstantExpression.of(wildcard)));
+        String searchText = ((ConstantExpression<?, String>)expression.right()).value()
+                .replace("\\", "\\\\");
+
+        String concat = PropertyExpressions.searchableProperties(expression.left())
+                .map(PropertyExpression::asString)
+                .map(visitor)
+                .collect(Collectors.joining(" + ' ' + "));
+
+        return formatAndFixQuotes("((%s) containsText  '%s')").reduce(expression, concat, searchText);
     }
 
     private String onVisitBinaryExpression(Function<? super ObjectExpression<?, ?>, String> visitor, BooleanBinaryOperationExpression<?, ?, ?> expression, Supplier<String> visitedExpression) {

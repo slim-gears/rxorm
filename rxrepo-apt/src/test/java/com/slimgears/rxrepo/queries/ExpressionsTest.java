@@ -78,7 +78,7 @@ public class ExpressionsTest {
                 .refEntity(TestRefEntity.Filter.builder().id(fromGreaterOrEqual(8)).build())
                 .number(fromLessThan(5))
                 .text(fromContains("ity 1"))
-                .searchText("En ty 1")
+                .searchText("tity 1")
                 .build();
 
         Function<TestEntity, Boolean> func = filter.toExpression(ObjectExpression.arg(TestEntity.class))

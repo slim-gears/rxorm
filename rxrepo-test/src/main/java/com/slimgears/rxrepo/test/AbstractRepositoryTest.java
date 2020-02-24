@@ -7,6 +7,7 @@ import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.query.*;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
+import com.slimgears.util.generic.MoreStrings;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.logging.LogLevel;
@@ -255,24 +256,18 @@ public abstract class AbstractRepositoryTest {
     public void testSearchTextWithSpecialChars() {
         products.update(Products.createOne().toBuilder()
                 .key(UniqueId.productId(1))
-                .name("Product / {with} (special) [chars]; - and more\\").build())
+                .name("begin :> Product / {with} (special) % [chars]; - and more\\ <: end").build())
                 .ignoreElement()
                 .blockingAwait();
 
         // Sanity check
         Assert.assertEquals(Long.valueOf(0), products.findAll(Product.$.searchText("Product Foo")).count().blockingGet());
 
-        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product {")).count().blockingGet());
-        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product [")).count().blockingGet());
-        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product \\")).count().blockingGet());
-        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product /")).count().blockingGet());
-        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product ;")).count().blockingGet());
-        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product -")).count().blockingGet());
-        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText("Product +")).count().blockingGet());
+        Assert.assertEquals(Long.valueOf(1), products.findAll(Product.$.searchText(":> Product / {with} (special) % [chars]; - and more\\")).count().blockingGet());
     }
 
     @Test
-    //@UseLogLevel(LogLevel.TRACE)
+    @UseLogLevel(LogLevel.TRACE)
     public void testInsertThenLiveSelectCountShouldReturnCount() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Iterable<Product> products = Products.createMany(200);
@@ -281,7 +276,7 @@ public abstract class AbstractRepositoryTest {
         TestObserver<Long> countObserver = productSet.query()
                 .liveSelect()
                 .count()
-                .takeUntil(c -> c == 81)
+                .takeUntil(c -> c == 89)
                 .test();
 
         productSet.delete()
@@ -289,7 +284,7 @@ public abstract class AbstractRepositoryTest {
                 .execute()
                 .test()
                 .await()
-                .assertValue(119);
+                .assertValue(111);
 
         countObserver
                 .await()
@@ -1307,7 +1302,7 @@ public abstract class AbstractRepositoryTest {
 
         repository.entities(Product.metaClass)
                 .query()
-                .where(Product.$.searchText("example : colon"))
+                .where(Product.$.searchText("example: colon"))
                 .retrieve()
                 .test()
                 .await()
@@ -1450,4 +1445,16 @@ public abstract class AbstractRepositoryTest {
         productTestObserver2.awaitDone(5000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
         productTestObserver3.awaitDone(5000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
     }
+//
+//    @Test
+//    public void testSearchTextPerformance() {
+//        products.update(Products.createMany(100000)).blockingAwait();
+//        Stopwatch stopwatch = Stopwatch.createStarted();
+//        products.query()
+//                .where(Product.$.searchText("ory 1"))
+//                .retrieve()
+//                .ignoreElements()
+//                .blockingAwait();
+//        System.out.println(MoreStrings.format("Query took {}ms", stopwatch.elapsed().toMillis()));
+//    }
 }

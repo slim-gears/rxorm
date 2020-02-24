@@ -25,8 +25,8 @@ public interface ProductPrototype {
 
     @Key @Filterable UniqueId key();
     @Nullable @Filterable @Searchable String name();
-    @Filterable @Nullable Inventory inventory();
     @Nullable @Searchable Type type();
+    @Filterable @Nullable @Searchable Inventory inventory();
     int price();
     @Nullable List<String> aliases();
     @Nullable List<UniqueId> relatedIds();

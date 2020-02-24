@@ -106,7 +106,7 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
         return ExpressionTextGenerator.Interceptor.empty();
     }
 
-    private static ExpressionTextGenerator.Reducer formatAndFixQuotes(String format) {
+    protected static ExpressionTextGenerator.Reducer formatAndFixQuotes(String format) {
         return ExpressionTextGenerator.Reducer.fromFormat(format).andThen(str -> str.replaceAll("' \\+ '", ""));
     }
 
