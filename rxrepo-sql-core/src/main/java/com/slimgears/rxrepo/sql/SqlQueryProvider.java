@@ -10,6 +10,7 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
+import com.slimgears.rxrepo.util.ExecutorPool;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.rxrepo.util.PropertyResolvers;
@@ -41,29 +42,27 @@ public class SqlQueryProvider implements QueryProvider {
     private final SqlStatementExecutor statementExecutor;
     protected final SchemaProvider schemaProvider;
     private final ReferenceResolver referenceResolver;
-    private final int maxNotificationQueues;
-    private final AtomicInteger nextQueueIndex = new AtomicInteger();
-    private final List<ExecutorService> queues = new ArrayList<>();
+    private final ExecutorPool executorPool;
 
     protected SqlQueryProvider(SqlStatementProvider statementProvider,
                                SqlStatementExecutor statementExecutor,
                                SchemaProvider schemaProvider,
                                ReferenceResolver referenceResolver,
-                               int maxNotificationQueues) {
+                               ExecutorPool executorPool) {
         this.statementProvider = statementProvider;
         this.statementExecutor = statementExecutor;
         this.schemaProvider = schemaProvider;
         this.referenceResolver = referenceResolver;
-        this.maxNotificationQueues = maxNotificationQueues;
+        this.executorPool = executorPool;
     }
 
-    public static QueryProvider create(SqlServiceFactory serviceFactory, int maxNotificationQueues) {
+    public static QueryProvider create(SqlServiceFactory serviceFactory) {
         return new SqlQueryProvider(
                 serviceFactory.statementProvider(),
                 serviceFactory.statementExecutor(),
                 serviceFactory.schemaProvider(),
                 serviceFactory.referenceResolver(),
-                maxNotificationQueues);
+                serviceFactory.executorPool());
     }
 
     @Override
@@ -243,22 +242,7 @@ public class SqlQueryProvider implements QueryProvider {
                 .orElse(true);
     }
 
-    private synchronized ExecutorService getQueue() {
-        if (queues.size() < maxNotificationQueues) {
-            ExecutorService executorService = createQueue();
-            queues.add(executorService);
-            return executorService;
-        }
-        return queues.get(nextQueueIndex.getAndUpdate(index -> (index + 1) % queues.size()));
-    }
-
-    private ExecutorService createQueue() {
-        return new ThreadPoolExecutor(0, 1,
-                30L, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>());
-    }
-
     private <T> ObservableTransformer<T, T> applyScheduler() {
-        return src -> src.observeOn(Schedulers.from(getQueue()));
+        return src -> src.observeOn(Schedulers.from(executorPool.getExecutor()));
     }
 }

@@ -194,7 +194,7 @@ public class OrientDbRepository {
                     .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                     .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
                     .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
-                    .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider, maxNotificationQueues) : SqlQueryProvider.create(svc, maxNotificationQueues));
+                    .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider) : SqlQueryProvider.create(svc));
         }
     }
 }

@@ -36,7 +36,7 @@ public class PropertyResolvers {
     }
 
     public static <S, T> T withProperties(ImmutableSet<PropertyExpression<S, ?, ?>> properties, Callable<T> callable) {
-        return properties != null && !properties.isEmpty()
+        return properties != null
             ? withProperties(properties.stream()
                 .flatMap(p -> Stream.concat(Stream.of(p), PropertyExpressions.parentProperties(p)))
                 .map(PropertyExpression::property)
@@ -58,7 +58,7 @@ public class PropertyResolvers {
             }
 
             @Override
-            public Object getProperty(String name, Class type) {
+            public Object getProperty(String name, Class<?> type) {
                 return null;
             }
         };
@@ -78,7 +78,7 @@ public class PropertyResolvers {
             }
 
             @Override
-            public Object getProperty(String name, Class type) {
+            public Object getProperty(String name, Class<?> type) {
                 return Arrays.stream(propertyResolvers)
                         .filter(Objects::nonNull)
                         .map(pr -> pr.getProperty(name, type))
@@ -111,7 +111,7 @@ public class PropertyResolvers {
             }
 
             @Override
-            public Object getProperty(String name, Class type) {
+            public Object getProperty(String name, Class<?> type) {
                 return Optional.ofNullable(metaClass.getProperty(name))
                         .map(p -> fromValue(p.type(), p.getValue(obj)))
                         .orElse(null);
@@ -126,6 +126,7 @@ public class PropertyResolvers {
         }.cache();
     }
 
+    @SuppressWarnings("rawtypes")
     private static <V> Object fromValue(TypeToken<?> type, V value) {
         if (value instanceof HasMetaClass) {
             //noinspection unchecked
@@ -145,7 +146,7 @@ public class PropertyResolvers {
         return value;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static <V> V toValue(TypeToken<V> type, Object value) {
         if (value == null) {
             return null;

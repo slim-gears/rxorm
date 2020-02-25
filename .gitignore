@@ -1,4 +1,5 @@
 .gradle
+db/
 build/
 rxrepo-orientdb/databases
 # Ignore Gradle GUI config

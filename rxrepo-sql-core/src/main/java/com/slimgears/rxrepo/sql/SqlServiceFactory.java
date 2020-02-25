@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.sql;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfigModel;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.util.ExecutorPool;
 import io.reactivex.Completable;
 
 import java.util.function.Function;
@@ -18,6 +19,7 @@ public interface SqlServiceFactory {
     SqlAssignmentGenerator assignmentGenerator();
     ReferenceResolver referenceResolver();
     QueryProvider queryProvider();
+    ExecutorPool executorPool();
 
     static Builder builder() {
         return DefaultSqlServiceFactory.builder();
@@ -33,7 +35,7 @@ public interface SqlServiceFactory {
         public abstract Builder expressionGenerator(Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator);
         public abstract Builder assignmentGenerator(Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator);
         public abstract Builder queryProviderGenerator(Function<SqlServiceFactory, QueryProvider> queryProviderGenerator);
-        public abstract Builder maxNotificationQueues(int maxNotificationQueues);
+        public abstract Builder executorPool(Function<SqlServiceFactory, ExecutorPool> executorPool);
         public abstract SqlServiceFactory build();
 
         public final Repository buildRepository(RepositoryConfigModel config, QueryProvider.Decorator... decorators) {
@@ -67,6 +69,10 @@ public interface SqlServiceFactory {
 
         public Builder assignmentGenerator(Supplier<SqlAssignmentGenerator> assignmentGenerator) {
             return assignmentGenerator(f -> assignmentGenerator.get());
+        }
+
+        public Builder executorPool(Supplier<ExecutorPool> executorPool) {
+            return executorPool(f -> executorPool.get());
         }
     }
 }

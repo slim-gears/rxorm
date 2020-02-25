@@ -12,6 +12,7 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.sql.*;
+import com.slimgears.rxrepo.util.ExecutorPool;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -35,20 +36,20 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
                           SqlStatementExecutor statementExecutor,
                           SchemaProvider schemaProvider,
                           ReferenceResolver referenceResolver,
-                          OrientDbSessionProvider dbSessionProvider,
-                          int maxNotificationQueues) {
-        super(statementProvider, statementExecutor, schemaProvider, referenceResolver, maxNotificationQueues);
+                          ExecutorPool executorPool,
+                          OrientDbSessionProvider dbSessionProvider) {
+        super(statementProvider, statementExecutor, schemaProvider, referenceResolver, executorPool);
         this.dbSessionProvider = dbSessionProvider;
     }
 
-    static OrientDbQueryProvider create(SqlServiceFactory serviceFactory, OrientDbSessionProvider sessionProvider, int maxNotificationQueues) {
+    static OrientDbQueryProvider create(SqlServiceFactory serviceFactory, OrientDbSessionProvider sessionProvider) {
         return new OrientDbQueryProvider(
                 serviceFactory.statementProvider(),
                 serviceFactory.statementExecutor(),
                 serviceFactory.schemaProvider(),
                 serviceFactory.referenceResolver(),
-                sessionProvider,
-                maxNotificationQueues);
+                serviceFactory.executorPool(),
+                sessionProvider);
     }
 
     @Override

@@ -4,10 +4,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.annotations.Searchable;
-import com.slimgears.rxrepo.expressions.Expression;
-import com.slimgears.rxrepo.expressions.ExpressionVisitor;
-import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.expressions.*;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -102,6 +99,17 @@ public class PropertyExpressions {
             protected <_S, T, V> Void visitProperty(PropertyExpression<_S, T, V> expression, Void arg) {
                 referencedPropertiesBuilder.add((PropertyExpression<S, ?, ?>)expression);
                 return super.visitProperty(expression, arg);
+            }
+
+            @Override
+            protected <_S, T1, T2, R> Void visitBinaryOperator(BinaryOperationExpression<_S, T1, T2, R> expression, Void arg) {
+                if (expression.type() == Expression.Type.SearchText) {
+                    PropertyExpressions.searchableProperties(expression.left())
+                            .forEach(p -> visitProperty(p, arg));
+                    return null;
+                } else {
+                    return super.visitBinaryOperator(expression, arg);
+                }
             }
 
             @Override

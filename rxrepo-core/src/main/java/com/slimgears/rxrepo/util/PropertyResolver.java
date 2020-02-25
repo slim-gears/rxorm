@@ -12,7 +12,7 @@ import java.util.Optional;
 
 public interface PropertyResolver {
     Iterable<String> propertyNames();
-    Object getProperty(String name, Class type);
+    Object getProperty(String name, Class<?> type);
     //Object getKey(Class<?> keyClass);
 
     @SuppressWarnings("unchecked")
@@ -35,7 +35,7 @@ public interface PropertyResolver {
         return PropertyResolvers.merge(propertyResolver, this);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     default <T> T toObject(TypeToken<T> typeToken) {
         if (typeToken.isSubtypeOf(HasMetaClass.class)) {
             return (T)toObject(MetaClasses.forToken((TypeToken)typeToken));

@@ -25,7 +25,7 @@ public class CachedPropertyResolver implements PropertyResolver {
     }
 
     @Override
-    public Object getProperty(String name, Class type) {
+    public Object getProperty(String name, Class<?> type) {
         return values.get().computeIfAbsent(name, n -> underlyingResolver.getProperty(n, type));
     }
 }

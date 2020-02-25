@@ -17,7 +17,7 @@ class OElementPropertyResolver extends AbstractOrientPropertyResolver {
     }
 
     @Override
-    protected Object getPropertyInternal(String name, Class type) {
+    protected Object getPropertyInternal(String name, Class<?> type) {
         return oElement.getProperty(name);
     }
 

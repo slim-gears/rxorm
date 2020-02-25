@@ -27,21 +27,21 @@ public abstract class AbstractOrientPropertyResolver implements PropertyResolver
     }
 
     @Override
-    public Object getProperty(String name, Class type) {
+    public Object getProperty(String name, Class<?> type) {
         Object obj = getPropertyInternal(name, type);
         return toValue(obj, type);
     }
 
-    private Object toValue(Object obj, Class expectedType) {
+    private Object toValue(Object obj, Class<?> expectedType) {
         return toValue(dbSessionProvider, obj, expectedType);
     }
 
-    @SuppressWarnings("unchecked")
-    private static Object toValue(OrientDbSessionProvider dbSessionProvider, Object obj, Class expectedType) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Object toValue(OrientDbSessionProvider dbSessionProvider, Object obj, Class<?> expectedType) {
         if (obj instanceof OElement) {
             return OElementPropertyResolver.create(dbSessionProvider, (OElement)obj);
         } else if (expectedType.isEnum() && obj != null) {
-            return Enum.valueOf(expectedType, obj.toString());
+            return Enum.valueOf((Class)expectedType, obj.toString());
         } else if (obj instanceof ORecordId) {
             return toValue(dbSessionProvider, dbSessionProvider.withSession((ODatabaseDocument s) -> s.load((ORecordId)obj)), expectedType);
         } else if (obj instanceof OTrackedList) {
@@ -85,5 +85,5 @@ public abstract class AbstractOrientPropertyResolver implements PropertyResolver
         return obj;
     }
 
-    protected abstract Object getPropertyInternal(String name, Class type);
+    protected abstract Object getPropertyInternal(String name, Class<?> type);
 }

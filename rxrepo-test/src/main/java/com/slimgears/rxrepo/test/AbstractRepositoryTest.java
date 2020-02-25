@@ -1445,16 +1445,37 @@ public abstract class AbstractRepositoryTest {
         productTestObserver2.awaitDone(5000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
         productTestObserver3.awaitDone(5000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
     }
-//
-//    @Test
-//    public void testSearchTextPerformance() {
-//        products.update(Products.createMany(100000)).blockingAwait();
-//        Stopwatch stopwatch = Stopwatch.createStarted();
-//        products.query()
-//                .where(Product.$.searchText("ory 1"))
-//                .retrieve()
-//                .ignoreElements()
-//                .blockingAwait();
-//        System.out.println(MoreStrings.format("Query took {}ms", stopwatch.elapsed().toMillis()));
-//    }
+
+    @Test
+    @UseLogLevel(LogLevel.TRACE)
+    public void testSearchTextLiveQuery() {
+        TestObserver<Notification<Product>> testObserver = products.query()
+                .where(Product.$.searchText("Product 0"))
+                .liveSelect()
+                .observe()
+                .test();
+
+        products.update(Products.createOne(0)).ignoreElement().blockingAwait();
+        testObserver.awaitCount(1)
+                .assertValueCount(1)
+                .assertValueAt(0, NotificationPrototype::isCreate);
+
+        products.update(Products.createOne(0).toBuilder().name("Product Zero").build()).ignoreElement().blockingAwait();
+        testObserver
+                .awaitCount(2)
+                .assertValueCount(2)
+                .assertValueAt(1, NotificationPrototype::isDelete);
+    }
+
+    @Test @Ignore
+    public void testSearchTextPerformance() {
+        products.update(Products.createMany(100000)).blockingAwait();
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        products.query()
+                .where(Product.$.searchText("ory 1"))
+                .retrieve()
+                .ignoreElements()
+                .blockingAwait();
+        System.out.println(MoreStrings.format("Query took {}ms", stopwatch.elapsed().toMillis()));
+    }
 }

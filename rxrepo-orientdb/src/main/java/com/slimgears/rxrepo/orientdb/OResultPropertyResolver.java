@@ -45,7 +45,7 @@ class OResultPropertyResolver extends AbstractOrientPropertyResolver {
     }
 
     @Override
-    protected Object getPropertyInternal(String name, Class type) {
+    protected Object getPropertyInternal(String name, Class<?> type) {
         propertyNames.get();
         return Optional
                 .ofNullable(resolvers.get(fromCanonic(name)))
