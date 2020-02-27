@@ -13,12 +13,14 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.sql.*;
 import com.slimgears.rxrepo.util.SchedulingProvider;
+import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
+import io.reactivex.Observable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,25 +33,29 @@ import java.util.stream.Collectors;
 public class OrientDbQueryProvider extends SqlQueryProvider {
     private final static Logger log = LoggerFactory.getLogger(OrientDbQueryProvider.class);
     private final OrientDbSessionProvider dbSessionProvider;
+    private final int bufferSize;
 
     OrientDbQueryProvider(SqlStatementProvider statementProvider,
                           SqlStatementExecutor statementExecutor,
                           SchemaProvider schemaProvider,
                           ReferenceResolver referenceResolver,
                           SchedulingProvider schedulingProvider,
-                          OrientDbSessionProvider dbSessionProvider) {
+                          OrientDbSessionProvider dbSessionProvider,
+                          int bufferSize) {
         super(statementProvider, statementExecutor, schemaProvider, referenceResolver, schedulingProvider);
         this.dbSessionProvider = dbSessionProvider;
+        this.bufferSize = bufferSize;
     }
 
-    static OrientDbQueryProvider create(SqlServiceFactory serviceFactory, OrientDbSessionProvider sessionProvider) {
+    static OrientDbQueryProvider create(SqlServiceFactory serviceFactory, OrientDbSessionProvider sessionProvider, int bufferSize) {
         return new OrientDbQueryProvider(
                 serviceFactory.statementProvider(),
                 serviceFactory.statementExecutor(),
                 serviceFactory.schemaProvider(),
                 serviceFactory.referenceResolver(),
                 serviceFactory.executorPool(),
-                sessionProvider);
+                sessionProvider,
+                bufferSize);
     }
 
     @Override
@@ -60,7 +66,9 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
 
         Stopwatch stopwatch = Stopwatch.createStarted();
         return schemaProvider.createOrUpdate(metaClass)
-                .andThen(Completable.fromAction(() -> createAndSaveElements(entities)))
+                .andThen(Observable.fromIterable(entities)
+                        .buffer(bufferSize)
+                        .concatMapCompletable(buffer -> Completable.fromAction(() -> createAndSaveElements(buffer))))
                 .doOnComplete(() -> log.debug("Total insert time: {}s", stopwatch.elapsed(TimeUnit.SECONDS)));
     }
 
