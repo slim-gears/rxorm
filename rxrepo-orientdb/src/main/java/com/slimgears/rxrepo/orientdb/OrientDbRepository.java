@@ -168,13 +168,13 @@ public class OrientDbRepository {
             Objects.requireNonNull(password);
 
             Lazy<OrientDB> dbClient = Lazy.of(() -> createClient(url, serverUser, serverPassword, dbName, dbType));
-            Lazy<ODatabasePool> dbPool = Lazy.of(() -> new ODatabasePool(dbClient.get(), dbName, user, password));
 
             AtomicInteger currentlyActiveSessions = new AtomicInteger();
             MetricCollector.Gauge activeSessionsGauge = metrics.gauge("activeSessions");
+
             OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(
                     () -> {
-                        ODatabaseSession dbSession = dbPool.get().acquire();
+                        ODatabaseSession dbSession = dbClient.get().open(dbName, user, password);
                         int newCount = currentlyActiveSessions.incrementAndGet();
                         log.debug("Created database connection (currently active connections: {})", newCount);
                         activeSessionsGauge.record(newCount);
@@ -194,8 +194,7 @@ public class OrientDbRepository {
                             batchSupport ? OrientDbUpdateReferencesFirstQueryProviderDecorator.create() : UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
                             decorator)
-                    .buildRepository(configBuilder.build())
-                    .onClose(repo -> dbPool.close());
+                    .buildRepository(configBuilder.build());
         }
 
         private OrientDB createClient(String url, String serverUser, String serverPassword, String dbName, ODatabaseType dbType) {

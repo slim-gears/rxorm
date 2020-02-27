@@ -23,6 +23,7 @@ class OrientDbSessionProvider {
 
     static OrientDbSessionProvider create(Supplier<ODatabaseDocument> dbSessionSupplier, Consumer<ODatabaseDocument> onClose) {
         return new OrientDbSessionProvider(dbSessionSupplier, session -> {
+            session.activateOnCurrentThread();
             onClose.accept(session);
             session.close();
         });
