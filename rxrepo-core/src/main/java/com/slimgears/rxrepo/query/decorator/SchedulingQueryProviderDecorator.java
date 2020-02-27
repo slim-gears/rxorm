@@ -6,27 +6,31 @@ import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
+import com.slimgears.rxrepo.util.Queries;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.function.Supplier;
 
 public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecorator {
+    private final static Logger log = LoggerFactory.getLogger(SchedulingQueryProviderDecorator.class);
     private final Scheduler updateScheduler;
     private final Scheduler queryScheduler;
-    private final Scheduler notificationScheduler;
+    private final Scheduler liveQueryScheduler;
 
     private SchedulingQueryProviderDecorator(
             QueryProvider underlyingProvider,
             Scheduler updateScheduler,
             Scheduler queryScheduler,
-            Scheduler notificationScheduler) {
+            Scheduler liveQueryScheduler) {
         super(underlyingProvider);
         this.updateScheduler = updateScheduler;
         this.queryScheduler = queryScheduler;
-        this.notificationScheduler = notificationScheduler;
+        this.liveQueryScheduler = liveQueryScheduler;
     }
 
     public static QueryProvider.Decorator create(
@@ -86,20 +90,16 @@ public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecor
 
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-        return super.liveQuery(query).subscribeOn(notificationScheduler);
+        return super.liveQuery(query).subscribeOn(liveQueryScheduler);
     }
 
     @Override
     public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
-        return this
-                .query(queryInfo)
-                .map(Notification::ofCreated)
-                .concatWith(Observable.just(Notification.create()))
-                .concatWith(this.liveQuery(observeInfo));
+        return Queries.queryAndObserve(this.query(queryInfo), this.liveQuery(observeInfo));
     }
 
     @Override
     public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return super.liveAggregate(query, aggregator).subscribeOn(notificationScheduler);
+        return super.liveAggregate(query, aggregator).subscribeOn(liveQueryScheduler);
     }
 }

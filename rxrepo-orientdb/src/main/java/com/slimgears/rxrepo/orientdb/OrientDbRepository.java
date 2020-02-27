@@ -3,6 +3,8 @@ package com.slimgears.rxrepo.orientdb;
 import com.google.common.collect.ImmutableMap;
 import com.orientechnologies.orient.core.config.OGlobalConfiguration;
 import com.orientechnologies.orient.core.db.*;
+import com.slimgears.nanometer.MetricCollector;
+import com.slimgears.nanometer.Metrics;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.RepositoryConfigModelBuilder;
@@ -14,14 +16,25 @@ import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
 import com.slimgears.rxrepo.sql.SqlQueryProvider;
 import com.slimgears.rxrepo.sql.SqlServiceFactory;
+import com.slimgears.rxrepo.util.CachedRoundRobinSchedulingProvider;
+import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.stream.Lazy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class OrientDbRepository {
+    private final static Logger log = LoggerFactory.getLogger(OrientDbRepository.class);
+    private final static MetricCollector metrics = Metrics.collector(OrientDbRepository.class);
+
     public enum Type {
         Memory,
         Persistent
@@ -50,6 +63,8 @@ public class OrientDbRepository {
         private boolean batchSupport = false;
         private int maxNotificationQueues = 10;
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
+        private Supplier<SchedulingProvider> schedulingProvider = () -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, Duration.ofSeconds(30));
+        private Function<SchedulingProvider, SchedulingProvider> schedulingProviderDecorator = Function.identity();
         private RepositoryConfig.Builder configBuilder = RepositoryConfig
                 .builder()
                 .retryCount(10)
@@ -78,6 +93,16 @@ public class OrientDbRepository {
 
         public final Builder maxNonHeapMemory(int maxNonHeapMemoryBytes) {
             this.customConfig.put(OGlobalConfiguration.DIRECT_MEMORY_POOL_LIMIT, maxNonHeapMemoryBytes / pageSize);
+            return this;
+        }
+
+        public final Builder schedulingProvider(SchedulingProvider schedulingProvider) {
+            this.schedulingProvider = ()  -> schedulingProvider;
+            return this;
+        }
+
+        public final Builder schedulingProvider(Function<SchedulingProvider, SchedulingProvider> schedulingProvider) {
+            this.schedulingProviderDecorator = schedulingProvider;
             return this;
         }
 
@@ -138,9 +163,21 @@ public class OrientDbRepository {
             Lazy<OrientDB> dbClient = Lazy.of(() -> createClient(url, serverUser, serverPassword, dbName, dbType));
             Lazy<ODatabasePool> dbPool = Lazy.of(() -> new ODatabasePool(dbClient.get(), dbName, user, password));
 
+            AtomicInteger currentlyActiveSessions = new AtomicInteger();
+            MetricCollector.Gauge activeSessionsGauge = metrics.gauge("activeSessions");
             OrientDbSessionProvider dbSessionProvider = OrientDbSessionProvider.create(
-                    () -> dbPool.get().acquire(),
-                    ODatabase::close);
+                    () -> {
+                        ODatabaseSession dbSession = dbPool.get().acquire();
+                        int newCount = currentlyActiveSessions.incrementAndGet();
+                        log.debug("Created database connection (currently active connections: {})", newCount);
+                        activeSessionsGauge.record(newCount);
+                        return dbSession;
+                    },
+                    dbSession -> {
+                        int newCount = currentlyActiveSessions.decrementAndGet();
+                        log.debug("Database connection closed (currently active connections: {}", newCount);
+                        activeSessionsGauge.record(newCount);
+                    });
 
             return serviceFactoryBuilder(dbSessionProvider)
                     .decorate(
@@ -194,7 +231,8 @@ public class OrientDbRepository {
                     .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
                     .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
                     .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
-                    .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider) : SqlQueryProvider.create(svc));
+                    .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider) : SqlQueryProvider.create(svc))
+                    .schedulingProvider(() -> schedulingProviderDecorator.apply(schedulingProvider.get()));
         }
     }
 }

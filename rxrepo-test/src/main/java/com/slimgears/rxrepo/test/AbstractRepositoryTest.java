@@ -41,7 +41,7 @@ public abstract class AbstractRepositoryTest {
     @Rule public final Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
 
     private Repository repository;
-    private EntitySet<UniqueId, Product> products;
+    protected EntitySet<UniqueId, Product> products;
 
 
     @Before
@@ -1004,6 +1004,7 @@ public abstract class AbstractRepositoryTest {
 
         TestObserver<List<Product>> productTestObserver = products.query()
                 .where(Product.$.price.eq(100))
+
                 .observeAsList(Product.$.name, Product.$.inventory.name)
                 .doOnNext(l -> {
                     System.out.println("List received: ");
@@ -1012,6 +1013,7 @@ public abstract class AbstractRepositoryTest {
                 .test()
                 .assertOf(countAtLeast(1))
                 .assertValueAt(0, l -> l.size() == 1);
+
 
         Product product1 = Product.builder()
                 .name("Product 1")
@@ -1040,7 +1042,7 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(2, l -> l.size() == 2);
     }
 
-    @Test
+    @Test @UseLogLevel(LogLevel.TRACE)
     public void testRetrieveAsListWithProperties() throws InterruptedException {
         EntitySet<UniqueId, Product> products = repository.entities(Product.metaClass);
         products.update(Products.createMany(10)).blockingAwait();

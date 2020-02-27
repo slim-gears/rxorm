@@ -1,10 +1,15 @@
 package com.slimgears.rxrepo.util;
 
+import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
+import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.internal.functions.Functions;
 
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
 @SuppressWarnings("WeakerAccess")
@@ -70,6 +75,13 @@ public class Queries {
                 .compose(applySorting(query))
                 .compose(applyMapping(query))
                 .compose(applyPagination(query));
+    }
+
+    public static <T> Observable<Notification<T>> queryAndObserve(Observable<T> query, Observable<Notification<T>> liveQuery) {
+        return Observable.just(
+                query.map(Notification::ofCreated).concatWith(Observable.just(Notification.create())),
+                liveQuery)
+                .concatMapEager(Functions.identity());
     }
 
     private static <T, V extends Comparable<V>> Comparator<T> toComparator(SortingInfo<T, ?, V> sortingInfo) {

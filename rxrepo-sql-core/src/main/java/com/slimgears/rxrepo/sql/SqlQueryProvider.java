@@ -10,10 +10,10 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
-import com.slimgears.rxrepo.util.ExecutorPool;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.rxrepo.util.PropertyResolvers;
+import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
@@ -21,15 +21,11 @@ import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.*;
-import io.reactivex.Observable;
 import io.reactivex.functions.Function;
-import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -42,18 +38,18 @@ public class SqlQueryProvider implements QueryProvider {
     private final SqlStatementExecutor statementExecutor;
     protected final SchemaProvider schemaProvider;
     private final ReferenceResolver referenceResolver;
-    private final ExecutorPool executorPool;
+    private final SchedulingProvider schedulingProvider;
 
     protected SqlQueryProvider(SqlStatementProvider statementProvider,
                                SqlStatementExecutor statementExecutor,
                                SchemaProvider schemaProvider,
                                ReferenceResolver referenceResolver,
-                               ExecutorPool executorPool) {
+                               SchedulingProvider schedulingProvider) {
         this.statementProvider = statementProvider;
         this.statementExecutor = statementExecutor;
         this.schemaProvider = schemaProvider;
         this.referenceResolver = referenceResolver;
-        this.executorPool = executorPool;
+        this.schedulingProvider = schedulingProvider;
     }
 
     public static QueryProvider create(SqlServiceFactory serviceFactory) {
@@ -175,7 +171,7 @@ public class SqlQueryProvider implements QueryProvider {
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
         return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
                 .executeLiveQuery(statementProvider.forQuery(query.toBuilder().properties(ImmutableSet.of()).build()))
-                .compose(applyScheduler())
+                .compose(schedulingProvider::applyScheduler)
                 .map(notification -> notification.map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType)))));
     }
 
@@ -240,9 +236,5 @@ public class SqlQueryProvider implements QueryProvider {
         return Optional.ofNullable(nonNullProperty.get())
                 .map(PropertyMetas::isKey)
                 .orElse(true);
-    }
-
-    private <T> ObservableTransformer<T, T> applyScheduler() {
-        return src -> src.observeOn(Schedulers.from(executorPool.getExecutor()));
     }
 }

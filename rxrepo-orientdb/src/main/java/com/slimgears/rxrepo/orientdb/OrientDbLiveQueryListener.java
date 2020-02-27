@@ -35,25 +35,33 @@ class OrientDbLiveQueryListener implements OLiveQueryResultListener {
     @Override
     public void onCreate(ODatabaseDocument database, OResult data) {
         log.trace("onCreate Notification received: {}", lazy(data::toJSON));
+        log.trace("Beginning emit >>");
         emitter.onNext(LiveQueryNotification.create(database, null, data));
+        log.trace("Emit finished <<");
     }
 
     @Override
     public void onUpdate(ODatabaseDocument database, OResult before, OResult after) {
         log.trace("onUpdate Notification received: {} -> {}", lazy(before::toJSON), lazy(after::toJSON));
+        log.trace("Beginning emit >>");
         emitter.onNext(LiveQueryNotification.create(database, before, after));
+        log.trace("Emit finished <<");
     }
 
     @Override
     public void onDelete(ODatabaseDocument database, OResult data) {
         log.trace("onDeleted Notification received: {}", lazy(data::toJSON));
+        log.trace("Beginning emit >>");
         emitter.onNext(LiveQueryNotification.create(database, data, null));
+        log.trace("Emit finished <<");
     }
 
     @Override
     public void onError(ODatabaseDocument database, OException exception) {
         log.error("onError notification received", exception);
+        log.trace("Beginning emit >>");
         emitter.onError(exception);
+        log.trace("Emit finished <<");
     }
 
     @Override

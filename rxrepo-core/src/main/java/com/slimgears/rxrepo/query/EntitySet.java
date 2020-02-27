@@ -14,6 +14,7 @@ import io.reactivex.functions.Function;
 import java.util.Arrays;
 import java.util.function.Supplier;
 
+@SuppressWarnings({"unused", "unchecked"})
 public interface EntitySet<K, S> {
     MetaClassWithKey<K, S> metaClass();
     EntityDeleteQuery<S> delete();
@@ -54,10 +55,10 @@ public interface EntitySet<K, S> {
         return query().where(predicate).limit(1).select().first();
     }
 
-    default Completable udpate(S[] entities) {
+    default Completable update(S[] entities) {
         return update(Arrays.asList(entities));
     }
-    default Completable udpateNonRecursive(S[] entities) {
+    default Completable updateNonRecursive(S[] entities) {
         return updateNonRecursive(Arrays.asList(entities));
     }
 

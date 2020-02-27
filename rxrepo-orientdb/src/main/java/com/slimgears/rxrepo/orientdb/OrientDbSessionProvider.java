@@ -13,16 +13,12 @@ class OrientDbSessionProvider {
     private OrientDbSessionProvider(Supplier<ODatabaseDocument> databaseSessionProvider,
                                     Consumer<ODatabaseDocument> onRelease) {
         this.databaseSessionProvider = RecurrentThreadLocal
-                .of(() -> {
-                    ODatabaseDocument dbSession = databaseSessionProvider.get();
-                    dbSession.activateOnCurrentThread();
-                    return dbSession;
-                })
+                .of(databaseSessionProvider)
                 .onRelease(onRelease);
     }
 
     static OrientDbSessionProvider create(Supplier<ODatabaseDocument> dbSessionSupplier) {
-        return new OrientDbSessionProvider(dbSessionSupplier, ODatabaseDocument::close);
+        return create(dbSessionSupplier, dbSession -> {});
     }
 
     static OrientDbSessionProvider create(Supplier<ODatabaseDocument> dbSessionSupplier, Consumer<ODatabaseDocument> onClose) {
@@ -30,10 +26,6 @@ class OrientDbSessionProvider {
             onClose.accept(session);
             session.close();
         });
-    }
-
-    static OrientDbSessionProvider create(ODatabaseDocument dbSessionSupplier) {
-        return new OrientDbSessionProvider(() -> dbSessionSupplier, db -> {});
     }
 
     <T> T withSession(Function<ODatabaseDocument, T> func) {

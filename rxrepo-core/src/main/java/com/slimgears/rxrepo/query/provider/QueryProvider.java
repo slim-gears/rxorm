@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.query.provider;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.util.Queries;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import io.reactivex.Completable;
@@ -68,10 +69,6 @@ public interface QueryProvider extends AutoCloseable {
     }
 
     default <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
-        return this
-                .query(queryInfo)
-                .map(Notification::ofCreated)
-                .concatWith(Observable.just(Notification.create()))
-                .concatWith(this.liveQuery(observeInfo));
+        return Queries.queryAndObserve(this.query(queryInfo), this.liveQuery(observeInfo));
     }
 }

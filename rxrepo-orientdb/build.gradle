@@ -11,6 +11,8 @@ dependencies {
     implementation libs.autoValueAnnotations
     implementation libs.jacksonAnnotations, libs.jacksonDataBind
     implementation libs.slf4j
+    implementation libs.slimNanometer
+
     annotationProcessor libs.autoValue
 
     testImplementation libs.logbackClassic
@@ -21,5 +23,4 @@ dependencies {
     testImplementation libs.jsr305
     testImplementation libs.slimTestUtils, libs.slimTestUtilsLogback
     testImplementation project(':rxrepo-test')
-    testImplementation libs.slimNanometer
 }

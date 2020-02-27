@@ -1,6 +1,8 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.orientechnologies.common.serialization.types.OBinaryTypeSerializer;
+import com.orientechnologies.orient.core.command.OCommandExecutor;
+import com.orientechnologies.orient.core.command.OCommandRequestText;
 import com.orientechnologies.orient.core.db.*;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;

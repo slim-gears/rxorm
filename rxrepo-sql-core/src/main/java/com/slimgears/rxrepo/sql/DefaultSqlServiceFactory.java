@@ -1,12 +1,9 @@
 package com.slimgears.rxrepo.sql;
 
 import com.slimgears.rxrepo.query.provider.QueryProvider;
-import com.slimgears.rxrepo.util.CachedRoundRobinExecutorPool;
-import com.slimgears.rxrepo.util.ExecutorPool;
+import com.slimgears.rxrepo.util.CachedRoundRobinSchedulingProvider;
+import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.stream.Lazy;
-import io.reactivex.Completable;
-import io.reactivex.Scheduler;
-import io.reactivex.schedulers.Schedulers;
 
 import javax.annotation.Nonnull;
 import java.time.Duration;
@@ -22,7 +19,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     private final Lazy<SqlExpressionGenerator> expressionGenerator;
     private final Lazy<SqlAssignmentGenerator> assignmentGenerator;
     private final Lazy<QueryProvider> queryProvider;
-    private final Lazy<ExecutorPool> executorPool;
+    private final Lazy<SchedulingProvider> executorPool;
 
     private DefaultSqlServiceFactory(
             @Nonnull Function<SqlServiceFactory, SqlStatementProvider> statementProvider,
@@ -32,7 +29,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             @Nonnull Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
             @Nonnull Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator,
             @Nonnull Function<SqlServiceFactory, QueryProvider> queryProviderGenerator,
-            @Nonnull Function<SqlServiceFactory, ExecutorPool> executorPool) {
+            @Nonnull Function<SqlServiceFactory, SchedulingProvider> executorPool) {
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
         this.statementExecutor = Lazy.of(() -> statementExecutor.apply(this));
         this.referenceResolver = Lazy.of(() -> referenceResolver.apply(this));
@@ -79,7 +76,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     }
 
     @Override
-    public ExecutorPool executorPool() {
+    public SchedulingProvider executorPool() {
         return executorPool.get();
     }
 
@@ -102,7 +99,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         private Function<SqlServiceFactory, ReferenceResolver> referenceResolver;
         private Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator;
         private Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator;
-        private Function<SqlServiceFactory, ExecutorPool> executorPool = f -> CachedRoundRobinExecutorPool.create(maxNotificationQueues, maxNotificationQueueIdleDuration);
+        private Function<SqlServiceFactory, SchedulingProvider> executorPool = f -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxNotificationQueueIdleDuration);
         private Function<SqlServiceFactory, QueryProvider> queryProviderGenerator = factory -> new SqlQueryProvider(
                 factory.statementProvider(),
                 factory.statementExecutor(),
@@ -153,7 +150,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         }
 
         @Override
-        public SqlServiceFactory.Builder executorPool(Function<SqlServiceFactory, ExecutorPool> executorPool) {
+        public SqlServiceFactory.Builder schedulingProvider(Function<SqlServiceFactory, SchedulingProvider> executorPool) {
             this.executorPool = executorPool;
             return this;
         }

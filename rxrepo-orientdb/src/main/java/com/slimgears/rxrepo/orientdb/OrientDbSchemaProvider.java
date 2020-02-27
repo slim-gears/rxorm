@@ -13,6 +13,7 @@ import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
+import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,8 @@ class OrientDbSchemaProvider implements SchemaProvider {
     @Override
     public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
         return Completable
-                .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass)));
+                .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass)))
+                .subscribeOn(Schedulers.newThread());
     }
 
     @Override
