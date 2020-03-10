@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.query.decorator;
 
 import com.google.common.collect.Sets;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.util.PropertyMetas;
@@ -61,6 +62,7 @@ public class UpdateReferencesFirstQueryProviderDecorator extends AbstractQueryPr
                 .predicate(PropertyExpression.ofObject(metaClass.keyProperty()).eq(metaClass.keyOf(entity)))
                 .build())
                 .firstElement()
+                .map(Notification::newValue)
                 .<Supplier<S>>map(e -> () -> e)
                 .switchIfEmpty(Single.defer(() -> insertOrUpdate(metaClass, entity, recursive)))
                 .ignoreElement();
@@ -112,6 +114,7 @@ public class UpdateReferencesFirstQueryProviderDecorator extends AbstractQueryPr
                 .limit(1L)
                 .predicate(PropertyExpression.ofObject(metaClass.keyProperty()).eq(metaClass.keyOf(entity)))
                 .build())
+                .map(Notification::newValue)
                 .firstElement();
     }
 }

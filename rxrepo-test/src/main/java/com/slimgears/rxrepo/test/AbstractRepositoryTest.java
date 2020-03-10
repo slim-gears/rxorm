@@ -1480,4 +1480,30 @@ public abstract class AbstractRepositoryTest {
                 .blockingAwait();
         System.out.println(MoreStrings.format("Query took {}ms", stopwatch.elapsed().toMillis()));
     }
+
+    @SuppressWarnings({"unchecked", "ConstantConditions"})
+    @Test
+    public void testReferencePropertiesUpdates() {
+        products.update(Products.createMany(100)).blockingAwait();
+        TestObserver<Notification<Product>> testObserver = products.queryAndObserve(Product.$.name, Product.$.inventory.name)
+                .doOnNext(System.out::println)
+                .test();
+
+        testObserver.awaitCount(100)
+                .assertValueCount(100);
+
+        repository.entities(Inventory.$)
+                .update(Inventory.create(UniqueId.inventoryId(1), "Inventory 1 - updated", null))
+                .ignoreElement()
+                .blockingAwait();
+
+        testObserver.awaitCount(110)
+                .assertValueCount(110)
+                .assertValueAt(100, NotificationPrototype::isModify)
+                .assertValueAt(100, n -> n.oldValue().inventory() != null && n.newValue().inventory() != null)
+                .assertValueAt(100, n -> !Objects.equals(n.oldValue().inventory(), n.newValue().inventory()))
+                .assertValueAt(100, n -> !Objects.equals(n.oldValue().inventory().name(), n.newValue().inventory().name()))
+                .assertValueAt(100, n -> Objects.equals("Inventory 1", n.oldValue().inventory().name()))
+                .assertValueAt(100, n -> Objects.equals("Inventory 1 - updated", n.newValue().inventory().name()));
+    }
 }

@@ -44,7 +44,7 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
     }
 
     @Override
-    public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
         return getUnderlyingProvider().query(query);
     }
 

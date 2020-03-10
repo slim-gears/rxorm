@@ -277,6 +277,10 @@ public class PropertyExpressions {
                 .orElse(null);
     }
 
+    public static boolean isReference(PropertyExpression<?, ?, ?> propertyExpression) {
+        return PropertyMetas.isReference(propertyExpression.property());
+    }
+
     private static boolean isSearchable(PropertyMeta<?, ?> property) {
         return property.hasAnnotation(Searchable.class);
     }
@@ -290,6 +294,18 @@ public class PropertyExpressions {
                 .flatMap(p -> PropertyMetas.isReference(p.property())
                         ? searchableProperties(p)
                         : Stream.of(p));
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static <S, T, V> PropertyExpression<T, ?, V> tailOf(PropertyExpression<S, ?, V> property, ObjectExpression<S, T> head) {
+        if (property.target() == head) {
+            PropertyMeta<T, V> propertyMeta = (PropertyMeta<T, V>)property.property();
+            return PropertyExpression.ofObject(ObjectExpression.arg(propertyMeta.declaringType().asType()), propertyMeta);
+        }
+        if (property.target() instanceof PropertyExpression) {
+            return PropertyExpression.ofObject(tailOf((PropertyExpression)property.target(), head), property.property());
+        }
+        return (PropertyExpression<T, ?, V>)property;
     }
 
     private static <S, T> PropertyExpression<S, ?, ?> unmapProperty(PropertyExpression<T, ?, ?> propertyExpression, ObjectExpression<S, T> mapping) {

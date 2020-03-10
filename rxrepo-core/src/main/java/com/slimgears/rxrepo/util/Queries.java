@@ -77,9 +77,9 @@ public class Queries {
                 .compose(applyPagination(query));
     }
 
-    public static <T> Observable<Notification<T>> queryAndObserve(Observable<T> query, Observable<Notification<T>> liveQuery) {
+    public static <T> Observable<Notification<T>> queryAndObserve(Observable<Notification<T>> query, Observable<Notification<T>> liveQuery) {
         return Observable.just(
-                query.map(Notification::ofCreated).concatWith(Observable.just(Notification.create())),
+                query.concatWith(Observable.just(Notification.create())),
                 liveQuery)
                 .concatMapEager(Functions.identity());
     }

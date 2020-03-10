@@ -6,7 +6,7 @@ import io.reactivex.Observable;
 public class QueryListeners {
     private static final QueryPublisher.OnQueryListener emptyOnQuery = new QueryPublisher.OnQueryListener() {
         @Override
-        public <K, S, T> Observable<T> onQuery(QueryInfo<K, S, T> queryInfo, Observable<T> queryResult) {
+        public <K, S, T> Observable<Notification<T>> onQuery(QueryInfo<K, S, T> queryInfo, Observable<Notification<T>> queryResult) {
             return queryResult;
         }
     };
@@ -28,7 +28,7 @@ public class QueryListeners {
             }
 
             @Override
-            public <K, S, T> Observable<T> onQuery(QueryInfo<K, S, T> queryInfo, Observable<T> queryResult) {
+            public <K, S, T> Observable<Notification<T>> onQuery(QueryInfo<K, S, T> queryInfo, Observable<Notification<T>> queryResult) {
                 return onQueryListener.onQuery(queryInfo, queryResult);
             }
         };

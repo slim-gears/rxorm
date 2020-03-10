@@ -33,7 +33,7 @@ public class InterceptingQueryProviderDecorator implements QueryProvider.Decorat
         }
 
         @Override
-        public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
+        public <K, S, T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
             return super.query(query).compose(applyOnQuery(query));
         }
 
@@ -46,9 +46,9 @@ public class InterceptingQueryProviderDecorator implements QueryProvider.Decorat
             return super.queryAndObserve(queryInfo, observeInfo).compose(applyOnLiveQuery(queryInfo));
         }
 
-        private <K, S, T> ObservableTransformer<T, T> applyOnQuery(QueryInfo<K, S, T> queryInfo) {
+        private <K, S, T> ObservableTransformer<Notification<T>, Notification<T>> applyOnQuery(QueryInfo<K, S, T> queryInfo) {
             return source -> {
-                AtomicReference<Observable<T>> observable = new AtomicReference<>(source);
+                AtomicReference<Observable<Notification<T>>> observable = new AtomicReference<>(source);
                 queryListeners.forEach(l -> observable.updateAndGet(o -> l.onQuery(queryInfo, o)));
                 return observable.get();
             };

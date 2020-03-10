@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.query.decorator;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
+import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
@@ -51,7 +52,7 @@ public class LimitConcurrentOperationsQueryProviderDecorator extends AbstractQue
     }
 
     @Override
-    public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
         return super.query(query)
                 .doOnSubscribe(d -> doOnSubscribe())
                 .doFinally(this::doFinally);

@@ -24,7 +24,7 @@ public class EmptyQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
         return Observable.empty();
     }
 

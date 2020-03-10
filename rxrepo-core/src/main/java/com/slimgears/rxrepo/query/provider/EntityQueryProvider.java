@@ -16,7 +16,7 @@ import java.util.function.Supplier;
 public interface EntityQueryProvider<K, S> extends AutoCloseable {
     MetaClassWithKey<K, S> metaClass();
     Maybe<Supplier<S>> insertOrUpdate(K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater);
-    <T> Observable<T> query(QueryInfo<K, S, T> query);
+    <T> Observable<Notification<T>> query(QueryInfo<K, S, T> query);
     <T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query);
     <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator);
     Single<Integer> update(UpdateInfo<K, S> update);

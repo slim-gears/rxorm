@@ -77,7 +77,7 @@ public class Notifications {
         };
     }
 
-    public static <S> ObservableTransformer<Notification<S>, Notification<S>> filter(ObjectExpression<S, Boolean> predicate) {
+    public static <S> ObservableTransformer<Notification<S>, Notification<S>> applyFilter(ObjectExpression<S, Boolean> predicate) {
         if (predicate == null) {
             return src -> src;
         }
@@ -87,19 +87,19 @@ public class Notifications {
                 .flatMapMaybe(notification -> {
                     if (notification.isCreate()) {
                         if (compiledPredicate.test(notification.newValue())) {
-                            return Maybe.just(Notification.ofCreated(notification.newValue()));
+                            return Maybe.just(Notification.ofCreated(notification.newValue(), notification.generation()));
                         }
                     } else if (notification.isDelete()) {
                         if (compiledPredicate.test(notification.oldValue())) {
-                            return Maybe.just(Notification.ofDeleted(notification.oldValue()));
+                            return Maybe.just(Notification.ofDeleted(notification.oldValue(), notification.generation()));
                         }
                     } else if (notification.isModify()) {
                         boolean oldMatch = compiledPredicate.test(notification.oldValue());
                         boolean newMatch = compiledPredicate.test(notification.newValue());
                         if (oldMatch && !newMatch) {
-                            return Maybe.just(Notification.ofDeleted(notification.oldValue()));
+                            return Maybe.just(Notification.ofDeleted(notification.oldValue(), notification.generation()));
                         } else if (!oldMatch && newMatch) {
-                            return Maybe.just(Notification.ofCreated(notification.newValue()));
+                            return Maybe.just(Notification.ofCreated(notification.newValue(), notification.generation()));
                         } else if (oldMatch) {
                             return Maybe.just(notification);
                         }
@@ -113,18 +113,18 @@ public class Notifications {
     public static <K, S, T> ObservableTransformer<Notification<S>, Notification<T>> applyQuery(QueryInfo<K, S, T> query) {
         return src -> src
                 .doOnNext(n -> log.trace("Notification (before): {}", n))
-                .compose(filter(query.predicate()))
-                .compose(map(query.mapping()))
-                .compose(fieldsFilter(query.properties()))
+                .compose(applyFilter(query.predicate()))
+                .compose(applyMap(query.mapping()))
+                .compose(applyFieldsFilter(query.properties()))
                 .doOnNext(n -> log.trace("Notification (after): {}", n));
     }
 
-    private static <S, T> ObservableTransformer<Notification<S>, Notification<T>> map(ObjectExpression<S, T> projection) {
+    public static <S, T> ObservableTransformer<Notification<S>, Notification<T>> applyMap(ObjectExpression<S, T> projection) {
         java.util.function.Function<S, T> mapper = Expressions.compile(projection);
         return src -> src.map(n -> n.map(mapper));
     }
 
-    private static <T> ObservableTransformer<Notification<T>, Notification<T>> fieldsFilter(Collection<PropertyExpression<T, ?, ?>> properties) {
+    public static <T> ObservableTransformer<Notification<T>, Notification<T>> applyFieldsFilter(Collection<PropertyExpression<T, ?, ?>> properties) {
         List<java.util.function.Function<T, ?>> propertyMetas = properties.stream()
                 .map(Expressions::compile)
                 .collect(Collectors.toList());

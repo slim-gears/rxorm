@@ -190,7 +190,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                     @Override
                     public Maybe<T> first() {
                         QueryInfo<K, S, T> query = builder.limit(1L).build();
-                        return queryProvider.query(query).singleElement();
+                        return queryProvider.query(query).map(Notification::newValue).singleElement();
                     }
 
                     @Override
@@ -206,7 +206,9 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
 
                     @Override
                     public Observable<T> retrieve() {
-                        return queryProvider.query(builder.build());
+                        return queryProvider
+                                .query(builder.build())
+                                .map(Notification::newValue);
                     }
                 };
             }
@@ -229,7 +231,9 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                         QueryInfo<K, S, T> query = builder.limit(1L).build();
                         return queryProvider
                                 .liveQuery(query)
-                                .switchMapMaybe(n -> queryProvider.query(query).singleElement());
+                                .switchMapMaybe(n -> queryProvider.query(query)
+                                        .map(Notification::newValue)
+                                        .singleElement());
                     }
 
                     @Override
@@ -246,7 +250,6 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                 .distinctUntilChanged();
                     }
 
-                    @SuppressWarnings("unchecked")
                     @Override
                     public <R> Observable<R> observeAs(QueryTransformer<T, R> queryTransformer) {
                         QueryInfo<K, S, T> sourceQuery = builder.build();

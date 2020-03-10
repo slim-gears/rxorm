@@ -95,7 +95,8 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                                 .orElse(null),
                         Optional.ofNullable(res.newResult())
                                 .map(or -> OResultPropertyResolver.create(sessionProvider, or))
-                                .orElse(null)));
+                                .orElse(null),
+                        res.generation()));
     }
 
     private Observable<PropertyResolver> toObservable(Function<ODatabaseDocument, OResultSet> resultSetSupplier) {

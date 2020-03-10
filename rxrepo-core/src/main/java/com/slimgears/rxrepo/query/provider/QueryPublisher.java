@@ -6,7 +6,7 @@ import io.reactivex.disposables.Disposable;
 
 public interface QueryPublisher {
     interface OnQueryListener {
-        <K, S, T> Observable<T> onQuery(QueryInfo<K, S, T> queryInfo, Observable<T> queryResult);
+        <K, S, T> Observable<Notification<T>> onQuery(QueryInfo<K, S, T> queryInfo, Observable<Notification<T>> queryResult);
     }
 
     interface OnLiveQueryListener {

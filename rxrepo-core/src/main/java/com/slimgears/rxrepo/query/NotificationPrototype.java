@@ -10,6 +10,7 @@ import java.util.function.Function;
 public interface NotificationPrototype<T> {
     @Nullable T oldValue();
     @Nullable T newValue();
+    @Nullable Long generation();
 
     default boolean isDelete() {
         return oldValue() != null && newValue() == null;
@@ -28,18 +29,19 @@ public interface NotificationPrototype<T> {
     default <R> Notification<R> map(Function<T, R> mapper) {
         return Notification.ofModified(
                 Optional.ofNullable(oldValue()).map(mapper).orElse(null),
-                Optional.ofNullable(newValue()).map(mapper).orElse(null));
+                Optional.ofNullable(newValue()).map(mapper).orElse(null),
+                generation());
     }
 
-    static <T> NotificationPrototype<T> ofCreated(T object) {
-        return ofModified(null, object);
+    static <T> NotificationPrototype<T> ofCreated(T object, @Nullable Long generation) {
+        return ofModified(null, object, generation);
     }
 
-    static <T> NotificationPrototype<T> ofDeleted(T object) {
-        return ofModified(object, null);
+    static <T> NotificationPrototype<T> ofDeleted(T object, @Nullable Long generation) {
+        return ofModified(object, null, generation);
     }
 
-    static <T> NotificationPrototype<T> ofModified(T oldObject, T newObject) {
-        return Notification.create(oldObject, newObject);
+    static <T> NotificationPrototype<T> ofModified(T oldObject, T newObject, @Nullable Long generation) {
+        return Notification.create(oldObject, newObject, generation);
     }
 }

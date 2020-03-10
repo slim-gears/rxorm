@@ -33,7 +33,8 @@ import static com.slimgears.util.generic.LazyString.lazy;
 
 public class SqlQueryProvider implements QueryProvider {
     private final static Logger log = LoggerFactory.getLogger(SqlQueryProvider.class);
-    private final static String aggregationField = "__aggregation";
+    public final static String aggregationField = "__aggregation";
+    public final static String generationField = "__generation";
     protected final SqlStatementProvider statementProvider;
     private final SqlStatementExecutor statementExecutor;
     protected final SchemaProvider schemaProvider;
@@ -138,32 +139,39 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S, T> Observable<T> query(QueryInfo<K, S, T> query) {
+    public <K, S, T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
         return schemaProvider
                 .createOrUpdate(query.metaClass())
                 .andThen(statementExecutor
                         .executeQuery(statementProvider.forQuery(query))
-                        .compose(toObjects(objectType, query.mapping(), query.properties())));
+                        .compose(toCreateNotifications(objectType, query.mapping(), query.properties())));
     }
 
     @SuppressWarnings("unchecked")
-    private <T> ObservableTransformer<PropertyResolver, T> toObjects(TypeToken<? extends T> objectType,
+    private <T> ObservableTransformer<PropertyResolver, Notification<T>> toCreateNotifications(TypeToken<? extends T> objectType,
                                                                      ObjectExpression<?, T> mapping,
                                                                      ImmutableSet<PropertyExpression<T, ?, ?>> properties) {
-        Function<PropertyResolver, Maybe<T>> mapper = Optional
+        Function<PropertyResolver, Maybe<Notification<T>>> mapper = Optional
                 .ofNullable(mapping)
                 .flatMap(Optionals.ofType(PropertyExpression.class))
                 .map(PropertyExpression::path)
-                .<Function<PropertyResolver, Maybe<T>>>map(path -> pr -> Optional
-                        .ofNullable(pr.getProperty(path, TypeTokens.asClass(objectType)))
-                        .map(obj -> obj instanceof PropertyResolver
-                                ? PropertyResolvers.withProperties(properties, () -> (PropertyResolver) obj).toObject(objectType)
-                                : (T)obj)
-                        .map(Maybe::just)
-                        .orElseGet(Maybe::empty))
-                .orElse(pr -> Maybe.fromCallable(() -> pr.toObject(objectType)));
+                .<Function<PropertyResolver, Maybe<Notification<T>>>>map(path -> pr -> Optional
+                            .ofNullable(pr.getProperty(path, TypeTokens.asClass(objectType)))
+                            .map(obj -> obj instanceof PropertyResolver
+                                    ? PropertyResolvers.withProperties(properties, () -> (PropertyResolver) obj).toObject(objectType)
+                                    : (T)obj)
+                            .map(obj -> Notification.ofCreated(obj, generationOf(pr)))
+                            .map(Maybe::just)
+                            .orElseGet(Maybe::empty))
+                .orElse(pr -> Maybe
+                        .fromCallable(() -> pr.toObject(objectType))
+                        .map(obj -> Notification.ofCreated(obj, generationOf(pr))));
         return src -> src.flatMapMaybe(mapper);
+    }
+
+    private Long generationOf(PropertyResolver propertyResolver) {
+        return (Long)propertyResolver.getProperty(generationField, Long.class);
     }
 
     @Override
