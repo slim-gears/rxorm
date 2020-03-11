@@ -34,7 +34,7 @@ import static com.slimgears.util.generic.LazyString.lazy;
 public class SqlQueryProvider implements QueryProvider {
     private final static Logger log = LoggerFactory.getLogger(SqlQueryProvider.class);
     public final static String aggregationField = "__aggregation";
-    public final static String generationField = "__generation";
+    public final static String sequenceNumField = "__sequenceNum";
     protected final SqlStatementProvider statementProvider;
     private final SqlStatementExecutor statementExecutor;
     protected final SchemaProvider schemaProvider;
@@ -171,7 +171,7 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     private Long generationOf(PropertyResolver propertyResolver) {
-        return (Long)propertyResolver.getProperty(generationField, Long.class);
+        return (Long)propertyResolver.getProperty(sequenceNumField, Long.class);
     }
 
     @Override

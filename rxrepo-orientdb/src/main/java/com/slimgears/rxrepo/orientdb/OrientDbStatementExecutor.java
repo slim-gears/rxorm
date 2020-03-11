@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.orientdb;
 import com.orientechnologies.orient.core.db.OLiveQueryMonitor;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
+import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
@@ -23,6 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.slimgears.util.generic.LazyString.lazy;
 
@@ -96,7 +98,7 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                         Optional.ofNullable(res.newResult())
                                 .map(or -> OResultPropertyResolver.create(sessionProvider, or))
                                 .orElse(null),
-                        res.generation()));
+                        res.sequenceNumber()));
     }
 
     private Observable<PropertyResolver> toObservable(Function<ODatabaseDocument, OResultSet> resultSetSupplier) {

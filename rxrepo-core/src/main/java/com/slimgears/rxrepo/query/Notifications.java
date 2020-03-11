@@ -87,19 +87,19 @@ public class Notifications {
                 .flatMapMaybe(notification -> {
                     if (notification.isCreate()) {
                         if (compiledPredicate.test(notification.newValue())) {
-                            return Maybe.just(Notification.ofCreated(notification.newValue(), notification.generation()));
+                            return Maybe.just(Notification.ofCreated(notification.newValue(), notification.sequenceNumber()));
                         }
                     } else if (notification.isDelete()) {
                         if (compiledPredicate.test(notification.oldValue())) {
-                            return Maybe.just(Notification.ofDeleted(notification.oldValue(), notification.generation()));
+                            return Maybe.just(Notification.ofDeleted(notification.oldValue(), notification.sequenceNumber()));
                         }
                     } else if (notification.isModify()) {
                         boolean oldMatch = compiledPredicate.test(notification.oldValue());
                         boolean newMatch = compiledPredicate.test(notification.newValue());
                         if (oldMatch && !newMatch) {
-                            return Maybe.just(Notification.ofDeleted(notification.oldValue(), notification.generation()));
+                            return Maybe.just(Notification.ofDeleted(notification.oldValue(), notification.sequenceNumber()));
                         } else if (!oldMatch && newMatch) {
-                            return Maybe.just(Notification.ofCreated(notification.newValue(), notification.generation()));
+                            return Maybe.just(Notification.ofCreated(notification.newValue(), notification.sequenceNumber()));
                         } else if (oldMatch) {
                             return Maybe.just(notification);
                         }

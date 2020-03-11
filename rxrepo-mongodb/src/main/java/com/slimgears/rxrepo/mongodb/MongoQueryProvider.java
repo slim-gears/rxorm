@@ -11,6 +11,7 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.mongodb.adapter.MongoFieldMapper;
 import com.slimgears.rxrepo.mongodb.adapter.StandardCodecs;
+import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.AbstractEntityQueryProviderAdapter;
 import com.slimgears.rxrepo.query.provider.EntityQueryProvider;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
@@ -68,6 +69,7 @@ public class MongoQueryProvider extends AbstractEntityQueryProviderAdapter {
                             .predicate(PropertyExpression.ofObject(ObjectExpression.arg(metaClass.asType()), metaClass.keyProperty()).eq(key))
                             .limit(1L)
                             .build())
+                    .map(Notification::newValue)
                     .firstElement();
         }
     }

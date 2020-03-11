@@ -57,6 +57,7 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
     private final Lazy<MongoCollection<Document>> objectCollection;
     private final Lazy<MongoCollection<Document>> notificationCollection;
     private final Lazy<Codec<S>> codec;
+    private final MongoDatabase database;
     private final Lazy<Codec<Document>> docCodec;
     private final CodecRegistry codecRegistry;
     private final MetaClassFieldMapper fieldMapper;
@@ -65,6 +66,7 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
         this.metaClass = metaClass;
         this.codecRegistry = database.getCodecRegistry();
         this.codec = Lazy.of(() -> codecRegistry.get(metaClass.asClass()));
+        this.database = database;
         this.docCodec = Lazy.of(() -> codecRegistry.get(Document.class));
         this.fieldMapper = fieldMapper;
         this.objectCollection = Lazy.of(() -> database.getCollection(metaClass.simpleName()));
@@ -153,10 +155,11 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
     }
 
     @Override
-    public <T> Observable<T> query(QueryInfo<K, S, T> query) {
+    public <T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
         return queryDocuments(query)
                 .doOnNext(doc -> log.debug("Retrieved document: {}", doc))
-                .map(doc -> objectFromDocument(doc, query.objectType()));
+                .map(doc -> objectFromDocument(doc, query.objectType()))
+                .map(obj -> Notification.ofCreated(obj, 0L));
     }
 
     @SuppressWarnings("unchecked")
@@ -285,7 +288,8 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
     private Notification<S> notificationFromDocument(Document document) {
         return Notification.ofModified(
                 toObject(document.get("oldValue"), metaClass.asType()),
-                toObject(document.get("newValue"), metaClass.asType()));
+                toObject(document.get("newValue"), metaClass.asType()),
+                sequenceNumber());
     }
 
     private <T> T toObject(Object object, TypeToken<T> type) {
@@ -313,7 +317,7 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
                     .ofNullable(changeDoc.getFullDocument())
                     .map(this::objectFromDocument)
                     .orElse(null);
-            return Maybe.just(Notification.ofCreated(object));
+            return Maybe.just(Notification.ofCreated(object, sequenceNumber()));
         } else if (changeDoc.getOperationType() == OperationType.DELETE) {
             Object key = Optional.of(changeDoc.getDocumentKey())
                     .map(doc -> doc.get("_id"))
@@ -328,7 +332,7 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
                             .build()))
                     .firstElement()
                     .map(this::objectFromDocument)
-                    .map(Notification::ofDeleted);
+                    .map(obj -> Notification.ofDeleted(obj, sequenceNumber()));
         }
         return Maybe.empty();
     }
@@ -399,5 +403,9 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
             return value;
         }
 
+    }
+
+    private long sequenceNumber() {
+        return 0L;
     }
 }

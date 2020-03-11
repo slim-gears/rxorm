@@ -27,22 +27,49 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoCloseable {
     private final static Logger log = LoggerFactory.getLogger(MemoryEntityQueryProvider.class);
+    private final AtomicLong sequenceNumber;
     private final MetaClassWithKey<K, S> metaClass;
     private final MetaObjectResolver objectResolver;
-    private final Map<K, AtomicReference<S>> objects = new ConcurrentHashMap<>();
+    private final Map<K, ObjectReference<S>> objects = new ConcurrentHashMap<>();
     private final Subject<Notification<S>> notificationSubject = PublishSubject.create();
     private final Lazy<List<PropertyMeta<S, ?>>> referenceProperties;
     private final Lazy<ExecutorService> notificationExecutor = Lazy.of(Executors::newSingleThreadExecutor);
     private final Lazy<Scheduler> notificationScheduler = Lazy.of(() -> Schedulers.from(notificationExecutor.get()));
 
+    private static class ObjectReference<S> {
+        private final AtomicReference<S> reference = new AtomicReference<>();
+        private final AtomicLong modificationSequenceNum;
+        private final AtomicLong sequenceNum;
+
+        private ObjectReference(AtomicLong sequenceNum) {
+            this.sequenceNum = sequenceNum;
+            this.modificationSequenceNum = new AtomicLong(sequenceNum.get());
+        }
+
+        public boolean compareAndSet(S expectedObj, S newObj) {
+            if (reference.compareAndSet(expectedObj, newObj)) {
+                modificationSequenceNum.set(sequenceNum.get());
+                return true;
+            }
+            return false;
+        }
+
+        public S get() {
+            return reference.get();
+        }
+    }
+
     private MemoryEntityQueryProvider(MetaClassWithKey<K, S> metaClass,
-                                      MetaObjectResolver objectResolver) {
+                                      MetaObjectResolver objectResolver,
+                                      AtomicLong sequenceNumber) {
+        this.sequenceNumber = sequenceNumber;
         this.metaClass = metaClass;
         this.objectResolver = objectResolver;
         this.referenceProperties = Lazy.of(() -> Streams
@@ -53,8 +80,9 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
 
     static <K, S> MemoryEntityQueryProvider<K, S> create(
             MetaClassWithKey<K, S> metaClass,
-            MetaObjectResolver objectResolver) {
-        return new MemoryEntityQueryProvider<>(metaClass, objectResolver);
+            MetaObjectResolver objectResolver,
+            AtomicLong sequenceNumber) {
+        return new MemoryEntityQueryProvider<>(metaClass, objectResolver, sequenceNumber);
     }
 
     @Override
@@ -65,7 +93,8 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     @Override
     public Maybe<Supplier<S>> insertOrUpdate(K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return Maybe.defer(() -> {
-            Supplier<AtomicReference<S>> referenceResolver = () -> objects.computeIfAbsent(key, k -> new AtomicReference<>());
+            sequenceNumber.incrementAndGet();
+            Supplier<ObjectReference<S>> referenceResolver = () -> objects.computeIfAbsent(key, k -> new ObjectReference<>(sequenceNumber));
             S oldValue = referenceResolver.get().get();
             return entityUpdater
                     .apply(Optional.ofNullable(referenceResolver.get().get()).map(Maybe::just).orElseGet(Maybe::empty))
@@ -74,7 +103,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
                             : Maybe.error(new ConcurrentModificationException("Concurrent modification of " + metaClass.simpleName() + " detected")))
                     .doOnSuccess(e -> {
                         if (!Objects.equals(oldValue, e)) {
-                            Notification<S> notification = Notification.ofModified(oldValue, e);
+                            Notification<S> notification = Notification.ofModified(oldValue, e, sequenceNumber.get());
                             notificationSubject.onNext(notification);
                             log.debug("Published notification: {}", notification);
                         }
@@ -84,33 +113,41 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     }
 
     @Override
-    public <T> Observable<T> query(QueryInfo<K, S, T> query) {
+    public <T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
         Predicate<S> predicate = Expressions.compileRxPredicate(query.predicate());
-        Function<S, T> mapper = Expressions.compileRx(query.mapping());
+        java.util.function.Function<S, T> mapper = Expressions.compile(query.mapping());
         return Observable.fromIterable(objects.values())
-                .flatMapMaybe(val -> Maybe.fromCallable(val::get))
-                .filter(predicate)
-                .compose(ob -> Optional.ofNullable(query.sorting()).map(SortingInfos::toComparator).map(ob::sorted).orElse(ob))
+                .flatMapMaybe(ref -> Maybe.fromCallable(ref::get)
+                        .doOnSuccess(ob -> Expressions.sequenceNumber().set(ref.modificationSequenceNum.get()))
+                        .filter(predicate)
+                        .map(o -> Notification.ofCreated(o, ref.modificationSequenceNum.get())))
+                .compose(ob -> Optional.ofNullable(query.sorting()).map(this::toNotificationComparator).map(ob::sorted).orElse(ob))
                 .compose(ob -> Optional.ofNullable(query.skip()).map(ob::skip).orElse(ob))
                 .compose(ob -> Optional.ofNullable(query.limit()).map(ob::take).orElse(ob))
                 .doOnNext(val -> log.trace("Object without references: {}", val))
                 .flatMapSingle(this::applyReferences)
                 .doOnNext(val -> log.trace("Object with references: {}", val))
-                .map(mapper)
+                .map(n -> n.map(mapper))
                 .doOnNext(val -> log.trace("Object after mapping: {}", val))
                 .compose(ob -> Optional
                         .ofNullable(query.distinct())
                         .filter(Boolean::booleanValue)
-                        .map(b -> ob.distinct())
+                        .map(b -> ob.distinct(Notification::newValue))
                         .orElse(ob))
                 .doOnNext(val -> log.trace("Object after distinct: {}", val))
                 .compose(ob -> Optional
                         .ofNullable(query.properties())
                         .filter(p -> !p.isEmpty())
-                        .map(p -> ob.map(maskProperties(p)::apply))
+                        .map(p -> ob.map(n -> n.map(maskProperties(p))))
                         .orElse(ob))
                 .doOnNext(val -> log.trace("Object after masking properties: {}", val))
                 .doOnNext(val -> log.trace("Emitting object: {}", val));
+    }
+
+    private <T> Comparator<Notification<T>> toNotificationComparator(Iterable<SortingInfo<T, ?, ? extends Comparable<?>>> sortingInfos) {
+        return Optional.ofNullable(SortingInfos.toComparator(sortingInfos))
+                .map(c -> Comparator.<Notification<T>, T>comparing(Notification::newValue, c))
+                .orElse(null);
     }
 
     private <T> java.util.function.Function<T, T> maskProperties(ImmutableSet<PropertyExpression<T, ?, ?>> properties) {
@@ -168,6 +205,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
                 .doOnSubscribe(d -> log.debug("Subscribed!!!"))
                 .doOnNext(n -> log.debug("Notification: {}", n))
                 .observeOn(notificationScheduler.get())
+                .doOnNext(n -> Expressions.sequenceNumber().set(n.sequenceNumber()))
                 .compose(src -> Optional.ofNullable(query.mapping())
                         .map(Expressions::compile)
                         .map(m -> src.map(nn -> nn.map(m)))
@@ -176,7 +214,9 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
 
     @Override
     public <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return query(query).toList()
+        return query(query)
+                .map(Notification::newValue)
+                .toList()
                 .toMaybe()
                 .flatMap(list -> {
                     CollectionExpression<T, T, Collection<T>> collection = ConstantExpression.of(list);
@@ -199,15 +239,16 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
         Predicate<S> predicate = Expressions.compileRxPredicate(delete.predicate());
         return Observable
                 .fromIterable(objects.values())
-                .map(AtomicReference::get)
+                .doOnSubscribe(d -> sequenceNumber.incrementAndGet())
+                .map(ObjectReference::get)
                 .filter(predicate)
                 .compose(ob -> Optional.ofNullable(delete.limit()).map(ob::take).orElse(ob))
                 .map(metaClass::keyOf)
                 .filter(key -> Optional
                         .ofNullable(objects.remove(key))
-                        .map(AtomicReference::get)
-                        .map(e -> {
-                            notificationSubject.onNext(Notification.ofDeleted(e));
+                        .map(ref -> Notification.ofDeleted(ref.get(), ref.modificationSequenceNum.get()))
+                        .map(n -> {
+                            notificationSubject.onNext(n);
                             return true;
                         })
                         .orElse(false)
@@ -222,16 +263,17 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     }
 
     @SuppressWarnings("unchecked")
-    private Single<S> applyReferences(S entity) {
+    private Single<Notification<S>> applyReferences(Notification<S> entity) {
         if (referenceProperties.get().isEmpty()) {
             return Single.just(entity);
         }
-        MetaBuilder<S> builder = ((HasMetaClass<S>)entity).toBuilder();
+        MetaBuilder<S> builder = Objects.requireNonNull((HasMetaClass<S>)entity.newValue()).toBuilder();
         return Observable.fromIterable(referenceProperties.get())
-                .flatMapMaybe(p -> retrieveReference(entity, p))
+                .flatMapMaybe(p -> retrieveReference(entity.newValue(), p))
                 .doOnNext(c -> c.accept(builder))
                 .ignoreElements()
-                .andThen(Single.fromCallable(builder::build));
+                .andThen(Single.fromCallable(builder::build))
+                .map(val -> Notification.ofCreated(val, entity.sequenceNumber()));
     }
 
     private <V> Maybe<Consumer<MetaBuilder<S>>> retrieveReference(S entity, PropertyMeta<S, V> propertyMeta) {
@@ -251,7 +293,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     }
 
     Maybe<S> find(K key) {
-        return Maybe.fromCallable(() -> objects.get(key)).map(AtomicReference::get);
+        return Maybe.fromCallable(() -> objects.get(key)).map(ObjectReference::get);
     }
 
     @Override

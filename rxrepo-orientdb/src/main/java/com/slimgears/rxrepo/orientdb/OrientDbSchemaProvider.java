@@ -6,6 +6,8 @@ import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OProperty;
 import com.orientechnologies.orient.core.metadata.schema.OType;
+import com.orientechnologies.orient.core.metadata.sequence.OSequence;
+import com.orientechnologies.orient.core.metadata.sequence.OSequenceLibrary;
 import com.orientechnologies.orient.core.serialization.serializer.binary.impl.OLinkSerializer;
 import com.slimgears.rxrepo.annotations.Indexable;
 import com.slimgears.rxrepo.sql.SchemaProvider;
@@ -18,13 +20,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
+import java.util.Optional;
 
 class OrientDbSchemaProvider implements SchemaProvider {
     private final static Logger log = LoggerFactory.getLogger(OrientDbSchemaProvider.class);
     private final OrientDbSessionProvider dbSessionProvider;
+    private final Completable sequenceCreated;
+    final static String sequenceName = "sequenceNum";
 
     OrientDbSchemaProvider(OrientDbSessionProvider sessionProvider) {
         this.dbSessionProvider = sessionProvider;
+        this.sequenceCreated = Completable.create(emitter -> dbSessionProvider.withSession(session -> {
+            OSequenceLibrary sequenceLibrary = session.getMetadata().getSequenceLibrary();
+            Optional
+                    .ofNullable(sequenceLibrary.getSequence(sequenceName))
+                    .orElseGet(() -> sequenceLibrary.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, new OSequence.CreateParams()));
+            emitter.onComplete();
+        })).cache();
     }
 
     @Override
@@ -34,9 +46,9 @@ class OrientDbSchemaProvider implements SchemaProvider {
 
     @Override
     public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
-        return Completable
+        return sequenceCreated.concatWith(Completable
                 .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass)))
-                .subscribeOn(Schedulers.newThread());
+                .subscribeOn(Schedulers.newThread()));
     }
 
     @Override
@@ -83,6 +95,10 @@ class OrientDbSchemaProvider implements SchemaProvider {
                 log.trace("{}: Adding simple key index", className);
                 addIndex(oClass, metaClassWithKey.keyProperty(), true);
             }
+
+            if (!oClass.existsProperty(OrientDbQueryProvider.sequenceNumField)) {
+                oClass.createProperty(OrientDbQueryProvider.sequenceNumField, OType.LONG);
+            }
         }
 
         log.trace("{}: Adding indexes for properties", className);
@@ -91,6 +107,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
                 .forEach(p -> addIndex(oClass, p, p.getAnnotation(Indexable.class).unique()));
 
         log.trace("Class {} creation finished", className);
+
         return oClass;
     }
 

@@ -11,13 +11,15 @@ import io.reactivex.Maybe;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class MemoryQueryProvider extends AbstractEntityQueryProviderAdapter implements MetaObjectResolver {
     private final List<AutoCloseable> closeableList = Collections.synchronizedList(new ArrayList<>());
+    private final AtomicLong sequenceNumber = new AtomicLong();
 
     @Override
     protected <K, S> EntityQueryProvider<K, S> createProvider(MetaClassWithKey<K, S> metaClass) {
-        MemoryEntityQueryProvider<K, S> provider = MemoryEntityQueryProvider.create(metaClass, this);
+        MemoryEntityQueryProvider<K, S> provider = MemoryEntityQueryProvider.create(metaClass, this, sequenceNumber);
         closeableList.add(provider);
         return provider;
     }

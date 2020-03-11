@@ -113,6 +113,8 @@ public interface Expression {
         AsString(StringUnaryOperationExpression.class, OperationType.Unary, ValueType.String, just(String.class)),
         AsBoolean(BooleanUnaryOperationExpression.class, OperationType.Unary, ValueType.Boolean, just(Boolean.class)),
 
+        SequenceNumber(UnaryOperationExpression.class, OperationType.Unary, ValueType.Numeric, just(Long.class))
+
         ;
 
         Type(Class<? extends Expression> type, OperationType opType, ValueType valType, Function<ObjectExpression<?, ?>, TypeToken<?>> typeResolver) {

@@ -3,5 +3,6 @@ dependencies {
     implementation libs.rxJava
     implementation libs.slimAutoValueUtilsAnnotations
     implementation libs.slf4j
+    implementation libs.slimGenericUtils
     testImplementation project(':rxrepo-test')
 }

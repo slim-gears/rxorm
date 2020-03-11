@@ -7,6 +7,7 @@ import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.generic.MoreStrings;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -32,15 +33,24 @@ class OrientDbAssignmentGenerator extends DefaultSqlAssignmentGenerator {
                 enhanceAssignmentForAsStringIndex(metaClass, propertyResolver, prop));
     }
 
+    private String sequenceNumberAssignment() {
+        return MoreStrings.format("{} = sequence('{}').next()",
+                OrientDbQueryProvider.sequenceNumField,
+                OrientDbSchemaProvider.sequenceName);
+
+    }
+
     private <K, T> Stream<String> enhanceAssignmentForAsStringIndex(MetaClassWithKey<K, T> metaClass, PropertyResolver propertyResolver, String propertyName) {
         PropertyMeta<T, ?> propertyMeta = metaClass.getProperty(propertyName);
+
         if (propertyMeta != null && PropertyMetas.isEmbedded(propertyMeta)) {
             Object val = propertyResolver.getProperty(propertyMeta);
             return val != null
                     ? Stream.of(concat(
                             (sqlExpressionGenerator.fromProperty(propertyMeta) + "`AsString`").replace("``", ""),
                             "=",
-                            sqlExpressionGenerator.fromConstant(val.toString())))
+                            sqlExpressionGenerator.fromConstant(val.toString())),
+                            sequenceNumberAssignment())
                     : Stream.empty();
         }
 

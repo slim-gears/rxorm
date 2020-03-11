@@ -1,10 +1,8 @@
 package com.slimgears.rxrepo.query.decorator;
 
 import com.google.common.collect.ImmutableSet;
-import com.slimgears.rxrepo.expressions.Aggregator;
-import com.slimgears.rxrepo.expressions.BooleanExpression;
-import com.slimgears.rxrepo.expressions.ObjectExpression;
-import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.expressions.*;
+import com.slimgears.rxrepo.expressions.internal.NumericUnaryOperationExpression;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.NotificationPrototype;
 import com.slimgears.rxrepo.query.Notifications;
@@ -101,23 +99,25 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                         .<K1, S1, S1>builder()
                         .metaClass(query.metaClass())
                         .properties(query.properties())
-                        .predicate(combineWithReferenceId(query.predicate(), n.oldValue(), referenceProperty, metaClassWithKey))
+                        .predicate(combineWithReferenceId(query.predicate(), n, referenceProperty, metaClassWithKey))
                         .build())
+                        .map(Notification::newValue)
                         .map(obj -> {
                             MetaBuilder<S1> builder = ((HasMetaClass<S1>)obj).toBuilder();
                             referenceProperty.property().setValue(builder, n.oldValue());
                             S1 oldValue = builder.build();
                             referenceProperty.property().setValue(builder, n.newValue());
                             S1 newValue = builder.build();
-                            return Notification.create(oldValue, newValue, n.generation());
+                            return Notification.create(oldValue, newValue, n.sequenceNumber());
                         })
                 );
     }
 
-    private <S, KT, T> ObjectExpression<S, Boolean> combineWithReferenceId(ObjectExpression<S, Boolean> predicate, T referencedObject, PropertyExpression<S, S, T> referenceProperty, MetaClassWithKey<KT, T> metaClass) {
+    private <S, KT, T> ObjectExpression<S, Boolean> combineWithReferenceId(ObjectExpression<S, Boolean> predicate, Notification<T> referencedObject, PropertyExpression<S, S, T> referenceProperty, MetaClassWithKey<KT, T> metaClass) {
         ObjectExpression<S, Boolean> referencePredicate = PropertyExpression
                 .ofObject(referenceProperty, metaClass.keyProperty())
-                .eq(metaClass.keyOf(referencedObject));
+                .eq(metaClass.keyOf(referencedObject.oldValue()))
+                .and(NumericUnaryOperationExpression.<S, T, Long>create(Expression.Type.SequenceNumber, ObjectExpression.objectArg(metaClass.asType())).lessThan(referencedObject.sequenceNumber()));
 
         return Optional.ofNullable(predicate)
                 .<ObjectExpression<S, Boolean>>map(p -> BooleanExpression.and(p, referencePredicate))

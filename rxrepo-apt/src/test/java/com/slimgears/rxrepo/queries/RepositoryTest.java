@@ -50,14 +50,14 @@ public class RepositoryTest {
         when(mockQueryProvider.<TestKey, TestEntity, TestEntity>liveQuery(any())).thenReturn(notificationSubject);
         when(mockQueryProvider.<TestKey, TestEntity, TestEntity>queryAndObserve(any(), any()))
                 .thenReturn(Observable
-                        .just(Notification.<TestEntity>create(null, null))
+                        .just(Notification.<TestEntity>create(null, null, 1L))
                         .concatWith(notificationSubject));
         when(mockQueryProvider.<TestKey, TestEntity, TestEntity>queryAndObserve(any(), any()))
                 .thenReturn(Observable
-                .just(Notification.<TestEntity>create(null, null))
+                .just(Notification.<TestEntity>create(null, null, 1L))
                 .concatWith(notificationSubject));
 
-        notificationSubject.onNext(Notification.ofCreated(TestEntities.testEntity1));
+        notificationSubject.onNext(Notification.ofCreated(TestEntities.testEntity1, 1L));
 
         TestObserver<List<TestEntity>> tester = repository.entities(TestEntity.metaClass)
                 .query()
@@ -69,7 +69,7 @@ public class RepositoryTest {
                 .assertNoErrors()
                 .assertValueAt(0, l -> l.size() == 1);
 
-        notificationSubject.onNext(Notification.ofCreated(TestEntities.testEntity2));
+        notificationSubject.onNext(Notification.ofCreated(TestEntities.testEntity2, 1L));
         tester.awaitCount(2)
                 .assertValueCount(2)
                 .assertNoErrors()

@@ -6,6 +6,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Table;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
+import com.orientechnologies.orient.core.metadata.OMetadata;
+import com.orientechnologies.orient.core.metadata.sequence.OSequence;
+import com.orientechnologies.orient.core.metadata.sequence.OSequenceLibrary;
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
@@ -80,7 +83,10 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
                         .map(entity -> toOrientDbObject(entity, queryCache, dbSession))
                         .collect(Collectors.toList());
                 dbSession.begin();
-                oElements.forEach(OElement::save);
+                long sequenceNum = dbSession.getMetadata().getSequenceLibrary().getSequence(OrientDbSchemaProvider.sequenceName).next();
+                oElements.stream()
+                        .peek(d -> d.setProperty(sequenceNumField, sequenceNum))
+                        .forEach(OElement::save);
                 dbSession.commit();
             } catch (OConcurrentModificationException | ORecordDuplicatedException e) {
                 dbSession.rollback();

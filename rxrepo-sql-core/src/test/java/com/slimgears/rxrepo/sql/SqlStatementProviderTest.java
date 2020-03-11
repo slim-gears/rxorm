@@ -45,7 +45,7 @@ public class SqlStatementProviderTest {
                 .build());
 
         Assert.assertEquals(
-                "select `name`, `price`, `id` from Product " +
+                "select `name`, `price`, `id`, `__sequenceNum` from Product " +
                         "where (((`name` like '%' + ? + '%') and (`price` < ?)) and (`type` in (?))) " +
                         "order by `name` asc, `id` desc " +
                         "limit 100 " +

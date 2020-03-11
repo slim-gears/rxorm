@@ -7,6 +7,7 @@ import com.slimgears.rxrepo.encoding.MetaClassSearchableFields;
 import com.slimgears.rxrepo.expressions.*;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.generic.ScopedInstance;
 import com.slimgears.util.stream.Equality;
 import com.slimgears.util.stream.Optionals;
 
@@ -19,6 +20,12 @@ import java.util.stream.Stream;
 
 @SuppressWarnings("rawtypes")
 public class Expressions {
+    private final static ThreadLocal<Long> currentSequenceNumber = ThreadLocal.withInitial(() -> 0L);
+
+    public static ThreadLocal<Long> sequenceNumber() {
+        return currentSequenceNumber;
+    }
+
     @SuppressWarnings("unchecked")
     public static <S, T> Function<S, T> compile(ObjectExpression<S, T> exp) {
         return exp != null
@@ -165,6 +172,7 @@ public class Expressions {
                 .put(Expression.Type.SearchText, Expressions.fromBinary(searchText()))
                 .put(Expression.Type.ValueIn, Expressions.fromBinary((Object obj, Collection<Object> collection) -> obj != null && collection != null && collection.contains(obj)))
                 .put(Expression.Type.IsNull, Expressions.fromUnary(Objects::isNull))
+                .put(Expression.Type.SequenceNumber, Expressions.fromUnary(obj -> sequenceNumber().get()))
                 .build();
 
         private final static ImmutableMap<Expression.OperationType, Function<Function[], Function>> operationTypeReducersMap = ImmutableMap.<Expression.OperationType, Function<Function[], Function>>builder()

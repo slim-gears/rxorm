@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.slimgears.rxrepo.sql.SqlStatement.of;
 import static com.slimgears.rxrepo.sql.StatementUtils.concat;
@@ -137,7 +138,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
         return statement.withArgs(params.toArray());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private <K, S, T, Q extends HasMapping<S, T> & HasEntityMeta<K, S> & HasProperties<T>> String selectClause(Q queryInfo) {
         ObjectExpression<S, T> expression = Optional
                 .ofNullable(queryInfo.mapping())
@@ -166,8 +167,9 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                 () -> Optional.ofNullable(properties)
                         .filter(p -> !p.isEmpty())
                         .map(this::eliminateRedundantProperties)
-                        .map(p -> p.stream()
-                                .map(prop -> sqlExpressionGenerator.toSqlExpression(prop, expression))
+                        .map(p -> Stream.concat(
+                                p.stream().map(prop -> sqlExpressionGenerator.toSqlExpression(prop, expression)),
+                                Stream.of("`" + SqlQueryProvider.sequenceNumField + "`"))
                                 .collect(Collectors.joining(", "))),
                 () -> Optional
                         .of(sqlExpressionGenerator.toSqlExpression(expression))

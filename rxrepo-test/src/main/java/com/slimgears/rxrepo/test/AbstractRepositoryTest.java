@@ -15,6 +15,7 @@ import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.CompletableSubject;
 import org.junit.*;
@@ -1483,7 +1484,8 @@ public abstract class AbstractRepositoryTest {
 
     @SuppressWarnings({"unchecked", "ConstantConditions"})
     @Test
-    public void testReferencePropertiesUpdates() {
+    @UseLogLevel(LogLevel.TRACE)
+    public void testReferencePropertiesLiveQuery() {
         products.update(Products.createMany(100)).blockingAwait();
         TestObserver<Notification<Product>> testObserver = products.queryAndObserve(Product.$.name, Product.$.inventory.name)
                 .doOnNext(System.out::println)

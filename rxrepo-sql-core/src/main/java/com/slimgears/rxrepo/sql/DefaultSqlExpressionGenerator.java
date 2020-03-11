@@ -58,6 +58,7 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
                 .add(Expression.Type.AsNumeric, "%s")
                 .add(Expression.Type.AsComparable, "%s")
                 .add(Expression.Type.SearchText, notSupported())
+                .add(Expression.Type.SequenceNumber, this::reduceSequenceNumber)
                 .add(Expression.OperationType.Argument, "__argument__")
                 .add(Expression.OperationType.Constant, "%s")
                 .add(Expression.OperationType.Property, this::reduceProperty)
@@ -89,6 +90,14 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
         return (exp, str) -> {
             throw new IllegalArgumentException("Not supported expression");
         };
+    }
+
+    private <S, T> String reduceSequenceNumber(ObjectExpression<S, T> expression, String[] parts) {
+        return reduceProperty(expression,
+                Stream.concat(
+                        Stream.of(parts),
+                        Stream.of(SqlQueryProvider.sequenceNumField))
+                .toArray(String[]::new));
     }
 
     private <S, T> String reduceProperty(ObjectExpression<S, T> expression, String[] parts) {
