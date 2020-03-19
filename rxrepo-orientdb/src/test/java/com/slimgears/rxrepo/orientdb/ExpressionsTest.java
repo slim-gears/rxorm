@@ -70,7 +70,7 @@ public class ExpressionsTest {
 
     @Test
     public void testExpressionToString() {
-        Assert.assertEquals("Equals(Length(Argument(Product).name), Argument(Product).price)", Product.$.name.length().eq(Product.$.price).toString());
+        Assert.assertEquals("Equals(Length(Product.$.name), Product.$.price)", Product.$.name.length().eq(Product.$.price).toString());
     }
 
     @Test

@@ -194,7 +194,6 @@ public class OrientDbRepository {
 
             return serviceFactoryBuilder(dbSessionProvider)
                     .decorate(
-                            CacheQueryProviderDecorator.create(),
                             LiveQueryProviderDecorator.create(),
                             ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider.get()),
                             batchSupport ? OrientDbUpdateReferencesFirstQueryProviderDecorator.create() : UpdateReferencesFirstQueryProviderDecorator.create(),
