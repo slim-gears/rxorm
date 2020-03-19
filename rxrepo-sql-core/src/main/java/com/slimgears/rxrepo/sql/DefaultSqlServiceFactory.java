@@ -76,7 +76,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     }
 
     @Override
-    public SchedulingProvider executorPool() {
+    public SchedulingProvider schedulingProvider() {
         return executorPool.get();
     }
 
@@ -99,13 +99,13 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         private Function<SqlServiceFactory, ReferenceResolver> referenceResolver;
         private Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator;
         private Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator;
-        private Function<SqlServiceFactory, SchedulingProvider> executorPool = f -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxNotificationQueueIdleDuration);
+        private Function<SqlServiceFactory, SchedulingProvider> schedulingProvider = f -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxNotificationQueueIdleDuration);
         private Function<SqlServiceFactory, QueryProvider> queryProviderGenerator = factory -> new SqlQueryProvider(
                 factory.statementProvider(),
                 factory.statementExecutor(),
                 factory.schemaProvider(),
                 factory.referenceResolver(),
-                factory.executorPool());
+                factory.schedulingProvider());
 
         @Override
         public SqlServiceFactory.Builder statementProvider(Function<SqlServiceFactory, SqlStatementProvider> statementProvider) {
@@ -150,8 +150,8 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         }
 
         @Override
-        public SqlServiceFactory.Builder schedulingProvider(Function<SqlServiceFactory, SchedulingProvider> executorPool) {
-            this.executorPool = executorPool;
+        public SqlServiceFactory.Builder schedulingProvider(Function<SqlServiceFactory, SchedulingProvider> schedulingProvider) {
+            this.schedulingProvider = schedulingProvider;
             return this;
         }
 
@@ -175,7 +175,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                     requireNonNull(expressionGenerator),
                     requireNonNull(assignmentGenerator),
                     requireNonNull(queryProviderGenerator),
-                    requireNonNull(executorPool));
+                    requireNonNull(schedulingProvider));
         }
     }
 }

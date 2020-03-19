@@ -10,23 +10,18 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.MoreTypeTokens;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
-import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.rxrepo.util.PropertyResolvers;
 import com.slimgears.rxrepo.util.SchedulingProvider;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.PropertyMeta;
 import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Optionals;
-import com.slimgears.util.stream.Streams;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static com.slimgears.util.generic.LazyString.lazy;
@@ -59,7 +54,7 @@ public class SqlQueryProvider implements QueryProvider {
                 serviceFactory.statementExecutor(),
                 serviceFactory.schemaProvider(),
                 serviceFactory.referenceResolver(),
-                serviceFactory.executorPool());
+                serviceFactory.schedulingProvider());
     }
 
     @Override
@@ -165,7 +160,7 @@ public class SqlQueryProvider implements QueryProvider {
                             .map(Maybe::just)
                             .orElseGet(Maybe::empty))
                 .orElse(pr -> Maybe
-                        .fromCallable(() -> pr.toObject(objectType))
+                        .fromCallable(() -> PropertyResolvers.withProperties(properties, () -> pr.toObject(objectType)))
                         .map(obj -> Notification.ofCreated(obj, generationOf(pr))));
         return src -> src.flatMapMaybe(mapper);
     }
@@ -179,7 +174,7 @@ public class SqlQueryProvider implements QueryProvider {
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
         return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
                 .executeLiveQuery(statementProvider.forQuery(query.toBuilder().properties(ImmutableSet.of()).build()))
-                .compose(schedulingProvider::applyScheduler)
+                .compose(schedulingProvider.applyScheduler())
                 .map(notification -> notification.map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType)))));
     }
 
@@ -229,20 +224,5 @@ public class SqlQueryProvider implements QueryProvider {
             return statementExecutor.executeCommand(statement)
                     .doOnComplete(schemaProvider::clear);
         });
-    }
-
-    private static <S extends HasMetaClass<S>> boolean isEmptyObject(S object) {
-        AtomicReference<PropertyMeta<S, ?>> nonNullProperty = new AtomicReference<>();
-        if (Streams.fromIterable(object.metaClass().properties())
-                .filter(p -> p.getValue(object) != null)
-                .peek(nonNullProperty::set)
-                .limit(2)
-                .count() > 1) {
-            return false;
-        }
-
-        return Optional.ofNullable(nonNullProperty.get())
-                .map(PropertyMetas::isKey)
-                .orElse(true);
     }
 }

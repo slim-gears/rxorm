@@ -18,7 +18,7 @@ public interface SqlServiceFactory {
     SqlAssignmentGenerator assignmentGenerator();
     ReferenceResolver referenceResolver();
     QueryProvider queryProvider();
-    SchedulingProvider executorPool();
+    SchedulingProvider schedulingProvider();
 
     static Builder builder() {
         return DefaultSqlServiceFactory.builder();

@@ -1,22 +1,17 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.slimgears.rxrepo.query.Repository;
-import com.slimgears.rxrepo.query.decorator.SchedulingQueryProviderDecorator;
+import com.slimgears.rxrepo.query.decorator.SubscribeOnSchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.test.AbstractRepositoryTest;
-import com.slimgears.rxrepo.test.Product;
 import com.slimgears.rxrepo.test.Products;
-import com.slimgears.rxrepo.test.UniqueId;
 import com.slimgears.util.generic.MoreStrings;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.logging.LoggingMeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import io.reactivex.Completable;
-import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Scheduler;
-import io.reactivex.observers.TestObserver;
 import io.reactivex.schedulers.Schedulers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -25,11 +20,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 @RunWith(Parameterized.class)
 public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
@@ -72,7 +63,7 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
                 .debounceTimeoutMillis(1000)
                 .type(dbType)
                 .name(name)
-                .decorate(SchedulingQueryProviderDecorator.create(updateScheduler, queryScheduler, Schedulers.from(Runnable::run)))
+                .decorate(SubscribeOnSchedulingQueryProviderDecorator.create(updateScheduler, queryScheduler, Schedulers.from(Runnable::run)))
                 .enableBatchSupport()
                 .maxConnections(10)
                 .build();

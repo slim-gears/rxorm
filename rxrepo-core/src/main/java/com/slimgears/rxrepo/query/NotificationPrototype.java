@@ -44,4 +44,16 @@ public interface NotificationPrototype<T> {
     static <T> NotificationPrototype<T> ofModified(T oldObject, T newObject, @Nullable Long sequenceNum) {
         return Notification.create(oldObject, newObject, sequenceNum);
     }
+
+    static <T> NotificationPrototype<T> ofCreated(T object) {
+        return ofCreated(object, null);
+    }
+
+    static <T> NotificationPrototype<T> ofDeleted(T object) {
+        return ofDeleted(object, null);
+    }
+
+    static <T> NotificationPrototype<T> ofModified(T oldObject, T newObject) {
+        return Notification.create(oldObject, newObject, null);
+    }
 }

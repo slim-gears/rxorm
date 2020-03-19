@@ -1,7 +1,8 @@
 package com.slimgears.rxrepo.util;
 
-import io.reactivex.Observable;
+import io.reactivex.ObservableTransformer;
 
 public interface SchedulingProvider {
-    <T> Observable<T> applyScheduler(Observable<T> observable);
+    <T> ObservableTransformer<T, T> applyScope();
+    <T> ObservableTransformer<T, T> applyScheduler();
 }

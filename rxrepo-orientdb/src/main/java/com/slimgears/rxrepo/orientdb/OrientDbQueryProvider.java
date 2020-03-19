@@ -6,16 +6,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Table;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
-import com.orientechnologies.orient.core.metadata.OMetadata;
-import com.orientechnologies.orient.core.metadata.sequence.OSequence;
-import com.orientechnologies.orient.core.metadata.sequence.OSequenceLibrary;
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.sql.*;
-import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClass;
@@ -56,7 +52,7 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
                 serviceFactory.statementExecutor(),
                 serviceFactory.schemaProvider(),
                 serviceFactory.referenceResolver(),
-                serviceFactory.executorPool(),
+                serviceFactory.schedulingProvider(),
                 sessionProvider,
                 bufferSize);
     }

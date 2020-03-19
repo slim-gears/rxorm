@@ -35,24 +35,24 @@ public interface EntitySet<K, S> {
         return entities.flatMapSingle(this::update).ignoreElements();
     }
 
-    default Observable<S> findAll() {
-        return findAll((BooleanExpression<S>)null);
+    default Observable<S> findAll(PropertyExpression<S, ?, ?>... properties) {
+        return findAll((BooleanExpression<S>)null, properties);
     }
 
-    default Observable<S> findAll(BooleanExpression<S> predicate) {
-        return query().where(predicate).select().retrieve();
+    default Observable<S> findAll(BooleanExpression<S> predicate, PropertyExpression<S, ?, ?>... properties) {
+        return query().where(predicate).select().properties(properties).retrieve();
     }
 
-    default Observable<S> findAll(Filter<S> filter) {
-        return findAll(filter.toExpression(ObjectExpression.arg(metaClass().asType())).orElse(null));
+    default Observable<S> findAll(Filter<S> filter, PropertyExpression<S, ?, ?>... properties) {
+        return findAll(filter.toExpression(ObjectExpression.arg(metaClass().asType())).orElse(null), properties);
     }
 
-    default Maybe<S> find(K key) {
-        return findFirst(PropertyExpression.ofObject(metaClass().keyProperty()).eq(key));
+    default Maybe<S> find(K key, PropertyExpression<S, ?, ?>... properties) {
+        return findFirst(PropertyExpression.ofObject(metaClass().keyProperty()).eq(key), properties);
     }
 
-    default Maybe<S> findFirst(BooleanExpression<S> predicate) {
-        return query().where(predicate).limit(1).select().first();
+    default Maybe<S> findFirst(BooleanExpression<S> predicate, PropertyExpression<S, ?, ?>... properties) {
+        return query().where(predicate).limit(1).select().properties(properties).first();
     }
 
     default Completable update(S[] entities) {

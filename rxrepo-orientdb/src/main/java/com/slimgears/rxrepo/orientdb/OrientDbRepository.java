@@ -10,6 +10,7 @@ import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.RepositoryConfigModelBuilder;
 import com.slimgears.rxrepo.query.decorator.CacheQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
+import com.slimgears.rxrepo.query.decorator.ObserveOnSchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
@@ -62,8 +63,9 @@ public class OrientDbRepository {
         private boolean batchSupport = false;
         private int batchBufferSize = 20000;
         private int maxNotificationQueues = 10;
+        private Duration maxQueueIdleTime = Duration.ofSeconds(30);
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
-        private Supplier<SchedulingProvider> schedulingProvider = () -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, Duration.ofSeconds(30));
+        private Supplier<SchedulingProvider> schedulingProvider = () -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxQueueIdleTime);
         private Function<SchedulingProvider, SchedulingProvider> schedulingProviderDecorator = Function.identity();
         private RepositoryConfig.Builder configBuilder = RepositoryConfig
                 .builder()
@@ -89,6 +91,11 @@ public class OrientDbRepository {
 
         public final Builder maxNotificationQueues(int maxNotificationQueues) {
             this.maxNotificationQueues = maxNotificationQueues;
+            return this;
+        }
+
+        public final Builder maxQueueIdleTime(Duration duration) {
+            this.maxQueueIdleTime = duration;
             return this;
         }
 
@@ -189,6 +196,7 @@ public class OrientDbRepository {
                     .decorate(
                             CacheQueryProviderDecorator.create(),
                             LiveQueryProviderDecorator.create(),
+                            ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider.get()),
                             batchSupport ? OrientDbUpdateReferencesFirstQueryProviderDecorator.create() : UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
                             decorator)

@@ -3,16 +3,16 @@ package com.slimgears.rxrepo.util;
 import com.slimgears.nanometer.MetricCollector;
 import com.slimgears.nanometer.MetricTag;
 import com.slimgears.nanometer.Metrics;
+import com.slimgears.util.generic.ScopedInstance;
 import io.reactivex.Observable;
+import io.reactivex.ObservableTransformer;
+import io.reactivex.Scheduler;
 import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -28,6 +28,7 @@ public class CachedRoundRobinSchedulingProvider implements SchedulingProvider {
     private final AtomicInteger nextQueueIndex = new AtomicInteger();
     private final Map<Executor, AtomicInteger> executorToQueueSizeMap = new HashMap<>();
     private final Map<Executor, Integer> executorToIndexMap = new HashMap<>();
+    private final ScopedInstance<Executor> currentScheduler = ScopedInstance.create();
 
     private CachedRoundRobinSchedulingProvider(int maxExecutors, Duration maxIdleTime) {
         this.maxExecutors = maxExecutors;
@@ -59,22 +60,31 @@ public class CachedRoundRobinSchedulingProvider implements SchedulingProvider {
     }
 
     @Override
-    public <T> Observable<T> applyScheduler(Observable<T> observable) {
-        Executor executor = getExecutor();
-        AtomicInteger queueSize = executorToQueueSizeMap.get(executor);
-        int queueIndex = executorToIndexMap.get(executor);
-        MetricCollector.Gauge gauge = metrics.gauge("queueSize", MetricTag.of("#" + queueIndex));
-        return observable
-                .doOnNext(val -> {
-                    int newSize = queueSize.incrementAndGet();
-                    gauge.record(newSize);
-                    log.debug("Added task to queue #{}, new size: {}", queueIndex, newSize);
-                })
-                .observeOn(Schedulers.from(executor))
-                .doOnNext(val -> {
-                    int newSize = queueSize.decrementAndGet();
-                    gauge.record(newSize);
-                    log.debug("Task from to queue #{} completed, new size: {}", queueIndex, newSize);
-                });
+    public <T> ObservableTransformer<T, T> applyScope() {
+        return src -> src.subscribeOn(Schedulers.from(runnable -> currentScheduler.withScope(getExecutor(), runnable)));
+    }
+
+    @Override
+    public <T> ObservableTransformer<T, T> applyScheduler() {
+        return src -> Observable.defer(() -> {
+            Executor executor = Optional.ofNullable(currentScheduler.current())
+                    .orElseGet(this::getExecutor);
+
+            AtomicInteger queueSize = executorToQueueSizeMap.get(executor);
+            int queueIndex = executorToIndexMap.get(executor);
+            MetricCollector.Gauge gauge = metrics.gauge("queueSize", MetricTag.of("#" + queueIndex));
+            return src
+                    .doOnNext(val -> {
+                        int newSize = queueSize.incrementAndGet();
+                        gauge.record(newSize);
+                        log.debug("Added task to queue #{}, new size: {}", queueIndex, newSize);
+                    })
+                    .observeOn(Schedulers.from(executor))
+                    .doOnNext(val -> {
+                        int newSize = queueSize.decrementAndGet();
+                        gauge.record(newSize);
+                        log.debug("Task from to queue #{} completed, new size: {}", queueIndex, newSize);
+                    });
+        });
     }
 }

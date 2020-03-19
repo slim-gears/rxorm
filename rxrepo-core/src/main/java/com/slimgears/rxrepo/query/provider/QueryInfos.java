@@ -1,14 +1,18 @@
 package com.slimgears.rxrepo.query.provider;
 
-import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.util.PropertyExpressions;
+import com.slimgears.rxrepo.util.PropertyMetas;
 
 import java.util.Collection;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class QueryInfos {
     public static <K, S, T> ImmutableSet<PropertyExpression<S, ?, ?>> allReferencedProperties(QueryInfo<K, S, T> query) {
@@ -38,5 +42,17 @@ public class QueryInfos {
                         .properties(PropertyExpressions.unmapProperties(query.properties(), query.mapping()))
                         .build())
                 .orElseGet(() -> (QueryInfo<K, S, S>)query);
+    }
+
+    public static <K, S, T> QueryInfo<K, S, T> includeMandatoryProperties(QueryInfo<K, S, T> queryInfo) {
+        return queryInfo.properties().isEmpty()
+                ? queryInfo
+                : queryInfo.toBuilder()
+                .apply(includeMandatoryProperties(queryInfo.properties(), queryInfo.objectType()))
+                .build();
+    }
+
+    private static <K, S, T> Consumer<QueryInfo.Builder<K, S, T>> includeMandatoryProperties(ImmutableSet<PropertyExpression<T, ?, ?>> properties, TypeToken<T> typeToken) {
+        return builder -> builder.propertiesAddAll(PropertyExpressions.includeMandatoryProperties(typeToken, properties));
     }
 }

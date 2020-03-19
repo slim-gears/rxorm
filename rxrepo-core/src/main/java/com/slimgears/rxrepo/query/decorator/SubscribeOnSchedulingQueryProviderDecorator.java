@@ -16,13 +16,13 @@ import org.slf4j.LoggerFactory;
 
 import java.util.function.Supplier;
 
-public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecorator {
-    private final static Logger log = LoggerFactory.getLogger(SchedulingQueryProviderDecorator.class);
+public class SubscribeOnSchedulingQueryProviderDecorator extends AbstractQueryProviderDecorator {
+    private final static Logger log = LoggerFactory.getLogger(SubscribeOnSchedulingQueryProviderDecorator.class);
     private final Scheduler updateScheduler;
     private final Scheduler queryScheduler;
     private final Scheduler liveQueryScheduler;
 
-    private SchedulingQueryProviderDecorator(
+    private SubscribeOnSchedulingQueryProviderDecorator(
             QueryProvider underlyingProvider,
             Scheduler updateScheduler,
             Scheduler queryScheduler,
@@ -37,7 +37,7 @@ public class SchedulingQueryProviderDecorator extends AbstractQueryProviderDecor
             Scheduler updateScheduler,
             Scheduler queryScheduler,
             Scheduler notificationScheduler) {
-        return provider -> new SchedulingQueryProviderDecorator(provider, updateScheduler, queryScheduler, notificationScheduler);
+        return provider -> new SubscribeOnSchedulingQueryProviderDecorator(provider, updateScheduler, queryScheduler, notificationScheduler);
     }
 
     public static QueryProvider.Decorator createDefault() {

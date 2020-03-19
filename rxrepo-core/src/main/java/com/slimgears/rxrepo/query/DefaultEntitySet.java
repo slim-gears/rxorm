@@ -1,20 +1,17 @@
 package com.slimgears.rxrepo.query;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.slimgears.rxrepo.expressions.*;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
 import com.slimgears.rxrepo.query.provider.*;
-import com.slimgears.rxrepo.util.Expressions;
-import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.rx.Maybes;
 import com.slimgears.util.rx.Observables;
 import com.slimgears.util.rx.Singles;
-import io.reactivex.*;
 import io.reactivex.Observable;
+import io.reactivex.*;
 import io.reactivex.exceptions.CompositeException;
 import io.reactivex.functions.Function;
 import org.slf4j.Logger;

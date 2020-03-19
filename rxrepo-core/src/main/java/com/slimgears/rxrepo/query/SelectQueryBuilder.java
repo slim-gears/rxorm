@@ -43,16 +43,18 @@ public abstract class SelectQueryBuilder<S>
         return select().count();
     }
 
-    public Maybe<S> first() {
-        return select().first();
+    @SafeVarargs
+    public final Maybe<S> first(PropertyExpression<S, ?, ?>... properties) {
+        return select().properties(properties).first();
     }
 
     public Observable<Long> observeCount() {
         return liveSelect().count();
     }
 
-    public Observable<S> observeFirst() {
-        return liveSelect().first();
+    @SafeVarargs
+    public final Observable<S> observeFirst(PropertyExpression<S, ?, ?>... properties) {
+        return liveSelect().properties(properties).first();
     }
 
     @SafeVarargs

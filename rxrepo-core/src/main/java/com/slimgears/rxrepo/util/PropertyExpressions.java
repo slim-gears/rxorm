@@ -218,6 +218,18 @@ public class PropertyExpressions {
                 .orElse(false);
     }
 
+    public static <T> ImmutableSet<PropertyExpression<T, ?, ?>> includeMandatoryProperties(TypeToken<T> typeToken, ImmutableSet<PropertyExpression<T, ?, ?>> properties) {
+        Stream<PropertyExpression<T, ?, ?>> includedProperties = properties.stream()
+                .flatMap(PropertyExpressions::mandatoryProperties)
+                .distinct();
+
+        if (PropertyMetas.hasMetaClass(typeToken)) {
+            includedProperties = Stream.concat(includedProperties, PropertyExpressions.mandatoryProperties(typeToken));
+        }
+
+        return includedProperties.collect(ImmutableSet.toImmutableSet());
+    }
+
     @SuppressWarnings("unchecked")
     public static <S> Stream<PropertyExpression<S, ?, ?>> mandatoryProperties(PropertyExpression<S, ?, ?> exp) {
         return relatedMandatoryPropertiesCache.computeIfAbsent(

@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 import static com.slimgears.rxrepo.test.TestUtils.*;
 import static java.util.Objects.requireNonNull;
 
+@SuppressWarnings("unchecked")
 public abstract class AbstractRepositoryTest {
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
@@ -140,7 +141,11 @@ public abstract class AbstractRepositoryTest {
                 .build();
         Product updatedProduct = product.toBuilder().inventory(inventory).build();
         productSet.update(updatedProduct).test().await().assertNoErrors();
-        product = productSet.query().where(Product.$.key.eq(UniqueId.productId(1))).first().blockingGet();
+        product = productSet.query()
+                .where(Product.$.key.eq(UniqueId.productId(1)))
+                .select()
+                .properties(Product.$.inventory)
+                .first().blockingGet();
         Assert.assertNotNull(product.inventory());
     }
 
@@ -180,7 +185,7 @@ public abstract class AbstractRepositoryTest {
                 .sorted(Comparator.comparing(c -> c.id().id()))
                 .test()
                 .assertOf(countAtLeast(2))
-                .assertValueAt(0, inventory);
+                .assertValueAt(0, i -> Objects.equals(i.id(), inventory.id()));
     }
 
     @Test
@@ -194,7 +199,7 @@ public abstract class AbstractRepositoryTest {
         productSet.findAll()
                 .test()
                 .assertOf(countAtLeast(1))
-                .assertValue(product);
+                .assertValue(p -> Objects.equals(p.key(), product.key()));
     }
 
     @Test
@@ -478,7 +483,7 @@ public abstract class AbstractRepositoryTest {
                 .query()
                 .where(Product.$.key.id.betweenExclusive(100, 150))
                 .limit(20)
-                .retrieve()
+                .retrieve(Product.$.name, Product.$.inventory)
                 .test()
                 .awaitCount(20)
                 .assertNoErrors()
@@ -571,7 +576,11 @@ public abstract class AbstractRepositoryTest {
                 .await()
                 .assertNoErrors();
 
-        storages.findAll()
+        storages
+                .query()
+                .select()
+                .properties(Storage.$.productList)
+                .retrieve()
                 .test()
                 .await()
                 .assertNoErrors()
@@ -593,7 +602,8 @@ public abstract class AbstractRepositoryTest {
                 .await()
                 .assertNoErrors();
 
-        storages.findAll()
+        storages.query()
+                .retrieve(Storage.$.productMapByName)
                 .test()
                 .await()
                 .assertNoErrors()
@@ -624,7 +634,8 @@ public abstract class AbstractRepositoryTest {
                 .assertNoErrors();
 
         products
-                .findAll()
+                .query()
+                .retrieve(Product.$.aliases)
                 .test()
                 .await()
                 .assertValue(p -> requireNonNull(p.aliases()).size() == 2);
@@ -664,7 +675,9 @@ public abstract class AbstractRepositoryTest {
                 .assertNoErrors();
 
         repository.entities(Product.metaClass)
-                .findAll()
+                .query()
+                .select()
+                .retrieve(Product.$.relatedIds)
                 .take(1)
                 .singleElement()
                 .test()
@@ -843,7 +856,7 @@ public abstract class AbstractRepositoryTest {
         UniqueId vendorId = UniqueId.vendorId(2);
         products.query()
                 .where(Product.$.vendor.id.eq(vendorId))
-                .retrieve()
+                .retrieve(Product.$.vendor)
                 .test()
                 .await()
                 .assertValueCount(5)
@@ -851,7 +864,7 @@ public abstract class AbstractRepositoryTest {
 
         products.query()
                 .where(Product.$.vendor.id.in(vendorId))
-                .retrieve()
+                .retrieve(Product.$.vendor)
                 .test()
                 .await()
                 .assertValueCount(5)
@@ -1201,18 +1214,19 @@ public abstract class AbstractRepositoryTest {
 
         TestObserver<Notification<Product>> productObserver = repository.entities(Product.metaClass)
                 .query()
-                .where(Product.$.name.lessThan("Product 5"))
+                .where(Product.$.key.id.lessThan(5))
                 .liveSelect()
                 .observe(Product.$.name, Product.$.price, Product.$.productionDate)
+                .doOnNext(System.out::println)
                 .test()
                 .assertSubscribed();
 
         Product product1 = repository.entities(Product.metaClass)
-                .find(UniqueId.productId(1))
+                .find(UniqueId.productId(1), Product.$.name, Product.$.productionDate)
                 .blockingGet();
 
         Product product8 = repository.entities(Product.metaClass)
-                .find(UniqueId.productId(8))
+                .find(UniqueId.productId(8), Product.$.name, Product.$.productionDate)
                 .blockingGet();
 
         repository.entities(Product.metaClass)
@@ -1494,7 +1508,7 @@ public abstract class AbstractRepositoryTest {
         testObserver.awaitCount(100)
                 .assertValueCount(100);
 
-        repository.entities(Inventory.$)
+        repository.entities(Inventory.metaClass)
                 .update(Inventory.create(UniqueId.inventoryId(1), "Inventory 1 - updated", null))
                 .ignoreElement()
                 .blockingAwait();

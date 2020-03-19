@@ -22,8 +22,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
-    private final static Logger log = LoggerFactory.getLogger(LiveQueryProviderDecorator.class);
-
     private LiveQueryProviderDecorator(QueryProvider upstream) {
         super(upstream);
     }
@@ -98,7 +96,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                 .flatMap(n -> query(QueryInfo
                         .<K1, S1, S1>builder()
                         .metaClass(query.metaClass())
-                        .properties(query.properties())
+                        .properties(PropertyExpressions.includeMandatoryProperties(query.objectType(), query.properties()))
                         .predicate(combineWithReferenceId(query.predicate(), n, referenceProperty, metaClassWithKey))
                         .build())
                         .map(Notification::newValue)
