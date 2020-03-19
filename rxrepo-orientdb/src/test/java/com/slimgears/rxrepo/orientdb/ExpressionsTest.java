@@ -5,6 +5,7 @@ import com.slimgears.rxrepo.test.Inventory;
 import com.slimgears.rxrepo.test.Product;
 import com.slimgears.rxrepo.test.UniqueId;
 import com.slimgears.rxrepo.util.Expressions;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -70,5 +71,10 @@ public class ExpressionsTest {
     @Test
     public void testExpressionToString() {
         Assert.assertEquals("Equals(Length(Argument(Product).name), Argument(Product).price)", Product.$.name.length().eq(Product.$.price).toString());
+    }
+
+    @Test
+    public void testTailOf() {
+        Assert.assertEquals(Inventory.$.name, PropertyExpressions.tailOf(Product.$.inventory.name, Product.$.inventory));
     }
 }

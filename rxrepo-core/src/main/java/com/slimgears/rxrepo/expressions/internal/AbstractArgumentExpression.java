@@ -29,6 +29,6 @@ public abstract class AbstractArgumentExpression<S, T> extends AbstractObjectExp
 
     @Override
     public String toString() {
-        return MoreStrings.format("{}({})", type().name(), reflect().objectType().getRawType().getSimpleName());
+        return MoreStrings.format("{}.$", reflect().objectType().getRawType().getSimpleName());
     }
 }

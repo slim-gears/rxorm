@@ -310,7 +310,7 @@ public class PropertyExpressions {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static <S, T, V> PropertyExpression<T, ?, V> tailOf(PropertyExpression<S, ?, V> property, ObjectExpression<S, T> head) {
-        if (property.target() == head) {
+        if (Objects.equals(property.target(), head)) {
             PropertyMeta<T, V> propertyMeta = (PropertyMeta<T, V>)property.property();
             return PropertyExpression.ofObject(ObjectExpression.arg(propertyMeta.declaringType().asType()), propertyMeta);
         }
