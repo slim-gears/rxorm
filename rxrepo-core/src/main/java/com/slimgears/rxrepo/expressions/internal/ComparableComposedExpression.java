@@ -18,4 +18,9 @@ public abstract class ComparableComposedExpression<S, T, R extends Comparable<R>
             @JsonProperty("expression") ObjectExpression<T, R> expression) {
         return new AutoValue_ComparableComposedExpression<>(type, source, expression);
     }
+
+    @Override
+    protected ObjectExpression<S, R> createConverted(ObjectExpression<S, T> newSource, ObjectExpression<T, R> newExpression) {
+        return create(type(), newSource, newExpression);
+    }
 }

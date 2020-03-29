@@ -17,4 +17,9 @@ public abstract class ObjectComposedExpression<S, T, R>
             @JsonProperty("expression") ObjectExpression<T, R> expression) {
         return new AutoValue_ObjectComposedExpression<>(type, source, expression);
     }
+
+    @Override
+    protected ObjectExpression<S, R> createConverted(ObjectExpression<S, T> newSource, ObjectExpression<T, R> newExpression) {
+        return create(type(), newSource, newExpression);
+    }
 }

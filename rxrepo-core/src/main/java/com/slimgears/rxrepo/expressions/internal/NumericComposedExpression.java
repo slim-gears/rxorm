@@ -18,4 +18,9 @@ public abstract class NumericComposedExpression<S, T, N extends Number & Compara
             @JsonProperty("expression") ObjectExpression<T, N> expression) {
         return new AutoValue_NumericComposedExpression<>(type, source, expression);
     }
+
+    @Override
+    protected ObjectExpression<S, N> createConverted(ObjectExpression<S, T> newSource, ObjectExpression<T, N> newExpression) {
+        return create(type(), newSource, newExpression);
+    }
 }

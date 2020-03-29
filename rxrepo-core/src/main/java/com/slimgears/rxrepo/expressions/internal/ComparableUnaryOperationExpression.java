@@ -17,4 +17,9 @@ public abstract class ComparableUnaryOperationExpression<S, T, V extends Compara
             @JsonProperty("operand") ObjectExpression<S, T> operand) {
         return new AutoValue_ComparableUnaryOperationExpression<>(type, operand);
     }
+
+    @Override
+    protected ObjectExpression<S, V> createConverted(ObjectExpression<S, T> newOperand) {
+        return create(type(), newOperand);
+    }
 }

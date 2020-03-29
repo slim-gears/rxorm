@@ -17,4 +17,9 @@ public abstract class ObjectBinaryOperationExpression<S, T1, T2, V>
             @JsonProperty("right") ObjectExpression<S, T2> right) {
         return new AutoValue_ObjectBinaryOperationExpression<>(type, left, right);
     }
+
+    @Override
+    protected ObjectExpression<S, V> createConverted(ObjectExpression<S, T1> newLeft, ObjectExpression<S, T2> newRight) {
+        return create(type(), newLeft, newRight);
+    }
 }

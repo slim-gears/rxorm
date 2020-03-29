@@ -18,4 +18,9 @@ public abstract class ComparableBinaryOperationExpression<S, T1, T2, V extends C
             @JsonProperty("right") ObjectExpression<S, T2> right) {
         return new AutoValue_ComparableBinaryOperationExpression<>(type, left, right);
     }
+
+    @Override
+    protected ObjectExpression<S, V> createConverted(ObjectExpression<S, T1> newLeft, ObjectExpression<S, T2> newRight) {
+        return create(type(), newLeft, newRight);
+    }
 }

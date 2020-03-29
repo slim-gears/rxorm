@@ -4,9 +4,11 @@ import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.UnaryOperationExpression;
 import com.slimgears.util.generic.MoreStrings;
 
-public abstract class AbstractUnaryOperationExpression<S, T, R> implements UnaryOperationExpression<S, T, R> {
+public abstract class AbstractUnaryOperationExpression<S, T, R>
+        extends AbstractObjectExpression<S, R>
+        implements UnaryOperationExpression<S, T, R> {
     @Override
-    public Reflect<S, R> reflect() {
+    protected Reflect<S, R> createReflect() {
         return new AbstractReflect<S, R>(this) {
             @Override
             public <_T> _T accept(Visitor<_T> visitor) {
@@ -16,12 +18,14 @@ public abstract class AbstractUnaryOperationExpression<S, T, R> implements Unary
             @Override
             public ObjectExpression<S, R> convert(Converter converter) {
                 ObjectExpression<S, T> operand = operand().reflect().convert(converter);
-                return converter.convert(operand != operand()
+                return converter.convert(operand == operand()
                     ? AbstractUnaryOperationExpression.this
-                    : ObjectUnaryOperationExpression.create(type(), operand));
+                    : createConverted(operand));
             }
         };
     }
+
+    protected abstract ObjectExpression<S, R> createConverted(ObjectExpression<S, T> newOperand);
 
     @Override
     public String toString() {

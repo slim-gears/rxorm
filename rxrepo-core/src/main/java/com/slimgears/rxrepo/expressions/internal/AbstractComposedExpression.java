@@ -30,10 +30,12 @@ public abstract class AbstractComposedExpression<S, T, R>
                 return converter.convert (
                     source == source() && expression == AbstractComposedExpression.this.expression()
                     ? AbstractComposedExpression.this
-                    : ObjectComposedExpression.create(type(), source, expression));
+                    : createConverted(source, expression));
             }
         };
     }
+
+    protected abstract ObjectExpression<S, R> createConverted(ObjectExpression<S, T> newSource, ObjectExpression<T, R> newExpression);
 
     @Override
     public String toString() {

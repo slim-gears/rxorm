@@ -18,4 +18,9 @@ public abstract class StringPropertyExpression<S, T>
             @JsonProperty("property") PropertyMeta<T, String> property) {
         return new AutoValue_StringPropertyExpression<>(type, target, property);
     }
+
+    @Override
+    protected ObjectExpression<S, String> createConverted(ObjectExpression<S, T> newTarget) {
+        return create(type(), newTarget, property());
+    }
 }

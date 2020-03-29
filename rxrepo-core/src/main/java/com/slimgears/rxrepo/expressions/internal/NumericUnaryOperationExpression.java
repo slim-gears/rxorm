@@ -17,4 +17,9 @@ public abstract class NumericUnaryOperationExpression<S, T, V extends Number & C
             @JsonProperty("operand") ObjectExpression<S, T> operand) {
         return new AutoValue_NumericUnaryOperationExpression<>(type, operand);
     }
+
+    @Override
+    protected ObjectExpression<S, V> createConverted(ObjectExpression<S, T> newOperand) {
+        return create(type(), newOperand);
+    }
 }

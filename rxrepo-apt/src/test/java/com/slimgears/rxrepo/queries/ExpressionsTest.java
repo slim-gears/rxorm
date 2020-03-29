@@ -528,4 +528,15 @@ public class ExpressionsTest {
         Assert.assertTrue(compiledComposedPredicate.test(testEntity1));
         Assert.assertFalse(compiledComposedPredicate.test(testEntity2));
     }
+
+    @Test
+    public void testComposeExpressions() {
+        Assert.assertEquals(TestEntity.$.refEntity.text.eq(""), Expressions.compose(TestEntity.$.refEntity, TestRefEntity.$.text.eq("")));
+        Assert.assertEquals(TestEntity.$.refEntity.text.isNull(), Expressions.compose(TestEntity.$.refEntity, TestRefEntity.$.text.isNull()));
+        Assert.assertEquals(TestEntity.$.refEntity.text.eq("").not(), Expressions.compose(TestEntity.$.refEntity, TestRefEntity.$.text.eq("").not()));
+        Assert.assertEquals(
+                TestEntity.$.refEntity.id.notEq(1).and(TestEntity.$.refEntity.text.betweenExclusive("1", "2")),
+                Expressions.compose(
+                        TestEntity.$.refEntity, TestRefEntity.$.id.notEq(1).and(TestRefEntity.$.text.betweenExclusive("1", "2"))));
+    }
 }

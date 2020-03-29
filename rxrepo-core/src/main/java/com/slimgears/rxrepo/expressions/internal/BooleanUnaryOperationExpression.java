@@ -17,4 +17,9 @@ public abstract class BooleanUnaryOperationExpression<S, V>
             @JsonProperty("operand") ObjectExpression<S, V> operand) {
         return new AutoValue_BooleanUnaryOperationExpression<>(type, operand);
     }
+
+    @Override
+    protected ObjectExpression<S, Boolean> createConverted(ObjectExpression<S, V> newOperand) {
+        return create(type(), newOperand);
+    }
 }

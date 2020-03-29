@@ -18,4 +18,9 @@ public abstract class NumericPropertyExpression<S, T, V extends Number & Compara
             @JsonProperty("property") PropertyMeta<T, V> property) {
         return new AutoValue_NumericPropertyExpression<>(type, target, property);
     }
+
+    @Override
+    protected ObjectExpression<S, V> createConverted(ObjectExpression<S, T> newTarget) {
+        return create(type(), newTarget, property());
+    }
 }

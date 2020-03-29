@@ -43,10 +43,12 @@ public abstract class AbstractPropertyExpression<S, T, V>
                 ObjectExpression<S, T> target = target().reflect().convert(converter);
                 return converter.convert(target == target()
                     ? AbstractPropertyExpression.this
-                    : ObjectPropertyExpression.create(type(), target, property()));
+                    : createConverted(target));
             }
         };
     }
+
+    protected abstract ObjectExpression<S, V> createConverted(ObjectExpression<S, T> newTarget);
 
     @Override
     public String toString() {

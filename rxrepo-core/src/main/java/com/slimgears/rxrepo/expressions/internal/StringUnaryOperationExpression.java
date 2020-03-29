@@ -17,4 +17,9 @@ public abstract class StringUnaryOperationExpression<S, T>
             @JsonProperty("operand") ObjectExpression<S, T> operand) {
         return new AutoValue_StringUnaryOperationExpression<>(type, operand);
     }
+
+    @Override
+    protected ObjectExpression<S, String> createConverted(ObjectExpression<S, T> newOperand) {
+        return create(type(), newOperand);
+    }
 }

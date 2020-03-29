@@ -22,10 +22,12 @@ public abstract class AbstractBinaryOperationExpression<S, T1, T2, R>
                 ObjectExpression<S, T2> right = right().reflect().convert(converter);
                 return converter.convert((left == left() && right == right())
                     ? AbstractBinaryOperationExpression.this
-                    : ObjectBinaryOperationExpression.create(type(), left, right));
+                    : createConverted(left, right));
             }
         };
     }
+
+    protected abstract ObjectExpression<S, R> createConverted(ObjectExpression<S, T1> newLeft, ObjectExpression<S, T2> newRight);
 
     @Override
     public String toString() {

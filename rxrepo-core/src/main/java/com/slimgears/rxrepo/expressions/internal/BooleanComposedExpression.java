@@ -18,4 +18,9 @@ public abstract class BooleanComposedExpression<S, T>
             @JsonProperty("expression") ObjectExpression<T, Boolean> expression) {
         return new AutoValue_BooleanComposedExpression<>(type, source, expression);
     }
+
+    @Override
+    protected ObjectExpression<S, Boolean> createConverted(ObjectExpression<S, T> newSource, ObjectExpression<T, Boolean> newExpression) {
+        return create(type(), newSource, newExpression);
+    }
 }

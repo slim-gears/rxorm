@@ -18,4 +18,9 @@ public abstract class ComparablePropertyExpression<S, T, V extends Comparable<V>
             @JsonProperty("property") PropertyMeta<T, V> property) {
         return new AutoValue_ComparablePropertyExpression<>(type, target, property);
     }
+
+    @Override
+    protected ObjectExpression<S, V> createConverted(ObjectExpression<S, T> newTarget) {
+        return create(type(), newTarget, property());
+    }
 }

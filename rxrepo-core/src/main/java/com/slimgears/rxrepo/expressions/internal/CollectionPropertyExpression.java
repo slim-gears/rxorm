@@ -20,4 +20,9 @@ public abstract class CollectionPropertyExpression<S, T, E, C extends Collection
             @JsonProperty("property") PropertyMeta<T, C> property) {
         return new AutoValue_CollectionPropertyExpression<>(type, target, property);
     }
+
+    @Override
+    protected ObjectExpression<S, C> createConverted(ObjectExpression<S, T> newTarget) {
+        return create(type(), newTarget, property());
+    }
 }

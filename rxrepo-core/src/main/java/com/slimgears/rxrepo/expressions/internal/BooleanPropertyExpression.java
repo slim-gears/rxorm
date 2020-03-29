@@ -18,4 +18,9 @@ public abstract class BooleanPropertyExpression<S, T>
             @JsonProperty("property") PropertyMeta<T, Boolean> property) {
         return new AutoValue_BooleanPropertyExpression<>(type, target, property);
     }
+
+    @Override
+    protected ObjectExpression<S, Boolean> createConverted(ObjectExpression<S, T> newTarget) {
+        return create(type(), newTarget, property());
+    }
 }

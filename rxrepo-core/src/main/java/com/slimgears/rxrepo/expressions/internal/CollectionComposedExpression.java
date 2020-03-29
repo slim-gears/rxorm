@@ -20,4 +20,9 @@ public abstract class CollectionComposedExpression<S, T, R, C extends Collection
             @JsonProperty("expression") ObjectExpression<T, C> expression) {
         return new AutoValue_CollectionComposedExpression<>(type, source, expression);
     }
+
+    @Override
+    protected ObjectExpression<S, C> createConverted(ObjectExpression<S, T> newSource, ObjectExpression<T, C> newExpression) {
+        return create(type(), newSource, newExpression);
+    }
 }
