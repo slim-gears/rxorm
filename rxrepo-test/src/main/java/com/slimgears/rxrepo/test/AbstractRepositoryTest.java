@@ -42,7 +42,7 @@ import static java.util.Objects.requireNonNull;
 public abstract class AbstractRepositoryTest {
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
-    @Rule public final Timeout timeout = new Timeout(1200, TimeUnit.SECONDS);
+    @Rule public final Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
 
     private Repository repository;
     protected EntitySet<UniqueId, Product> products;
@@ -1366,6 +1366,7 @@ public abstract class AbstractRepositoryTest {
 
     @Test
     @UseLogLevel(LogLevel.DEBUG)
+    @Ignore
     public void testUpdatingDeletedObjectShouldNotAddObjectIntoRepo() throws InterruptedException {
 
         EntitySet<UniqueId, Product> entities = repository.entities(Product.metaClass);
@@ -1565,9 +1566,13 @@ public abstract class AbstractRepositoryTest {
         final int productCount = 2000;
         final int inventoryCount = productCount / 10;
 
+        AtomicLong lastSeqNum = new AtomicLong();
+
         TestObserver<Notification<Product>> productTestObserver = products.observe(Product.$.name, Product.$.inventory.name)
                 .doOnNext(n -> {
                     if (n.isCreate()) {
+                        Assert.assertTrue(n.sequenceNumber() > lastSeqNum.get());
+                        lastSeqNum.set(n.sequenceNumber());
                         knownProducts.put(n.newValue().key(), n.newValue());
                     } else if (n.isModify() || n.isDelete()) {
                         Assert.assertTrue(knownProducts.containsKey(n.oldValue().key()));

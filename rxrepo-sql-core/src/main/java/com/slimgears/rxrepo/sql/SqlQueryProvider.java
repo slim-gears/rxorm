@@ -181,7 +181,6 @@ public class SqlQueryProvider implements QueryProvider {
                 .createOrUpdate(query.metaClass())
                 .andThen(liveQueryForStatement(statement))
                 .map(notification -> notification.<T>map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType))))
-                //.doOnNext(n -> log.info("{} Received sequence number: {}", query.metaClass().simpleName(), n.sequenceNumber()))
                 .observeOn(scheduler);
     }
 

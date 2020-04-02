@@ -8,15 +8,13 @@ import com.slimgears.nanometer.Metrics;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.RepositoryConfigModelBuilder;
-import com.slimgears.rxrepo.query.decorator.CacheQueryProviderDecorator;
-import com.slimgears.rxrepo.query.decorator.LiveQueryProviderDecorator;
-import com.slimgears.rxrepo.query.decorator.ObserveOnSchedulingQueryProviderDecorator;
-import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
+import com.slimgears.rxrepo.query.decorator.*;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.sql.DefaultSqlStatementProvider;
 import com.slimgears.rxrepo.sql.SqlQueryProvider;
 import com.slimgears.rxrepo.sql.SqlServiceFactory;
 import com.slimgears.rxrepo.util.CachedRoundRobinSchedulingProvider;
+import com.slimgears.rxrepo.util.SemaphoreLockProvider;
 import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.stream.Lazy;
 import org.slf4j.Logger;
@@ -194,6 +192,7 @@ public class OrientDbRepository {
 
             return serviceFactoryBuilder(dbSessionProvider)
                     .decorate(
+                            LockQueryProviderDecorator.create(SemaphoreLockProvider.create()),
                             LiveQueryProviderDecorator.create(),
                             ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider.get()),
                             batchSupport ? OrientDbUpdateReferencesFirstQueryProviderDecorator.create() : UpdateReferencesFirstQueryProviderDecorator.create(),

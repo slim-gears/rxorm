@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.sql;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfigModel;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.util.LockProvider;
 import com.slimgears.rxrepo.util.SchedulingProvider;
 
 import java.util.function.Function;

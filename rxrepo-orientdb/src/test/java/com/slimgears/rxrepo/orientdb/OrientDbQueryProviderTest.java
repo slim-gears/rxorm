@@ -118,9 +118,9 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
                 .assertNoErrors();
     }
 
-//    @Test
-//    @UseLogLevel(LogLevel.INFO)
-//    public void testAddProductThenUpdateInventoryInOrder() throws InterruptedException {
-//        super.testAddProductThenUpdateInventoryInOrder();
-//    }
+    @Test
+    @UseLogLevel(LogLevel.INFO)
+    public void testAddProductThenUpdateInventoryInOrder() throws InterruptedException {
+        super.testAddProductThenUpdateInventoryInOrder();
+    }
 }
