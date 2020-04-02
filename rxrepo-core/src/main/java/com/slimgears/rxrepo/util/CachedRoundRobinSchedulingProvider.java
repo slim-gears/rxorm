@@ -13,78 +13,81 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.Executor;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 public class CachedRoundRobinSchedulingProvider implements SchedulingProvider {
     private final static Logger log = LoggerFactory.getLogger(CachedRoundRobinSchedulingProvider.class);
     private final static MetricCollector metrics = Metrics.collector(CachedRoundRobinSchedulingProvider.class);
     private final int maxExecutors;
-    private final Duration maxIdleTime;
+    private final Supplier<Executor> executorSupplier;
     private final List<Executor> executors = new ArrayList<>();
     private final AtomicInteger nextQueueIndex = new AtomicInteger();
-    private final Map<Executor, AtomicInteger> executorToQueueSizeMap = new HashMap<>();
-    private final Map<Executor, Integer> executorToIndexMap = new HashMap<>();
-    private final ScopedInstance<Executor> currentScheduler = ScopedInstance.create();
+    private final ScopedInstance<Executor> currentExecutor = ScopedInstance.create();
 
-    private CachedRoundRobinSchedulingProvider(int maxExecutors, Duration maxIdleTime) {
+    private CachedRoundRobinSchedulingProvider(int maxExecutors, Supplier<Executor> executorSupplier) {
         this.maxExecutors = maxExecutors;
-        this.maxIdleTime = maxIdleTime;
+        this.executorSupplier = executorSupplier;
+    }
+
+    public static SchedulingProvider create(int maxExecutors, Supplier<Executor> executorSupplier) {
+        return new CachedRoundRobinSchedulingProvider(maxExecutors, executorSupplier);
     }
 
     public static SchedulingProvider create(int maxExecutors, Duration maxIdleTime) {
-        return new CachedRoundRobinSchedulingProvider(maxExecutors, maxIdleTime);
+        return new CachedRoundRobinSchedulingProvider(maxExecutors, () ->
+                new ThreadPoolExecutor(
+                        0, 1,
+                        maxIdleTime.toMillis(), TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()));
     }
 
     protected Executor createExecutor() {
-        Executor executor = new ThreadPoolExecutor(0, 1,
-                maxIdleTime.toMillis(), TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>());
-        executorToQueueSizeMap.put(executor, new AtomicInteger());
-        int queueIndex = executorToIndexMap.size();
-        log.debug("Adding queue #{}", queueIndex);
-        executorToIndexMap.put(executor, queueIndex);
-        return executor;
+        return executorSupplier.get();
     }
 
     protected Executor getExecutor() {
         if (executors.size() < maxExecutors) {
-            Executor executor = createExecutor();
+            Executor executor = withMetrics(createExecutor(), executors.size());
             executors.add(executor);
             return executor;
         }
         return executors.get(nextQueueIndex.getAndUpdate(index -> (index + 1) % executors.size()));
     }
 
-    @Override
-    public <T> ObservableTransformer<T, T> applyScope() {
-        return src -> src.subscribeOn(Schedulers.from(runnable -> currentScheduler.withScope(getExecutor(), runnable)));
+    private Executor withMetrics(Executor executor, int queueIndex) {
+        AtomicInteger queueSize = new AtomicInteger();
+        MetricCollector.Gauge gauge = metrics.gauge("queueSize", MetricTag.of("#" + queueIndex));
+        return runnable -> {
+            int sizeBefore = queueSize.incrementAndGet();
+            gauge.record(sizeBefore);
+            log.debug("Added task to queue #{}, new size: {}", queueIndex, sizeBefore);
+            executor.execute(() -> {
+                int sizeAfter = queueSize.decrementAndGet();
+                gauge.record(sizeAfter);
+                log.debug("Task from to queue #{} completed, new size: {}", queueIndex, sizeAfter);
+                runnable.run();
+            });
+        };
     }
 
     @Override
-    public <T> ObservableTransformer<T, T> applyScheduler() {
-        return src -> Observable.defer(() -> {
-            Executor executor = Optional.ofNullable(currentScheduler.current())
-                    .orElseGet(this::getExecutor);
+    public <T> T scope(Callable<T> runnable) {
+        if (currentExecutor.current() != null) {
+            try {
+                return runnable.call();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            return currentExecutor.withScope(getExecutor(), runnable);
+        }
+    }
 
-            AtomicInteger queueSize = executorToQueueSizeMap.get(executor);
-            int queueIndex = executorToIndexMap.get(executor);
-            MetricCollector.Gauge gauge = metrics.gauge("queueSize", MetricTag.of("#" + queueIndex));
-            return src
-                    .doOnNext(val -> {
-                        int newSize = queueSize.incrementAndGet();
-                        gauge.record(newSize);
-                        log.debug("Added task to queue #{}, new size: {}", queueIndex, newSize);
-                    })
-                    .observeOn(Schedulers.from(executor))
-                    .doOnNext(val -> {
-                        int newSize = queueSize.decrementAndGet();
-                        gauge.record(newSize);
-                        log.debug("Task from to queue #{} completed, new size: {}", queueIndex, newSize);
-                    });
-        });
+    @Override
+    public Scheduler scheduler() {
+        Executor executor = Optional.ofNullable(currentExecutor.current()).orElseGet(this::getExecutor);
+        return Schedulers.from(executor);
     }
 }

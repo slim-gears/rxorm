@@ -21,7 +21,9 @@ import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import static com.slimgears.util.generic.LazyString.lazy;
@@ -35,6 +37,7 @@ public class SqlQueryProvider implements QueryProvider {
     protected final SchemaProvider schemaProvider;
     private final ReferenceResolver referenceResolver;
     private final SchedulingProvider schedulingProvider;
+    private final Map<SqlStatement, Observable<Notification<PropertyResolver>>> liveQueriesCache = new ConcurrentHashMap<>();
 
     protected SqlQueryProvider(SqlStatementProvider statementProvider,
                                SqlStatementExecutor statementExecutor,
@@ -172,10 +175,22 @@ public class SqlQueryProvider implements QueryProvider {
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
-        return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
-                .executeLiveQuery(statementProvider.forQuery(query.toBuilder().properties(ImmutableSet.of()).build()))
-                .compose(schedulingProvider.applyScheduler())
-                .map(notification -> notification.map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType)))));
+        Scheduler scheduler = schedulingProvider.scheduler();
+        SqlStatement statement = statementProvider.forQuery(query.toBuilder().properties(ImmutableSet.of()).build());
+        return schemaProvider
+                .createOrUpdate(query.metaClass())
+                .andThen(liveQueryForStatement(statement))
+                .map(notification -> notification.<T>map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType))))
+                //.doOnNext(n -> log.info("{} Received sequence number: {}", query.metaClass().simpleName(), n.sequenceNumber()))
+                .observeOn(scheduler);
+    }
+
+    private Observable<Notification<PropertyResolver>> liveQueryForStatement(SqlStatement statement) {
+        return liveQueriesCache.computeIfAbsent(statement, s -> statementExecutor
+                .executeLiveQuery(s)
+                //.doOnNext(n -> log.info("Received sequence number: {}", n.sequenceNumber()))
+                .share()
+                .doFinally(() -> liveQueriesCache.remove(s)));
     }
 
     @Override

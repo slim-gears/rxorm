@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.sql;
 
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -40,6 +41,18 @@ public interface SqlStatement {
             @Override
             public Object[] args() {
                 return args;
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(statement, Objects.hash(args));
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                return obj instanceof SqlStatement &&
+                    Objects.equals(statement, ((SqlStatement) obj).statement()) &&
+                    Arrays.equals(args, ((SqlStatement) obj).args());
             }
         };
     }

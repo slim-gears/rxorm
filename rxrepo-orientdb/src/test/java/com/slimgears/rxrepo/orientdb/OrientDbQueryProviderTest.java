@@ -4,6 +4,7 @@ import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.decorator.SubscribeOnSchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.test.AbstractRepositoryTest;
 import com.slimgears.rxrepo.test.Products;
+import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.generic.MoreStrings;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
@@ -53,7 +54,7 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
     }
 
     @Override
-    protected Repository createRepository() {
+    protected Repository createRepository(SchedulingProvider schedulingProvider) {
         String name = MoreStrings.format(dbName, dbType, testNameRule.getMethodName().replaceAll("\\[\\d+]", ""));
         Scheduler updateScheduler = Schedulers.from(Executors.newFixedThreadPool(5));
         Scheduler queryScheduler = Schedulers.from(Executors.newFixedThreadPool(5));
@@ -63,6 +64,7 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
                 .debounceTimeoutMillis(1000)
                 .type(dbType)
                 .name(name)
+                .schedulingProvider(schedulingProvider)
                 .decorate(SubscribeOnSchedulingQueryProviderDecorator.create(updateScheduler, queryScheduler, Schedulers.from(Runnable::run)))
                 .enableBatchSupport()
                 .maxConnections(10)
@@ -115,4 +117,10 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
                 .assertValueCount(2000)
                 .assertNoErrors();
     }
+
+//    @Test
+//    @UseLogLevel(LogLevel.INFO)
+//    public void testAddProductThenUpdateInventoryInOrder() throws InterruptedException {
+//        super.testAddProductThenUpdateInventoryInOrder();
+//    }
 }

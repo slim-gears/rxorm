@@ -34,7 +34,8 @@ class OrientDbSchemaProvider implements SchemaProvider {
             OSequenceLibrary sequenceLibrary = session.getMetadata().getSequenceLibrary();
             Optional
                     .ofNullable(sequenceLibrary.getSequence(sequenceName))
-                    .orElseGet(() -> sequenceLibrary.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, new OSequence.CreateParams()));
+                    .orElseGet(() -> sequenceLibrary.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, new OSequence.CreateParams()))
+                    .save();
             emitter.onComplete();
         })).cache();
     }

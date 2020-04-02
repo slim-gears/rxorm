@@ -7,6 +7,8 @@ import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.query.*;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
+import com.slimgears.rxrepo.util.CachedRoundRobinSchedulingProvider;
+import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.generic.MoreStrings;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
@@ -15,7 +17,6 @@ import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
-import io.reactivex.disposables.Disposable;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.CompletableSubject;
 import org.junit.*;
@@ -25,6 +26,7 @@ import org.junit.rules.Timeout;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,16 +42,18 @@ import static java.util.Objects.requireNonNull;
 public abstract class AbstractRepositoryTest {
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
-    @Rule public final Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
+    @Rule public final Timeout timeout = new Timeout(1200, TimeUnit.SECONDS);
 
     private Repository repository;
     protected EntitySet<UniqueId, Product> products;
+    protected EntitySet<UniqueId, Inventory> inventories;
 
 
     @Before
     public void setUp() {
-        this.repository = createRepository();
+        this.repository = createRepository(CachedRoundRobinSchedulingProvider.create(1, Duration.ofSeconds(60)));
         this.products = repository.entities(Product.metaClass);
+        this.inventories = repository.entities(Inventory.metaClass);
         System.out.println("Starting test: " + testNameRule.getMethodName());
     }
 
@@ -59,7 +63,7 @@ public abstract class AbstractRepositoryTest {
         this.repository.clear().doOnComplete(this.repository::close).blockingAwait();
     }
 
-    protected abstract Repository createRepository();
+    protected abstract Repository createRepository(SchedulingProvider schedulingProvider);
 
     @Test
     @Ignore
@@ -1521,5 +1525,86 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(100, n -> !Objects.equals(n.oldValue().inventory().name(), n.newValue().inventory().name()))
                 .assertValueAt(100, n -> Objects.equals("Inventory 1", n.oldValue().inventory().name()))
                 .assertValueAt(100, n -> Objects.equals("Inventory 1 - updated", n.newValue().inventory().name()));
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    @Test
+    @UseLogLevel(LogLevel.TRACE)
+    public void testReferencePropertiesLiveQuerySingleProduct() {
+        final int count = 3;
+        List<Product> productList = ImmutableList.copyOf(Products.createMany(count));
+        products.update(productList).blockingAwait();
+        TestObserver<Notification<Product>> testObserver = products.queryAndObserve(Product.$.name, Product.$.inventory.name)
+                .doOnNext(System.out::println)
+                .test();
+
+        testObserver.awaitCount(count)
+                .assertValueCount(count);
+
+        repository.entities(Inventory.metaClass)
+                .update(Inventory.create(UniqueId.inventoryId(0), "Inventory 0 - updated", null))
+                .ignoreElement()
+                .blockingAwait();
+
+        testObserver.awaitCount(count * 2)
+                .assertValueCount(count * 2)
+                .assertValueAt(count, NotificationPrototype::isModify)
+                .assertValueAt(count, n -> n.oldValue().inventory() != null && n.newValue().inventory() != null)
+                .assertValueAt(count, n -> !Objects.equals(n.oldValue().inventory(), n.newValue().inventory()))
+                .assertValueAt(count, n -> !Objects.equals(n.oldValue().inventory().name(), n.newValue().inventory().name()))
+                .assertValueAt(count, n -> Objects.equals("Inventory 0", n.oldValue().inventory().name()))
+                .assertValueAt(count, n -> Objects.equals("Inventory 0 - updated", n.newValue().inventory().name()));
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    @Test
+    @Ignore
+    @UseLogLevel(LogLevel.TRACE)
+    public void testAddProductThenUpdateInventoryInOrder() throws InterruptedException {
+        Map<UniqueId, Product> knownProducts = new ConcurrentHashMap<>();
+        final int productCount = 2000;
+        final int inventoryCount = productCount / 10;
+
+        TestObserver<Notification<Product>> productTestObserver = products.observe(Product.$.name, Product.$.inventory.name)
+                .doOnNext(n -> {
+                    if (n.isCreate()) {
+                        knownProducts.put(n.newValue().key(), n.newValue());
+                    } else if (n.isModify() || n.isDelete()) {
+                        Assert.assertTrue(knownProducts.containsKey(n.oldValue().key()));
+                    }
+                })
+                .filter(n -> n.isCreate() || n.isDelete())
+                .take(productCount * 2)
+                .test();
+
+        Observable.fromIterable(Products.createMany(productCount))
+                .flatMapSingle(products::update)
+                .ignoreElements()
+                .mergeWith(Observable.range(0, inventoryCount)
+                        .flatMapMaybe(i -> inventories.update(UniqueId.inventoryId(i), maybeInv -> maybeInv
+                                .map(inv -> inv.toBuilder()
+                                        .name(inv.name() + " - updated")
+                                        .build())))
+                        .ignoreElements())
+                .blockingAwait();
+
+        products.findAll()
+                .flatMapCompletable(p -> products.delete(p.key()))
+                .blockingAwait();
+
+        productTestObserver
+                .await()
+                .assertNoErrors();
+    }
+
+    @Test
+    public void testInsertAndCheckSequenceNumber() {
+        TestObserver<Long> sequenceTester = inventories.queryAndObserve()
+                .map(Notification::sequenceNumber)
+                .test();
+
+        //inventories.update(Inventory.create(UniqueId.inventoryId(1))).ignoreElement().blockingAwait();
+        products.update(Products.createOne(1)).ignoreElement().blockingAwait();
+        sequenceTester.assertOf(countExactly(1)).assertValue(v -> v > 0);
     }
 }

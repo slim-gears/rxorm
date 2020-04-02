@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoCloseable {
+public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S> {
     private final static Logger log = LoggerFactory.getLogger(MemoryEntityQueryProvider.class);
     private final AtomicLong sequenceNumber;
     private final MetaClassWithKey<K, S> metaClass;
@@ -40,8 +40,6 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     private final Map<K, ObjectReference<S>> objects = new ConcurrentHashMap<>();
     private final Subject<Notification<S>> notificationSubject = PublishSubject.create();
     private final Lazy<List<PropertyMeta<S, ?>>> referenceProperties;
-    private final Lazy<ExecutorService> notificationExecutor = Lazy.of(Executors::newSingleThreadExecutor);
-    private final Lazy<Scheduler> notificationScheduler = Lazy.of(() -> Schedulers.from(notificationExecutor.get()));
 
     private static class ObjectReference<S> {
         private final AtomicReference<S> reference = new AtomicReference<>();
@@ -50,12 +48,12 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
 
         private ObjectReference(AtomicLong sequenceNum) {
             this.sequenceNum = sequenceNum;
-            this.modificationSequenceNum = new AtomicLong(sequenceNum.get());
+            this.modificationSequenceNum = new AtomicLong(sequenceNum.incrementAndGet());
         }
 
         public boolean compareAndSet(S expectedObj, S newObj) {
             if (reference.compareAndSet(expectedObj, newObj)) {
-                modificationSequenceNum.set(sequenceNum.get());
+                modificationSequenceNum.set(sequenceNum.incrementAndGet());
                 return true;
             }
             return false;
@@ -96,24 +94,25 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
             sequenceNumber.incrementAndGet();
             Supplier<ObjectReference<S>> referenceResolver = () -> objects.computeIfAbsent(key, k -> new ObjectReference<>(sequenceNumber));
             S oldValue = referenceResolver.get().get();
-            return entityUpdater
+                        return entityUpdater
                     .apply(Optional.ofNullable(referenceResolver.get().get()).map(Maybe::just).orElseGet(Maybe::empty))
                     .flatMap(e -> referenceResolver.get().compareAndSet(oldValue, e)
                             ? (e != null ? Maybe.just(e): Maybe.empty())
-                            : Maybe.error(new ConcurrentModificationException("Concurrent modification of " + metaClass.simpleName() + " detected")))
-                    .doOnSuccess(e -> {
-                        if (!Objects.equals(oldValue, e)) {
+                                        : Maybe.error(new ConcurrentModificationException("Concurrent modification of " + metaClass.simpleName() + " detected")))
+                                .doOnSuccess(e -> {
+                                    if (!Objects.equals(oldValue, e)) {
                             Notification<S> notification = Notification.ofModified(oldValue, e, sequenceNumber.get());
-                            notificationSubject.onNext(notification);
-                            log.debug("Published notification: {}", notification);
-                        }
-                    })
-                    .map(e -> () -> e);
-        });
+                                        notificationSubject.onNext(notification);
+                                        log.debug("Published notification: {}", notification);
+                                    }
+                                })
+                                .map(e -> () -> e);
+                    });
     }
 
     @Override
     public <T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
+        log.trace("Querying {}", query);
         Predicate<S> predicate = Expressions.compileRxPredicate(query.predicate());
         java.util.function.Function<S, T> mapper = Expressions.compile(query.mapping());
         return Observable.fromIterable(objects.values())
@@ -202,14 +201,12 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     @Override
     public <T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         return notificationSubject
-                .doOnSubscribe(d -> log.debug("Subscribed!!!"))
-                .doOnNext(n -> log.debug("Notification: {}", n))
-                .observeOn(notificationScheduler.get())
                 .doOnNext(n -> Expressions.sequenceNumber().set(n.sequenceNumber()))
                 .compose(src -> Optional.ofNullable(query.mapping())
                         .map(Expressions::compile)
                         .map(m -> src.map(nn -> nn.map(m)))
-                        .orElse((Observable<Notification<T>>)(Observable)src));
+                        .orElse((Observable<Notification<T>>)(Observable)src))
+                .doOnNext(n -> log.debug("Notification --> {}", n));
     }
 
     @Override
@@ -298,7 +295,6 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
 
     @Override
     public void close() {
-        notificationScheduler.ifExists(Scheduler::shutdown);
-        notificationExecutor.ifExists(ExecutorService::shutdown);
+
     }
 }

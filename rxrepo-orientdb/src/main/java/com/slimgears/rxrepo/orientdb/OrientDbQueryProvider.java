@@ -6,6 +6,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Table;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
+import com.orientechnologies.orient.core.metadata.sequence.OSequence;
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
@@ -27,6 +28,7 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 public class OrientDbQueryProvider extends SqlQueryProvider {
@@ -67,27 +69,27 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
         return schemaProvider.createOrUpdate(metaClass)
                 .andThen(Observable.fromIterable(entities)
                         .buffer(bufferSize)
-                        .concatMapCompletable(buffer -> Completable.fromAction(() -> createAndSaveElements(buffer))))
+                        .concatMapCompletable(buffer -> Completable.fromAction(() -> createAndSaveElements(metaClass, buffer))))
                 .doOnComplete(() -> log.debug("Total insert time: {}s", stopwatch.elapsed(TimeUnit.SECONDS)));
     }
 
-    private <S> void createAndSaveElements(Iterable<S> entities) {
+    private <S> void createAndSaveElements(MetaClass<S> metaClass, Iterable<S> entities) {
         Table<MetaClass<?>, Object, OElement> queryCache = HashBasedTable.create();
+        AtomicLong seqNum = new AtomicLong();
         dbSessionProvider.withSession(dbSession -> {
             try {
-                List<OElement> oElements = Streams.fromIterable(entities)
-                        .map(entity -> toOrientDbObject(entity, queryCache, dbSession))
-                        .collect(Collectors.toList());
                 dbSession.begin();
-                long sequenceNum = dbSession.getMetadata().getSequenceLibrary().getSequence(OrientDbSchemaProvider.sequenceName).next();
-                oElements.stream()
-                        .peek(d -> d.setProperty(sequenceNumField, sequenceNum))
+                OSequence sequence = dbSession.getMetadata().getSequenceLibrary().getSequence(OrientDbSchemaProvider.sequenceName);
+                seqNum.set(sequence.next());
+                Streams.fromIterable(entities)
+                        .map(entity -> toOrientDbObject(entity, queryCache, dbSession, seqNum.get()))
                         .forEach(OElement::save);
                 dbSession.commit();
             } catch (OConcurrentModificationException | ORecordDuplicatedException e) {
                 dbSession.rollback();
                 throw new ConcurrentModificationException(e.getMessage(), e);
             }
+            //log.info("{} Written sequence num: {}", metaClass.simpleName(), seqNum.get());
         });
     }
 
@@ -95,16 +97,26 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
         return (OElement)converter.toOrientDbObject(entity);
     }
 
-    private <S> OElement toOrientDbObject(S entity, Table<MetaClass<?>, Object, OElement> queryCache, ODatabaseDocument dbSession) {
+    private <S> OElement toOrientDbObject(S entity, Table<MetaClass<?>, Object, OElement> queryCache, ODatabaseDocument dbSession, long seqNum) {
         return toOrientDbObject(entity, OrientDbObjectConverter.create(
-                meta -> dbSession.newElement(schemaProvider.tableName(meta)),
+                meta -> {
+                    OElement element = dbSession.newElement(schemaProvider.tableName(meta));
+                    element.setProperty(sequenceNumField, seqNum);
+                    return element;
+                },
                 (converter, hasMetaClass) -> {
                     Object key = keyOf(hasMetaClass);
                     MetaClass<?> metaClass = hasMetaClass.metaClass();
                     OElement oElement = Optionals.or(
                             () -> Optional.ofNullable(queryCache.get(metaClass, key)),
                             () -> queryDocument(hasMetaClass, queryCache, dbSession),
-                            () -> Optional.ofNullable(converter.toOrientDbObject(hasMetaClass)).map(OElement.class::cast))
+                            () -> Optional
+                                    .ofNullable(converter.toOrientDbObject(hasMetaClass))
+                                    .map(OElement.class::cast)
+                                    .map(element -> {
+                                        element.setProperty(sequenceNumField, seqNum);
+                                        return element;
+                                    }))
                             .orElse(null);
                     if (oElement != null) {
                         queryCache.put(metaClass, key, oElement);

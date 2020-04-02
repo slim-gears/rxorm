@@ -21,19 +21,16 @@ public class ObserveOnSchedulingQueryProviderDecorator extends AbstractQueryProv
 
     @Override
     public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
-        return super.queryAndObserve(queryInfo, observeInfo)
-                .compose(schedulingProvider.applyScope());
+        return schedulingProvider.scope(() -> super.queryAndObserve(queryInfo, observeInfo));
     }
 
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
-        return super.liveQuery(query)
-                .compose(schedulingProvider.applyScope());
+        return schedulingProvider.scope(() -> super.liveQuery(query));
     }
 
     @Override
     public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return super.liveAggregate(query, aggregator)
-                .compose(schedulingProvider.applyScope());
+        return schedulingProvider.scope(() -> super.liveAggregate(query, aggregator));
     }
 }

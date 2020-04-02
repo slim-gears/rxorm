@@ -283,10 +283,13 @@ public class PropertyExpressions {
                 .stream();
     }
 
+    @SuppressWarnings("unchecked")
     public static <S, T> ImmutableSet<PropertyExpression<S, ?, ?>> unmapProperties(ImmutableSet<PropertyExpression<T, ?, ?>> properties, ObjectExpression<S, T> mapping) {
-        return Optional.ofNullable(properties)
-                .<ImmutableSet<PropertyExpression<S, ?, ?>>>map(pp -> pp.stream().map(p -> unmapProperty(p, mapping)).collect(ImmutableSet.toImmutableSet()))
-                .orElse(null);
+        return mapping != null
+                ? Optional.ofNullable(properties)
+                        .<ImmutableSet<PropertyExpression<S, ?, ?>>>map(pp -> pp.stream().map(p -> unmapProperty(p, mapping)).collect(ImmutableSet.toImmutableSet()))
+                        .orElse(null)
+                : (ImmutableSet<PropertyExpression<S, ?, ?>>)(ImmutableSet<?>)properties;
     }
 
     public static boolean isReference(PropertyExpression<?, ?, ?> propertyExpression) {
