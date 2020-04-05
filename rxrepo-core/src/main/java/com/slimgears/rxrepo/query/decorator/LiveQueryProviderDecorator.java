@@ -136,7 +136,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
 
         BooleanExpression<S> seqNumPredicate = Optional.ofNullable(sequenceNum)
                 .<BooleanExpression<S>>map(sn -> NumericUnaryOperationExpression.<S, T, Long>create(Expression.Type.SequenceNumber, ObjectExpression.objectArg(metaClass.asType()))
-                        .lessOrEqual(sn))
+                        .lessThan(sn))
                 .map(p -> BooleanExpression.and(referencePredicate, p))
                 .orElse(referencePredicate);
 
