@@ -9,18 +9,16 @@ import com.slimgears.rxrepo.query.Notifications;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfos;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.util.PredicateBuilder;
 import com.slimgears.rxrepo.util.PropertyExpressions;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.autovalue.annotations.MetaBuilder;
-import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.autovalue.annotations.MetaClasses;
+import com.slimgears.util.autovalue.annotations.*;
+import com.slimgears.util.stream.Optionals;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
 
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -111,7 +109,14 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                         .<K1, S1, S1>builder()
                         .metaClass(query.metaClass())
                         .properties(PropertyExpressions.includeMandatoryProperties(query.objectType(), query.properties()))
-                        .predicate(combineWithReferenceId(query.predicate(), n, referenceProperty, metaClassWithKey, lastCreatedSequenceNumber))
+                        .predicate(PredicateBuilder.<S1>create()
+                                .and(query.predicate())
+                                .and(matchReferenceId(n.oldValue(), referenceProperty, metaClassWithKey))
+                                .and(matchSequenceNumber(query.metaClass(), Optionals.or(
+                                        () -> Optional.ofNullable(lastCreatedSequenceNumber.get()),
+                                        () -> Optional.ofNullable(n.sequenceNumber()))
+                                        .orElse(null)))
+                                .build())
                         .build())
                         .map(Notification::newValue)
                         .map(obj -> {
@@ -125,24 +130,18 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                         .blockingIterable());
     }
 
-    private <S, KT, T> ObjectExpression<S, Boolean> combineWithReferenceId(ObjectExpression<S, Boolean> predicate, Notification<T> referencedObject, PropertyExpression<S, S, T> referenceProperty, MetaClassWithKey<KT, T> metaClass, AtomicReference<Long> lastCreatedSequenceNumber) {
-        Long sequenceNum = Optional
-                .ofNullable(lastCreatedSequenceNumber.get())
-                .orElse(Optional.ofNullable(referencedObject.sequenceNumber()).orElse(null));
-
-        BooleanExpression<S> referencePredicate = PropertyExpression
-                .ofObject(referenceProperty, metaClass.keyProperty())
-                .eq(metaClass.keyOf(referencedObject.oldValue()));
-
-        BooleanExpression<S> seqNumPredicate = Optional.ofNullable(sequenceNum)
-                .<BooleanExpression<S>>map(sn -> NumericUnaryOperationExpression.<S, T, Long>create(Expression.Type.SequenceNumber, ObjectExpression.objectArg(metaClass.asType()))
+    private <S> ObjectExpression<S, Boolean> matchSequenceNumber(MetaClass<S> sourceMeta, Long seqNum) {
+        return Optional
+                .ofNullable(seqNum)
+                .<ObjectExpression<S, Boolean>>map(sn -> NumericUnaryOperationExpression.<S, S, Long>create(Expression.Type.SequenceNumber, ObjectExpression.objectArg(sourceMeta.asType()))
                         .lessThan(sn))
-                .map(p -> BooleanExpression.and(referencePredicate, p))
-                .orElse(referencePredicate);
+                .orElse(null);
+    }
 
-        return Optional.ofNullable(predicate)
-                .<ObjectExpression<S, Boolean>>map(p -> BooleanExpression.and(p, seqNumPredicate))
-                .orElse(referencePredicate);
+    private <S, KT, T> ObjectExpression<S, Boolean> matchReferenceId(T referencedObject, PropertyExpression<S, S, T> referenceProperty, MetaClassWithKey<KT, T> metaClass) {
+        return PropertyExpression
+                .ofObject(referenceProperty, metaClass.keyProperty())
+                .eq(metaClass.keyOf(referencedObject));
     }
 
     private <K, S> Observable<Notification<S>> observeReference(MetaClassWithKey<K, S> metaClass, ImmutableSet<PropertyExpression<S, ?, ?>> properties) {
