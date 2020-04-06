@@ -1559,7 +1559,7 @@ public abstract class AbstractRepositoryTest {
 
     @SuppressWarnings("ConstantConditions")
     @Test
-    //@Ignore
+    @Ignore
     @UseLogLevel(LogLevel.TRACE)
     public void testAddProductThenUpdateInventoryInOrder() throws InterruptedException {
         Map<UniqueId, Product> knownProducts = new ConcurrentHashMap<>();
