@@ -48,12 +48,12 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
 
         private ObjectReference(AtomicLong sequenceNum) {
             this.sequenceNum = sequenceNum;
-            this.modificationSequenceNum = new AtomicLong(sequenceNum.incrementAndGet());
+            this.modificationSequenceNum = new AtomicLong(sequenceNum.get());
         }
 
         public boolean compareAndSet(S expectedObj, S newObj) {
             if (reference.compareAndSet(expectedObj, newObj)) {
-                modificationSequenceNum.set(sequenceNum.incrementAndGet());
+                modificationSequenceNum.set(sequenceNum.get());
                 return true;
             }
             return false;
@@ -101,7 +101,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
                                         : Maybe.error(new ConcurrentModificationException("Concurrent modification of " + metaClass.simpleName() + " detected")))
                                 .doOnSuccess(e -> {
                                     if (!Objects.equals(oldValue, e)) {
-                            Notification<S> notification = Notification.ofModified(oldValue, e, sequenceNumber.get());
+                                        Notification<S> notification = Notification.ofModified(oldValue, e, sequenceNumber.get());
                                         notificationSubject.onNext(notification);
                                         log.debug("Published notification: {}", notification);
                                     }

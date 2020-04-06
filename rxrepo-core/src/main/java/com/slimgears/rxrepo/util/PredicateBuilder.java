@@ -32,17 +32,14 @@ public class PredicateBuilder<S> {
     }
 
     private PredicateBuilder<S> combine(ObjectExpression<S, Boolean> predicate, BiFunction<ObjectExpression<S, Boolean>, ObjectExpression<S, Boolean>, ObjectExpression<S, Boolean>> operator) {
-        if (predicate != null) {
-            return update(p -> operator.apply(p, predicate));
-        }
-        return this;
+        return update(p -> Optional
+                        .ofNullable(p)
+                        .map(pp -> operator.apply(pp, predicate))
+                        .orElse(predicate));
     }
 
     private PredicateBuilder<S> update(Function<ObjectExpression<S, Boolean>, ObjectExpression<S, Boolean>> operator) {
-        this.predicate.updateAndGet(p -> Optional
-                .ofNullable(p)
-                .map(operator)
-                .orElse(p));
+        this.predicate.updateAndGet(p -> Optional.ofNullable(operator.apply(p)).orElse(p));
         return this;
     }
 }

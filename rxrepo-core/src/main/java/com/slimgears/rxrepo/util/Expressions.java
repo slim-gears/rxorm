@@ -172,7 +172,10 @@ public class Expressions {
                 .put(Expression.Type.SearchText, Expressions.fromBinary(searchText()))
                 .put(Expression.Type.ValueIn, Expressions.fromBinary((Object obj, Collection<Object> collection) -> obj != null && collection != null && collection.contains(obj)))
                 .put(Expression.Type.IsNull, Expressions.fromUnary(Objects::isNull))
-                .put(Expression.Type.SequenceNumber, Expressions.fromUnary(obj -> sequenceNumber().get()))
+                .put(Expression.Type.SequenceNumber, funcs -> {
+                    long seqNum = sequenceNumber().get();
+                    return Expressions.fromUnary(obj -> seqNum).apply(funcs);
+                })
                 .build();
 
         private final static ImmutableMap<Expression.OperationType, Function<Function[], Function>> operationTypeReducersMap = ImmutableMap.<Expression.OperationType, Function<Function[], Function>>builder()

@@ -113,7 +113,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                                 .and(query.predicate())
                                 .and(matchReferenceId(n.oldValue(), referenceProperty, metaClassWithKey))
                                 .and(matchSequenceNumber(query.metaClass(), Optionals.or(
-                                        () -> Optional.ofNullable(lastCreatedSequenceNumber.get()),
+                                        () -> Optional.ofNullable(lastCreatedSequenceNumber.get()).map(s -> s + 1),
                                         () -> Optional.ofNullable(n.sequenceNumber()))
                                         .orElse(null)))
                                 .build())
