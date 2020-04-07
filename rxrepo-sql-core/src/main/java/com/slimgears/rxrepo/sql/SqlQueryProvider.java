@@ -188,8 +188,8 @@ public class SqlQueryProvider implements QueryProvider {
         return liveQueriesCache.computeIfAbsent(statement, s -> statementExecutor
                 .executeLiveQuery(s)
                 //.doOnNext(n -> log.info("Received sequence number: {}", n.sequenceNumber()))
-                .share()
-                .doFinally(() -> liveQueriesCache.remove(s)));
+                .doFinally(() -> liveQueriesCache.remove(s))
+                .share());
     }
 
     @Override
