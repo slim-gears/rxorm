@@ -1,7 +1,10 @@
 package com.slimgears.rxrepo.query.decorator;
 
 import com.google.common.collect.ImmutableSet;
-import com.slimgears.rxrepo.expressions.*;
+import com.slimgears.rxrepo.expressions.Aggregator;
+import com.slimgears.rxrepo.expressions.Expression;
+import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.NumericUnaryOperationExpression;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.NotificationPrototype;
@@ -11,11 +14,12 @@ import com.slimgears.rxrepo.query.provider.QueryInfos;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.util.PredicateBuilder;
 import com.slimgears.rxrepo.util.PropertyExpressions;
+import com.slimgears.rxrepo.util.Queries;
 import com.slimgears.util.autovalue.annotations.*;
-import com.slimgears.util.stream.Optionals;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
 
+import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -45,16 +49,9 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
 
     @Override
     public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
-        return super.queryAndObserve(
-                QueryInfos.unmapQuery(queryInfo),
-                QueryInfo.<K, S, S>builder()
-                        .properties(QueryInfos.allReferencedProperties(queryInfo))
-                        .metaClass(observeInfo.metaClass())
-                        .build())
-                .compose(Notifications.applyFilter(queryInfo.predicate()))
-                .compose(applyReferencedObserve(queryInfo))
-                .compose(Notifications.applyMap(queryInfo.mapping()))
-                .compose(Notifications.applyFieldsFilter(queryInfo.properties()));
+        return Queries.queryAndObserve(
+                query(queryInfo),
+                liveQuery(observeInfo));
     }
 
     @Override
@@ -105,6 +102,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
     private <K1, S1, K2, S2> Observable<Notification<S1>> observeReferenceProperty(QueryInfo<K1, S1, S1> query, PropertyExpression<S1, S1, S2> referenceProperty, ImmutableSet<PropertyExpression<S2, ?, ?>> properties, MetaClassWithKey<K2, S2> metaClassWithKey, AtomicReference<Long> lastCreatedSequenceNumber) {
         return observeReference(metaClassWithKey, properties)
                 .filter(NotificationPrototype::isModify)
+                .doOnNext(n -> log.trace("Received referenced notification: {} (last seq.: {})", n.sequenceNumber(), lastCreatedSequenceNumber.get()))
                 .flatMapIterable(n -> query(QueryInfo
                         .<K1, S1, S1>builder()
                         .metaClass(query.metaClass())
@@ -112,10 +110,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                         .predicate(PredicateBuilder.<S1>create()
                                 .and(query.predicate())
                                 .and(matchReferenceId(n.oldValue(), referenceProperty, metaClassWithKey))
-                                .and(matchSequenceNumber(query.metaClass(), Optionals.or(
-                                        () -> Optional.ofNullable(lastCreatedSequenceNumber.get()),
-                                        () -> Optional.ofNullable(n.sequenceNumber()))
-                                        .orElse(null)))
+                                .and(matchSequenceNumber(query.metaClass(), lastCreatedSequenceNumber.get(), n.sequenceNumber()))
                                 .build())
                         .build())
                         .map(Notification::newValue)
@@ -130,11 +125,15 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                         .blockingIterable());
     }
 
-    private <S> ObjectExpression<S, Boolean> matchSequenceNumber(MetaClass<S> sourceMeta, Long seqNum) {
+    private <S> ObjectExpression<S, Boolean> matchSequenceNumber(MetaClass<S> sourceMeta, @Nullable Long lastCreatedSeqNum, @Nullable Long notificationSeqNum) {
+        Long seqNum = lastCreatedSeqNum != null && notificationSeqNum != null
+                ? Long.valueOf(Math.max(lastCreatedSeqNum, notificationSeqNum))
+                : lastCreatedSeqNum != null ? lastCreatedSeqNum : notificationSeqNum;
+
         return Optional
                 .ofNullable(seqNum)
                 .<ObjectExpression<S, Boolean>>map(sn -> NumericUnaryOperationExpression.<S, S, Long>create(Expression.Type.SequenceNumber, ObjectExpression.objectArg(sourceMeta.asType()))
-                        .lessThan(sn))
+                        .lessOrEqual(sn))
                 .orElse(null);
     }
 

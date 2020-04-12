@@ -1560,7 +1560,7 @@ public abstract class AbstractRepositoryTest {
     @SuppressWarnings("ConstantConditions")
     @Test
     @Ignore
-    @UseLogLevel(LogLevel.TRACE)
+    @UseLogLevel(logger = "com.slimgears.rxrepo.orientdb.OrientDbLiveQueryListener", value = LogLevel.TRACE)
     public void testAddProductThenUpdateInventoryInOrder() throws InterruptedException {
         Map<UniqueId, Product> knownProducts = new ConcurrentHashMap<>();
         final int productCount = 2000;
@@ -1578,8 +1578,8 @@ public abstract class AbstractRepositoryTest {
                         Assert.assertTrue(knownProducts.containsKey(n.oldValue().key()));
                     }
                 })
-                .filter(n -> n.isCreate() || n.isDelete())
-                .take(productCount * 2)
+                .filter(n -> n.isCreate() || n.isModify())
+                .take((int)(productCount * 1.1))
                 .test();
 
         Observable.fromIterable(Products.createMany(productCount))

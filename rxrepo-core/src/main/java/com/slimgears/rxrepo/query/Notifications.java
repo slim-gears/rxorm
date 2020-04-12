@@ -7,6 +7,7 @@ import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.SortingInfo;
 import com.slimgears.rxrepo.util.Expressions;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.generic.MoreStrings;
 import io.reactivex.Maybe;
 import io.reactivex.ObservableTransformer;
 import io.reactivex.functions.Predicate;
@@ -146,4 +147,11 @@ public class Notifications {
                         p.apply(notification.newValue())));
     }
 
+    public static String toBriefString(Notification<?> notification) {
+        String type =
+                notification.isCreate() ? "Create" :
+                        notification.isModify() ? "Modify" :
+                                notification.isDelete() ? "Delete" : "Empty";
+        return MoreStrings.format("{} ({})", type, Optional.ofNullable(notification.sequenceNumber()).map(Objects::toString).orElse("null"));
+    }
 }
