@@ -1561,7 +1561,7 @@ public abstract class AbstractRepositoryTest {
     @SuppressWarnings("ConstantConditions")
     @Test
     @Ignore
-    @UseLogLevel(logger = "com.slimgears.rxrepo.orientdb.OrientDbLiveQueryListener", value = LogLevel.TRACE)
+    @UseLogLevel(logger = "com.slimgears.rxrepo ", value = LogLevel.TRACE)
     public void testAddProductThenUpdateInventoryInOrder() throws InterruptedException {
         Map<UniqueId, Product> knownProducts = new ConcurrentHashMap<>();
         final int productCount = 2000;
@@ -1571,6 +1571,7 @@ public abstract class AbstractRepositoryTest {
 
         TestObserver<Notification<Product>> productTestObserver = products.observe(Product.$.name, Product.$.inventory.name)
                 .doOnNext(n -> {
+                    System.out.println(n);
                     if (n.isCreate()) {
                         Assert.assertTrue(n.sequenceNumber() > lastSeqNum.get());
                         lastSeqNum.set(n.sequenceNumber());
@@ -1592,10 +1593,6 @@ public abstract class AbstractRepositoryTest {
                                         .name(inv.name() + " - updated")
                                         .build())))
                         .ignoreElements())
-                .blockingAwait();
-
-        products.findAll()
-                .flatMapCompletable(p -> products.delete(p.key()))
                 .blockingAwait();
 
         productTestObserver
