@@ -184,6 +184,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                             .mapping(omitEmptyMapping(expression))
                             .distinct(distinct);
 
+                    @SuppressWarnings("ReactiveStreamsNullableInLambdaInTransform")
                     @Override
                     public Maybe<T> first() {
                         QueryInfo<K, S, T> query = builder.limit(1L).build();
@@ -201,6 +202,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                         return this;
                     }
 
+                    @SuppressWarnings("ReactiveStreamsNullableInLambdaInTransform")
                     @Override
                     public Observable<T> retrieve() {
                         return queryProvider
@@ -223,6 +225,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                             .predicate(predicate.get())
                             .mapping(omitEmptyMapping(expression));
 
+                    @SuppressWarnings("ReactiveStreamsNullableInLambdaInTransform")
                     @Override
                     public Observable<T> first() {
                         QueryInfo<K, S, T> query = builder.limit(1L).build();
@@ -278,6 +281,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                             .transformer(transformQuery, count);
                                     return queryProvider
                                             .queryAndObserve(retrieveQuery, observeQuery)
+                                            .doOnNext(n -> log.trace("{}", Notifications.toBriefString(retrieveQuery.metaClass(), n)))
                                             .doOnNext(n -> {
                                                 if (retrieveComplete.get()) updateCount(n, count);
                                             })
@@ -311,7 +315,8 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                         QueryInfo<K, S, T> query = builder.build();
                         return queryProvider
                                 .queryAndObserve(query.toBuilder().limit(limit).skip(skip).build(), query)
-                                .filter(n -> !n.isEmpty());
+                                .filter(n -> !n.isEmpty())
+                                .doOnNext(n -> log.trace("{}", Notifications.toBriefString(metaClass, n)));
                     }
 
                     @Override

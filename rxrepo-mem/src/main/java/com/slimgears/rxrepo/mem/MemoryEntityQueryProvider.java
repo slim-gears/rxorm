@@ -46,9 +46,9 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
         private final AtomicLong modificationSequenceNum;
         private final AtomicLong sequenceNum;
 
-        private ObjectReference(AtomicLong sequenceNum) {
-            this.sequenceNum = sequenceNum;
-            this.modificationSequenceNum = new AtomicLong(sequenceNum.get());
+        private ObjectReference(AtomicLong seqNum) {
+            this.sequenceNum = seqNum;
+            this.modificationSequenceNum = new AtomicLong(seqNum.get());
         }
 
         public boolean compareAndSet(S expectedObj, S newObj) {
@@ -91,25 +91,28 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     @Override
     public Maybe<Supplier<S>> insertOrUpdate(K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return Maybe.defer(() -> {
-            sequenceNumber.incrementAndGet();
-            Supplier<ObjectReference<S>> referenceResolver = () -> objects.computeIfAbsent(key, k -> new ObjectReference<>(sequenceNumber));
-            S oldValue = referenceResolver.get().get();
-                        return entityUpdater
-                    .apply(Optional.ofNullable(referenceResolver.get().get()).map(Maybe::just).orElseGet(Maybe::empty))
-                    .flatMap(e -> referenceResolver.get().compareAndSet(oldValue, e)
-                            ? (e != null ? Maybe.just(e): Maybe.empty())
-                                        : Maybe.error(new ConcurrentModificationException("Concurrent modification of " + metaClass.simpleName() + " detected")))
-                                .doOnSuccess(e -> {
-                                    if (!Objects.equals(oldValue, e)) {
-                                        Notification<S> notification = Notification.ofModified(oldValue, e, sequenceNumber.get());
-                                        notificationSubject.onNext(notification);
-                                        log.debug("Published notification: {}", notification);
-                                    }
-                                })
-                                .map(e -> () -> e);
-                    });
+            synchronized (metaClass) {
+                long seqNum = sequenceNumber.incrementAndGet();
+                Supplier<ObjectReference<S>> referenceResolver = () -> objects.computeIfAbsent(key, k -> new ObjectReference<>(sequenceNumber));
+                S oldValue = referenceResolver.get().get();
+                return entityUpdater
+                        .apply(Optional.ofNullable(referenceResolver.get().get()).map(Maybe::just).orElseGet(Maybe::empty))
+                        .flatMap(e -> referenceResolver.get().compareAndSet(oldValue, e)
+                                ? (e != null ? Maybe.just(e): Maybe.empty())
+                                : Maybe.error(new ConcurrentModificationException("Concurrent modification of " + metaClass.simpleName() + " detected")))
+                        .doOnSuccess(e -> {
+                            if (!Objects.equals(oldValue, e)) {
+                                Notification<S> notification = Notification.ofModified(oldValue, e, seqNum);
+                                notificationSubject.onNext(notification);
+                                log.debug("Published notification: {}", notification);
+                            }
+                        })
+                        .map(e -> () -> e);
+            }
+        });
     }
 
+    @SuppressWarnings("ReactiveStreamsNullableInLambdaInTransform")
     @Override
     public <T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
         log.trace("Querying {}", query);
@@ -209,6 +212,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
                 .doOnNext(n -> log.debug("Notification --> {}", n));
     }
 
+    @SuppressWarnings("ReactiveStreamsNullableInLambdaInTransform")
     @Override
     public <T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return query(query)

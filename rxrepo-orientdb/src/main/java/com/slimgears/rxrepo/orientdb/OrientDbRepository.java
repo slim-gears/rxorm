@@ -61,7 +61,7 @@ public class OrientDbRepository {
         private boolean batchSupport = false;
         private int batchBufferSize = 20000;
         private int maxNotificationQueues = 10;
-        private Duration maxQueueIdleTime = Duration.ofSeconds(30);
+        private Duration maxQueueIdleTime = Duration.ofSeconds(120);
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
         private Supplier<SchedulingProvider> schedulingProvider = () -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxQueueIdleTime);
         private Function<SchedulingProvider, SchedulingProvider> schedulingProviderDecorator = Function.identity();

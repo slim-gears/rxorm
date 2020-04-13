@@ -8,6 +8,7 @@ import com.slimgears.rxrepo.query.provider.SortingInfo;
 import com.slimgears.rxrepo.util.Expressions;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.generic.MoreStrings;
+import com.slimgears.util.stream.Optionals;
 import io.reactivex.Maybe;
 import io.reactivex.ObservableTransformer;
 import io.reactivex.functions.Predicate;
@@ -21,7 +22,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import static com.slimgears.util.generic.MoreStrings.lazy;
 
 public class Notifications {
     private final static Logger log = LoggerFactory.getLogger(Notifications.class);
@@ -147,11 +151,25 @@ public class Notifications {
                         p.apply(notification.newValue())));
     }
 
-    public static String toBriefString(Notification<?> notification) {
-        String type =
-                notification.isCreate() ? "Create" :
-                        notification.isModify() ? "Modify" :
-                                notification.isDelete() ? "Delete" : "Empty";
-        return MoreStrings.format("{} ({})", type, Optional.ofNullable(notification.sequenceNumber()).map(Objects::toString).orElse("null"));
+    @SuppressWarnings("unchecked")
+    public static <K, S, T> Object toBriefString(MetaClassWithKey<K, S> meta, Notification<T> notification) {
+        return lazy(() -> {
+            String type =
+                    notification.isCreate() ? "Create" :
+                            notification.isModify() ? "Modify" :
+                                    notification.isDelete() ? "Delete" : "Empty";
+            T obj = Optionals.or(
+                    () -> Optional.ofNullable(notification.oldValue()),
+                    () -> Optional.ofNullable(notification.newValue()))
+                    .orElse(null);
+
+            return (meta.asClass().isInstance(obj))
+                    ? MoreStrings.format("{} [{}] {} ({})", meta.simpleName(), type, meta.keyOf((S)obj), Optional.ofNullable(notification.sequenceNumber())
+                    .map(Objects::toString)
+                    .orElse("null"))
+                    : MoreStrings.format("{} [{}] ({})", meta.simpleName(), type, Optional.ofNullable(notification.sequenceNumber())
+                    .map(Objects::toString)
+                    .orElse("null"));
+        });
     }
 }

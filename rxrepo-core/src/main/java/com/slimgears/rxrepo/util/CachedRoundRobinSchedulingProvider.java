@@ -17,6 +17,8 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
+import static com.slimgears.util.generic.MoreStrings.lazy;
+
 public class CachedRoundRobinSchedulingProvider implements SchedulingProvider {
     private final static Logger log = LoggerFactory.getLogger(CachedRoundRobinSchedulingProvider.class);
     private final static MetricCollector metrics = Metrics.collector(CachedRoundRobinSchedulingProvider.class);
@@ -74,20 +76,34 @@ public class CachedRoundRobinSchedulingProvider implements SchedulingProvider {
 
     @Override
     public <T> T scope(Callable<T> runnable) {
+        Callable<T> loggingRunnable = () -> {
+            Object lazyIndex = lazy(() -> executors.indexOf(currentExecutor.current()));
+            try {
+                log.debug(">>> Entering scope (Queue #{})", lazyIndex);
+                return runnable.call();
+            } finally {
+                log.debug("<<< Left scope (Queue #{})", lazyIndex);
+            }
+        };
         if (currentExecutor.current() != null) {
             try {
-                return runnable.call();
+                return loggingRunnable.call();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         } else {
-            return currentExecutor.withScope(getExecutor(), runnable);
+            return currentExecutor.withScope(getExecutor(), loggingRunnable);
         }
     }
 
     @Override
     public Scheduler scheduler() {
-        Executor executor = Optional.ofNullable(currentExecutor.current()).orElseGet(this::getExecutor);
-        return Schedulers.from(executor);
+        Executor executor = currentExecutor.current();
+        if (executor != null) {
+            log.debug("Scoped executor found: Queue #{}", lazy(() -> executors.indexOf(executor)));
+            return Schedulers.from(executor);
+        }
+        log.debug("Scoped executor not found.");
+        return Schedulers.from(Runnable::run);
     }
 }

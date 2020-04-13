@@ -1263,6 +1263,7 @@ public abstract class AbstractRepositoryTest {
                 .assertValueAt(1, p -> p.newValue().productionDate().getTime() - p.oldValue().productionDate().getTime() == 1);
     }
 
+    @SuppressWarnings("ReactiveStreamsNullableInLambdaInTransform")
     @Test
     @UseLogLevel(LogLevel.TRACE)
     public void testRetrieveWithReferenceProperty() {
@@ -1602,6 +1603,47 @@ public abstract class AbstractRepositoryTest {
                 .assertNoErrors();
     }
 
+    @SuppressWarnings("ConstantConditions")
+    @Test
+    @UseLogLevel(logger = "com.slimgears.rxrepo.orientdb.OrientDbLiveQueryListener", value = LogLevel.TRACE)
+    public void testAddProductThenUpdateInventoryInOrderQueryAndObserve() throws InterruptedException {
+        Map<UniqueId, Product> knownProducts = new ConcurrentHashMap<>();
+        final int productCount = 2000;
+        final int inventoryCount = productCount / 10;
+
+        AtomicLong lastSeqNum = new AtomicLong();
+
+        products.update(Products.createMany(productCount))
+                .blockingAwait();
+
+        TestObserver<Notification<Product>> productTestObserver = products
+                .queryAndObserve(Product.$.name, Product.$.inventory.name)
+                .doOnNext(System.out::println)
+                .doOnNext(n -> {
+                    if (n.isCreate()) {
+                        knownProducts.put(n.newValue().key(), n.newValue());
+                    } else if (n.isModify() || n.isDelete()) {
+                        Assert.assertTrue(knownProducts.containsKey(n.oldValue().key()));
+                    }
+                })
+                .filter(n -> n.isCreate() || n.isModify())
+                .take(productCount + productCount / 10)
+                .test();
+
+        Observable.range(0, inventoryCount)
+                .flatMapMaybe(i -> inventories.update(UniqueId.inventoryId(i), maybeInv -> maybeInv
+                        .map(inv -> inv.toBuilder()
+                                .name(inv.name() + " - updated")
+                                .build())))
+                .ignoreElements()
+                .blockingAwait();
+
+        productTestObserver
+                .await()
+                .assertNoErrors();
+    }
+
+    @SuppressWarnings("ReactiveStreamsNullableInLambdaInTransform")
     @Test
     public void testInsertAndCheckSequenceNumber() {
         TestObserver<Long> sequenceTester = inventories.queryAndObserve()

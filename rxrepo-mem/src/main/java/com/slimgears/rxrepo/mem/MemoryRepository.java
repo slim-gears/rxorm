@@ -17,6 +17,7 @@ public class MemoryRepository {
         return Repository
                 .fromProvider(
                         MemoryQueryProvider.create(schedulingProvider),
+                        LockQueryProviderDecorator.create(SemaphoreLockProvider.create()),
                         LiveQueryProviderDecorator.create(),
                         ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider),
                         SubscribeOnSchedulingQueryProviderDecorator.createDefault(),

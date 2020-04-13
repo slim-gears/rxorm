@@ -138,12 +138,15 @@ public class SqlQueryProvider implements QueryProvider {
 
     @Override
     public <K, S, T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
+        log.trace("Preparing query of {}", query.metaClass().simpleName());
+        Scheduler scheduler = schedulingProvider.scheduler();
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
         return schemaProvider
                 .createOrUpdate(query.metaClass())
                 .andThen(statementExecutor
                         .executeQuery(statementProvider.forQuery(query))
-                        .compose(toCreateNotifications(objectType, query.mapping(), query.properties())));
+                        .compose(toCreateNotifications(objectType, query.mapping(), query.properties())))
+                .observeOn(scheduler);
     }
 
     @SuppressWarnings("unchecked")
@@ -174,6 +177,7 @@ public class SqlQueryProvider implements QueryProvider {
 
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
+        log.trace("Preparing live query of {}", query.metaClass().simpleName());
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
         Scheduler scheduler = schedulingProvider.scheduler();
         SqlStatement statement = statementProvider.forQuery(query.toBuilder().properties(ImmutableSet.of()).build());
@@ -181,17 +185,17 @@ public class SqlQueryProvider implements QueryProvider {
                 .createOrUpdate(query.metaClass())
                 .andThen(liveQueryForStatement(statement))
                 .map(notification -> notification.<T>map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType))))
+                .observeOn(scheduler)
                 .doOnNext(n -> log.trace("{}: {} {}",
                         query.metaClass().simpleName(),
                         n.isCreate() ? "Create" : n.isModify() ? "Modify" : n.isDelete() ? "Delete" : "Empty",
-                        n.sequenceNumber()))
-                .observeOn(scheduler);
+                        n.sequenceNumber()));
     }
 
     private Observable<Notification<PropertyResolver>> liveQueryForStatement(SqlStatement statement) {
         return liveQueriesCache.computeIfAbsent(statement, s -> statementExecutor
                 .executeLiveQuery(s)
-                //.doOnNext(n -> log.info("Received sequence number: {}", n.sequenceNumber()))
+                .doOnNext(n -> log.trace("Received sequence number: {}", n.sequenceNumber()))
                 .doFinally(() -> liveQueriesCache.remove(s))
                 .share());
     }

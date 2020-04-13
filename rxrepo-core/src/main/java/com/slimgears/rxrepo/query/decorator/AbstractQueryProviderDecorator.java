@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.query.decorator;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.query.Notifications;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
@@ -50,13 +51,14 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
 
     @Override
     public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
-        return getUnderlyingProvider().queryAndObserve(queryInfo, observeInfo);
+        return getUnderlyingProvider().queryAndObserve(queryInfo, observeInfo)
+                .doOnNext(n -> log.trace("{}", Notifications.toBriefString(queryInfo.metaClass(), n)));
     }
 
     @Override
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         return getUnderlyingProvider().liveQuery(query)
-            .doOnNext(n -> log.trace("[{}] Received notification: {}", lazy(() -> getClass().getSimpleName()), n));
+                .doOnNext(n -> log.trace("{}", Notifications.toBriefString(query.metaClass(), n)));
     }
 
     @Override
