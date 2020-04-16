@@ -2,12 +2,11 @@ package com.slimgears.rxrepo.util;
 
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
-import io.reactivex.Completable;
-import io.reactivex.Observable;
-import io.reactivex.ObservableTransformer;
+import io.reactivex.*;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.internal.functions.Functions;
 import io.reactivex.subjects.CompletableSubject;
+import io.reactivex.subjects.MaybeSubject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,7 +88,7 @@ public class Queries {
 
     public static <T> Observable<Notification<T>> queryAndObserve(Observable<Notification<T>> query, Observable<Notification<T>> liveQuery) {
         AtomicReference<Long> lastSeqNum = new AtomicReference<>();
-        CompletableSubject queryFinished = CompletableSubject.create();
+        MaybeSubject<Long> queryFinished = MaybeSubject.create();
         return Observable.just(
                 query.doOnNext(n -> Optional
                         .ofNullable(n.sequenceNumber())
@@ -97,18 +96,18 @@ public class Queries {
                                 .ofNullable(_sn)
                                 .map(__sn -> Math.max(__sn, sn))
                                 .orElse(sn))))
-                        .doOnNext(n -> log.trace("Updating last sequence number (notification num: {}, last num: {})", n.sequenceNumber(), lastSeqNum.get()))
                         .concatWith(Observable
                                 .just(Notification.<T>create())
-                                .doOnSubscribe(d -> queryFinished.onComplete())),
-                liveQuery.compose(bufferUntil(queryFinished))
-                        .filter(n -> n.isDelete() || Optional
-                                .ofNullable(lastSeqNum.get())
-                                .flatMap(sn -> Optional
-                                        .ofNullable(n.sequenceNumber())
-                                        .map(nsn -> nsn > sn))
-                                .orElse(true)))
-                .concatMapEager(Functions.identity());
+                                .doOnSubscribe(d -> {
+                                    Long seqNum = lastSeqNum.get();
+                                    if (seqNum != null) {
+                                        queryFinished.onSuccess(seqNum);
+                                    } else {
+                                        queryFinished.onComplete();
+                                    }
+                                })),
+                liveQuery.compose(bufferUntil(queryFinished)))
+                        .concatMapEager(Functions.identity());
     }
 
     private static <T, V extends Comparable<V>> Comparator<T> toComparator(SortingInfo<T, ?, V> sortingInfo) {
@@ -118,11 +117,22 @@ public class Queries {
                 : comparator.reversed();
     }
 
-    private static <T> ObservableTransformer<T, T> bufferUntil(Completable releaseBufferTrigger) {
+    private static <T> ObservableTransformer<Notification<T>, Notification<T>> bufferUntil(Maybe<Long> releaseBufferTrigger) {
         return src -> Observable.create(emitter -> {
-            List<T> buffer = new ArrayList<>();
+            List<Notification<T>> buffer = new ArrayList<>();
             AtomicBoolean triggered = new AtomicBoolean();
-            Disposable triggerDisposable = releaseBufferTrigger.subscribe(() -> {
+            Disposable triggerDisposable = releaseBufferTrigger.subscribe(seqNum -> {
+                synchronized (buffer) {
+                    triggered.set(true);
+                    buffer.stream()
+                            .filter(n -> Optional
+                                    .ofNullable(n.sequenceNumber())
+                                    .map(nn -> seqNum < nn)
+                                    .orElse(true))
+                            .forEach(emitter::onNext);
+                    buffer.clear();
+                }
+            }, emitter::onError, () -> {
                 synchronized (buffer) {
                     triggered.set(true);
                     buffer.forEach(emitter::onNext);
