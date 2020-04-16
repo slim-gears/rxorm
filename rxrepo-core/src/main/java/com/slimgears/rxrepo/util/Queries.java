@@ -102,7 +102,7 @@ public class Queries {
                                 .just(Notification.<T>create())
                                 .doOnSubscribe(d -> queryFinished.onComplete())),
                 liveQuery.compose(bufferUntil(queryFinished))
-                        .filter(n -> !n.isCreate() || Optional
+                        .filter(n -> n.isDelete() || Optional
                                 .ofNullable(lastSeqNum.get())
                                 .flatMap(sn -> Optional
                                         .ofNullable(n.sequenceNumber())
