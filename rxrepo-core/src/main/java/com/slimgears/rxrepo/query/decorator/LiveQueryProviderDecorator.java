@@ -20,6 +20,7 @@ import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
 
 import javax.annotation.Nullable;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -27,12 +28,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
-    private LiveQueryProviderDecorator(QueryProvider upstream) {
+    private final Duration aggregationDebounceTime;
+
+    private LiveQueryProviderDecorator(QueryProvider upstream, Duration aggregationDebounceTime) {
         super(upstream);
+        this.aggregationDebounceTime = aggregationDebounceTime;
     }
 
-    public static QueryProvider.Decorator create() {
-        return LiveQueryProviderDecorator::new;
+    public static QueryProvider.Decorator create(Duration aggregationDebounceTime) {
+        return src -> new LiveQueryProviderDecorator(src, aggregationDebounceTime);
     }
 
     @Override
@@ -41,8 +45,8 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                         .metaClass(query.metaClass())
                         .properties(QueryInfos.allReferencedProperties(query))
                         .build())
-                .compose(Notifications.applyFilter(query.predicate()))
                 .compose(applyReferencedObserve(query))
+                .compose(Notifications.applyFilter(query.predicate()))
                 .compose(Notifications.applyMap(query.mapping()))
                 .compose(Notifications.applyFieldsFilter(query.properties()));
     }
@@ -56,21 +60,28 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
 
     @Override
     public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return liveQuery(query)
-            .throttleLatest(2000, TimeUnit.MILLISECONDS)
+        return liveQuery(query.toBuilder().predicate(null).build())
+            .throttleLatest(aggregationDebounceTime.toMillis(), TimeUnit.MILLISECONDS)
             .switchMapMaybe(n -> aggregate(query, aggregator))
             .distinctUntilChanged();
     }
 
     private <K, S, T> ObservableTransformer<Notification<S>, Notification<S>> applyReferencedObserve(QueryInfo<K, S, T> query) {
-        if (query.properties().isEmpty()) {
+        QueryInfo<K, S, S> unmappedQuery = QueryInfos
+                .unmapQuery(query)
+                .toBuilder()
+                .properties(QueryInfos.allReferencedProperties(query))
+                .build();
+
+        if (unmappedQuery.properties().isEmpty()) {
             return src -> src;
         }
 
         AtomicReference<Long> lastCreatedSequenceNumber = new AtomicReference<>();
 
-        QueryInfo<K, S, S> unmappedQuery = QueryInfos.unmapQuery(query);
-        Map<PropertyExpression<S, S, ?>, ImmutableSet<PropertyExpression<S, ?, ?>>> propertiesByRoot = unmappedQuery.properties().stream()
+        Map<PropertyExpression<S, S, ?>, ImmutableSet<PropertyExpression<S, ?, ?>>> propertiesByRoot = unmappedQuery
+                .properties()
+                .stream()
                 .collect(Collectors.groupingBy(PropertyExpressions::rootOf, ImmutableSet.toImmutableSet()));
 
         ObservableTransformer<Notification<S>, Notification<S>> transformer = propertiesByRoot.keySet()
@@ -90,6 +101,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                         .ifPresent(lastCreatedSequenceNumber::set));
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     private <K1, S1, S2> Observable<Notification<S1>> observeReferenceProperty(QueryInfo<K1, S1, S1> query, PropertyExpression<S1, S1, S2> referenceProperty, ImmutableSet<PropertyExpression<S1, ?, ?>> properties, AtomicReference<Long> lastCreatedSequenceNumber) {
         ImmutableSet<PropertyExpression<S2, ?, ?>> referenceProperties = properties.stream()
                 .filter(p -> p != referenceProperty)
@@ -98,11 +110,11 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
         return observeReferenceProperty(query, referenceProperty, referenceProperties, MetaClasses.forTokenWithKeyUnchecked(referenceProperty.reflect().objectType()), lastCreatedSequenceNumber);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "ReactiveStreamsNullableInLambdaInTransform"})
     private <K1, S1, K2, S2> Observable<Notification<S1>> observeReferenceProperty(QueryInfo<K1, S1, S1> query, PropertyExpression<S1, S1, S2> referenceProperty, ImmutableSet<PropertyExpression<S2, ?, ?>> properties, MetaClassWithKey<K2, S2> metaClassWithKey, AtomicReference<Long> lastCreatedSequenceNumber) {
         return observeReference(metaClassWithKey, properties)
-                .filter(NotificationPrototype::isModify)
-                .doOnNext(n -> log.trace("Received referenced notification: {} (last seq.: {})", n.sequenceNumber(), lastCreatedSequenceNumber.get()))
+                .filter(n -> n.isModify() || n.isDelete())
+                .doOnNext(n -> log.trace("Received referenced notification: {} (last seq.: {}), {}", n.sequenceNumber(), lastCreatedSequenceNumber.get(), n))
                 .flatMapIterable(n -> query(QueryInfo
                         .<K1, S1, S1>builder()
                         .metaClass(query.metaClass())
@@ -125,6 +137,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                         .blockingIterable());
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     private <S> ObjectExpression<S, Boolean> matchSequenceNumber(MetaClass<S> sourceMeta, @Nullable Long lastCreatedSeqNum, @Nullable Long notificationSeqNum) {
         Long seqNum = lastCreatedSeqNum != null && notificationSeqNum != null
                 ? Long.valueOf(Math.max(lastCreatedSeqNum, notificationSeqNum))

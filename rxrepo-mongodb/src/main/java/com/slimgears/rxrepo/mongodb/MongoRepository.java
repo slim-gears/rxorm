@@ -7,6 +7,8 @@ import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDe
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.util.generic.MoreStrings;
 
+import java.time.Duration;
+
 public class MongoRepository {
     public static Builder builder() {
         return new Builder();
@@ -63,7 +65,7 @@ public class MongoRepository {
             String connectionString = createConnectionString();
             QueryProvider queryProvider = new MongoQueryProvider(connectionString, dbName, maxConcurrentRequests * 2);
             return Repository.fromProvider(queryProvider,
-                    LiveQueryProviderDecorator.create(),
+                    LiveQueryProviderDecorator.create(Duration.ofMillis(2000)),
                     decorator,
                     UpdateReferencesFirstQueryProviderDecorator.create(),
                     LimitConcurrentOperationsQueryProviderDecorator.create(maxConcurrentRequests));

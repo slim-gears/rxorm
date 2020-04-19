@@ -190,15 +190,16 @@ public class OrientDbRepository {
                         activeSessionsGauge.record(newCount);
                     });
 
+            RepositoryConfig config = configBuilder.build();
             return serviceFactoryBuilder(dbSessionProvider)
                     .decorate(
                             LockQueryProviderDecorator.create(SemaphoreLockProvider.create()),
-                            LiveQueryProviderDecorator.create(),
+                            LiveQueryProviderDecorator.create(Duration.ofMillis(config.debounceTimeoutMillis())),
                             ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider.get()),
                             batchSupport ? OrientDbUpdateReferencesFirstQueryProviderDecorator.create() : UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
                             decorator)
-                    .buildRepository(configBuilder.build());
+                    .buildRepository(config);
         }
 
         private OrientDB createClient(String url, String serverUser, String serverPassword, String dbName, ODatabaseType dbType) {
