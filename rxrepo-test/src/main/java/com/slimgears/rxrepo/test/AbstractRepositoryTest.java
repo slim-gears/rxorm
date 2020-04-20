@@ -1639,16 +1639,4 @@ public abstract class AbstractRepositoryTest {
                 .await()
                 .assertNoErrors();
     }
-
-    @SuppressWarnings("ReactiveStreamsNullableInLambdaInTransform")
-    @Test
-    public void testInsertAndCheckSequenceNumber() {
-        TestObserver<Long> sequenceTester = inventories.queryAndObserve()
-                .map(Notification::sequenceNumber)
-                .test();
-
-        //inventories.update(Inventory.create(UniqueId.inventoryId(1))).ignoreElement().blockingAwait();
-        products.update(Products.createOne(1)).ignoreElement().blockingAwait();
-        sequenceTester.assertOf(countExactly(1)).assertValue(v -> v > 0);
-    }
 }
