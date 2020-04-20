@@ -16,7 +16,8 @@ public class DefaultRepository implements Repository {
     private final static RepositoryConfigModel defaultConfig = RepositoryConfig
             .builder()
             .retryCount(10)
-            .debounceTimeoutMillis(100)
+            .bufferDebounceTimeoutMillis(100)
+            .aggregationDebounceTimeMillis(2000)
             .retryInitialDurationMillis(10)
             .build();
 

@@ -69,7 +69,9 @@ public class OrientDbRepository {
                 .builder()
                 .retryCount(10)
                 .retryInitialDurationMillis(10)
-                .debounceTimeoutMillis(100);
+                .bufferDebounceTimeoutMillis(100)
+                .aggregationDebounceTimeMillis(2000);
+
         private final Map<OGlobalConfiguration, Object> customConfig = new HashMap<>();
 
         public final Builder enableBatchSupport() {
@@ -194,7 +196,7 @@ public class OrientDbRepository {
             return serviceFactoryBuilder(dbSessionProvider)
                     .decorate(
                             LockQueryProviderDecorator.create(SemaphoreLockProvider.create()),
-                            LiveQueryProviderDecorator.create(Duration.ofMillis(config.debounceTimeoutMillis())),
+                            LiveQueryProviderDecorator.create(Duration.ofMillis(config.aggregationDebounceTimeMillis())),
                             ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider.get()),
                             batchSupport ? OrientDbUpdateReferencesFirstQueryProviderDecorator.create() : UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
@@ -223,8 +225,14 @@ public class OrientDbRepository {
         }
 
         @Override
-        public Builder debounceTimeoutMillis(int value) {
-            configBuilder.debounceTimeoutMillis(value);
+        public Builder bufferDebounceTimeoutMillis(int value) {
+            configBuilder.bufferDebounceTimeoutMillis(value);
+            return this;
+        }
+
+        @Override
+        public Builder aggregationDebounceTimeMillis(int value) {
+            configBuilder.aggregationDebounceTimeMillis(value);
             return this;
         }
 

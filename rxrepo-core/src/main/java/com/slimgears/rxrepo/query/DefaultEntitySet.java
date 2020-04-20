@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("UnstableApiUsage")
 public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     private final static Logger log = LoggerFactory.getLogger(DefaultEntitySet.class);
     private final QueryProvider queryProvider;
@@ -285,7 +286,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
                                             .doOnNext(n -> {
                                                 if (retrieveComplete.get()) updateCount(n, count);
                                             })
-                                            .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.debounceTimeoutMillis())))
+                                            .compose(Observables.bufferUntilIdle(Duration.ofMillis(config.bufferDebounceTimeoutMillis())))
                                             .filter(n -> !n.isEmpty())
                                             .map(l -> retrieveComplete.get()
                                                     ? l

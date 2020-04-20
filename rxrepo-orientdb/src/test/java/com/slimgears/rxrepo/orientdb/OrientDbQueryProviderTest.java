@@ -63,7 +63,8 @@ public class OrientDbQueryProviderTest extends AbstractRepositoryTest {
         return OrientDbRepository
                 .builder()
                 .url(dbUrl)
-                .debounceTimeoutMillis(1000)
+                .bufferDebounceTimeoutMillis(1000)
+                .aggregationDebounceTimeMillis(2000)
                 .type(dbType)
                 .name(name)
                 .schedulingProvider(schedulingProvider)
