@@ -131,7 +131,7 @@ public class NotificationsToSlidingListTransformer<K, T> implements ObservableTr
 
     private boolean isBeforeFirst(T item) {
         return Optional.ofNullable(firstItem.get())
-                .map(fi -> comparator.compare(fi, item) < 0)
+                .map(fi -> comparator.compare(fi, item) > 0)
                 .orElse(false);
     }
 
