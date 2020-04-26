@@ -37,32 +37,32 @@ public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decor
         private Decorator(QueryProvider underlyingProvider) {
             super(underlyingProvider);
         }
-
-        @Override
-        public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
-            return super.update(update).takeUntil(closeSubject);
-        }
-
-        @Override
-        public <K, S> Single<Integer> delete(DeleteInfo<K, S> delete) {
-            return super.delete(delete).takeUntil(closeSubject);
-        }
-
-        @Override
-        public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
-            return super.insert(metaClass, entities, recursive).takeUntil(closeSubject);
-        }
-
-        @Override
-        public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-            return super.insertOrUpdate(metaClass, key, recursive, entityUpdater).takeUntil(closeObservable.firstElement());
-        }
-
-        @Override
-        public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
-            return super.insertOrUpdate(metaClass, entity, recursive).takeUntil(closeSubject);
-        }
-
+//
+//        @Override
+//        public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
+//            return super.update(update).takeUntil(closeSubject);
+//        }
+//
+//        @Override
+//        public <K, S> Single<Integer> delete(DeleteInfo<K, S> delete) {
+//            return super.delete(delete).takeUntil(closeSubject);
+//        }
+//
+//        @Override
+//        public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
+//            return super.insert(metaClass, entities, recursive).takeUntil(closeSubject);
+//        }
+//
+//        @Override
+//        public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+//            return super.insertOrUpdate(metaClass, key, recursive, entityUpdater).takeUntil(closeObservable.firstElement());
+//        }
+//
+//        @Override
+//        public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
+//            return super.insertOrUpdate(metaClass, entity, recursive).takeUntil(closeSubject);
+//        }
+//
         @Override
         public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
             return super.aggregate(query, aggregator).takeUntil(closeObservable.firstElement());
@@ -88,12 +88,12 @@ public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decor
             return super.liveAggregate(query, aggregator).compose(applyTakeUntilClose());
         }
 
-        @Override
-        public Completable dropAll() {
-            closeSubject.onComplete();
-            return super.dropAll();
-        }
-
+//        @Override
+//        public Completable dropAll() {
+//            closeSubject.onComplete();
+//            return super.dropAll();
+//        }
+//
         @Override
         public void close() {
             if (wasClosed.compareAndSet(false, true)) {
