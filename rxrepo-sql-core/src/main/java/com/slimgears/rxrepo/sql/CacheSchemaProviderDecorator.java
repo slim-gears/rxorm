@@ -9,11 +9,17 @@ import com.slimgears.util.stream.Lazy;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+@SuppressWarnings("UnstableApiUsage")
 public class CacheSchemaProviderDecorator implements SchemaProvider {
+    private final static Logger log = LoggerFactory.getLogger(CacheSchemaProviderDecorator.class);
     private final SchemaProvider underlyingProvider;
     private final Lazy<String> dbName;
     private final Map<String, Completable> cache = new ConcurrentHashMap<>();
@@ -40,13 +46,13 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
     }
 
     private <T> Completable createOrUpdateWithReferences(MetaClass<T> metaClass) {
+        log.trace("Creating meta class: {}", metaClass.simpleName());
         Completable references = referencedTypesOf(metaClass)
                 .concatMapCompletable(token -> {
                     MetaClass<?> meta = MetaClasses.forTokenUnchecked(token);
                     String tableName = tableName(meta);
-                    return !cache.containsKey(tableName)
-                            ? createOrUpdate(meta)
-                            : Completable.complete();
+                    return Optional.ofNullable(cache.get(tableName))
+                            .orElseGet(() -> createOrUpdate(meta));
                 });
 
         return references.andThen(underlyingProvider.createOrUpdate(metaClass));
@@ -55,7 +61,8 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
     private <T> Observable<TypeToken<?>> referencedTypesOf(MetaClass<T> metaClass) {
         return Observable
                 .fromIterable(metaClass.properties())
-                .flatMapMaybe(property -> PropertyMetas.getReferencedType(property).map(Maybe::just).orElseGet(Maybe::empty));
+                .<TypeToken<?>>flatMapMaybe(property -> PropertyMetas.getReferencedType(property).map(Maybe::just).orElseGet(Maybe::empty))
+                .filter(t -> !Objects.equals(t, metaClass.asType()));
     }
 
     @Override
