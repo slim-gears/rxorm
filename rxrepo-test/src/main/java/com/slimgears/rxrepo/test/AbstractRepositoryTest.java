@@ -60,7 +60,8 @@ public abstract class AbstractRepositoryTest {
     @After
     public void tearDown() {
         System.out.println("Test finished: " + testNameRule.getMethodName());
-        this.repository.clear().doOnComplete(this.repository::close).blockingAwait();
+        //this.repository.clear().doOnComplete(this.repository::close).blockingAwait();
+        this.repository.close();
     }
 
     protected abstract Repository createRepository(SchedulingProvider schedulingProvider);
@@ -1638,5 +1639,32 @@ public abstract class AbstractRepositoryTest {
         productTestObserver
                 .await()
                 .assertNoErrors();
+    }
+
+    @Test
+    @UseLogLevel(LogLevel.TRACE)
+    public void testReferencePropertiesLiveQueryWithPredicate() {
+        Product product = Products.createOne();
+        products.update(product).ignoreElement().blockingAwait();
+        TestObserver<Notification<Product>> testObserver = products
+                .query()
+                .where(Product.$.inventory.name.startsWith("Inventory"))
+                .queryAndObserve(Product.$.name, Product.$.inventory.name)
+                .doOnNext(System.out::println)
+                .test();
+
+        testObserver.assertOf(countExactly(1))
+                .assertValueAt(0, NotificationPrototype::isCreate);
+
+        repository.entities(Inventory.metaClass)
+                .update(requireNonNull(product.inventory())
+                        .toBuilder()
+                        .name("Updated - " + product.inventory().name())
+                        .build())
+                .ignoreElement()
+                .blockingAwait();
+
+        testObserver.assertOf(countExactly(2))
+                .assertValueAt(1, NotificationPrototype::isDelete);
     }
 }

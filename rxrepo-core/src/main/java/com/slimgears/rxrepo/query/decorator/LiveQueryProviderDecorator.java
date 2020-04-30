@@ -120,7 +120,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
                         .metaClass(query.metaClass())
                         .properties(PropertyExpressions.includeMandatoryProperties(query.objectType(), query.properties()))
                         .predicate(PredicateBuilder.<S1>create()
-                                .and(query.predicate())
+                                //.and(query.predicate())
                                 .and(matchReferenceId(n.oldValue(), referenceProperty, metaClassWithKey))
                                 .and(matchSequenceNumber(query.metaClass(), lastCreatedSequenceNumber.get(), n.sequenceNumber()))
                                 .build())
