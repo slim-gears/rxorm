@@ -22,6 +22,7 @@ import io.reactivex.ObservableTransformer;
 import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -104,7 +105,7 @@ public class LiveQueryProviderDecorator extends AbstractQueryProviderDecorator {
     @SuppressWarnings("UnstableApiUsage")
     private <K1, S1, S2> Observable<Notification<S1>> observeReferenceProperty(QueryInfo<K1, S1, S1> query, PropertyExpression<S1, S1, S2> referenceProperty, ImmutableSet<PropertyExpression<S1, ?, ?>> properties, AtomicReference<Long> lastCreatedSequenceNumber) {
         ImmutableSet<PropertyExpression<S2, ?, ?>> referenceProperties = properties.stream()
-                .filter(p -> p != referenceProperty)
+                .filter(p -> !Objects.equals(p, referenceProperty))
                 .map(p -> PropertyExpressions.tailOf(p, referenceProperty))
                 .collect(ImmutableSet.toImmutableSet());
         return observeReferenceProperty(query, referenceProperty, referenceProperties, MetaClasses.forTokenWithKeyUnchecked(referenceProperty.reflect().objectType()), lastCreatedSequenceNumber);

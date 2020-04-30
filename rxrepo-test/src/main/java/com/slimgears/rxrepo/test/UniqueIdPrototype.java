@@ -38,6 +38,10 @@ public interface UniqueIdPrototype extends Serializable {
         return UniqueId.create(id, 0, Vendor.class);
     }
 
+    static UniqueIdPrototype manufacturerId(int id) {
+        return UniqueId.create(id, 0, Manufacturer.class);
+    }
+
     static UniqueIdPrototype create(int id, int areaId, Class<?> type) {
         return UniqueId.create(id, areaId, type.getName());
     }

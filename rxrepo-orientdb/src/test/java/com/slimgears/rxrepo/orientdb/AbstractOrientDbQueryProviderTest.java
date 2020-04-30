@@ -119,7 +119,10 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
     @SuppressWarnings("unchecked")
     @Test
     public void testCreateModifyOrder() throws InterruptedException {
-        Inventory inventory = Inventory.create(UniqueId.inventoryId(1), "Inventory 1", null);
+        Inventory inventory = Inventory.builder()
+                        .id(UniqueId.inventoryId(1))
+                        .name("Inventory 1")
+                        .build();
         inventories.update(inventory)
                 .ignoreElement()
                 .blockingAwait();

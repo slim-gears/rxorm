@@ -23,11 +23,14 @@ public class Products {
                 ProductPrototype.Type.ComputerSoftware
         };
 
+        Manufacturer manufacturer = Manufacturer.create(UniqueId.manufacturerId(0), "Manufacturer 0");
+
         List<Inventory> inventories = IntStream.range(0, Math.max(1, count / 10))
                 .mapToObj(i -> Inventory
                         .builder()
                         .id(UniqueId.inventoryId(i))
                         .name("Inventory " + i)
+                        .manufacturer(manufacturer)
                         .build())
                 .collect(Collectors.toList());
 

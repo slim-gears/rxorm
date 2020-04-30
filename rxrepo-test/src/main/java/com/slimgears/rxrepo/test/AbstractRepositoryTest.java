@@ -1516,7 +1516,10 @@ public abstract class AbstractRepositoryTest {
                 .assertValueCount(100);
 
         repository.entities(Inventory.metaClass)
-                .update(Inventory.create(UniqueId.inventoryId(1), "Inventory 1 - updated", null))
+                .update(Inventory.builder()
+                        .id(UniqueId.inventoryId(1))
+                        .name("Inventory 1 - updated")
+                        .build())
                 .ignoreElement()
                 .blockingAwait();
 
@@ -1545,7 +1548,10 @@ public abstract class AbstractRepositoryTest {
                 .assertValueCount(count);
 
         repository.entities(Inventory.metaClass)
-                .update(Inventory.create(UniqueId.inventoryId(0), "Inventory 0 - updated", null))
+                .update(Inventory.builder()
+                        .id(UniqueId.inventoryId(0))
+                        .name("Inventory 0 - updated")
+                        .build())
                 .ignoreElement()
                 .blockingAwait();
 
@@ -1648,23 +1654,24 @@ public abstract class AbstractRepositoryTest {
         products.update(product).ignoreElement().blockingAwait();
         TestObserver<Notification<Product>> testObserver = products
                 .query()
-                .where(Product.$.inventory.name.startsWith("Inventory"))
-                .queryAndObserve(Product.$.name, Product.$.inventory.name)
+                .where(Product.$.inventory.name.startsWith("Inventory")
+                        .and(Product.$.inventory.manufacturer.name.eq("Manufacturer 0")))
+                .queryAndObserve(Product.$.name)
                 .doOnNext(System.out::println)
                 .test();
 
         testObserver.assertOf(countExactly(1))
                 .assertValueAt(0, NotificationPrototype::isCreate);
 
-        repository.entities(Inventory.metaClass)
-                .update(requireNonNull(product.inventory())
+        repository.entities(Manufacturer.metaClass)
+                .update(requireNonNull(requireNonNull(product.inventory()).manufacturer())
                         .toBuilder()
-                        .name("Updated - " + product.inventory().name())
-                        .build())
+                        .name("Updated Manufacturer 0").build())
                 .ignoreElement()
                 .blockingAwait();
 
         testObserver.assertOf(countExactly(2))
                 .assertValueAt(1, NotificationPrototype::isDelete);
+
     }
 }
