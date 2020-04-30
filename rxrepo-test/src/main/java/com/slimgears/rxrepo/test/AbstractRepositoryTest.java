@@ -60,7 +60,7 @@ public abstract class AbstractRepositoryTest {
     @After
     public void tearDown() {
         System.out.println("Test finished: " + testNameRule.getMethodName());
-        //this.repository.clear().doOnComplete(this.repository::close).blockingAwait();
+        this.repository.clear().doOnComplete(this.repository::close).blockingAwait();
         this.repository.close();
     }
 
