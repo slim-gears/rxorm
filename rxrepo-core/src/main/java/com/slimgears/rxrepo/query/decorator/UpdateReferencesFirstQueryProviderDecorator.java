@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
+@SuppressWarnings({"ReactiveStreamsNullableInLambdaInTransform", "UnstableApiUsage"})
 public class UpdateReferencesFirstQueryProviderDecorator extends AbstractQueryProviderDecorator {
     private final static Logger log = LoggerFactory.getLogger(UpdateReferencesFirstQueryProviderDecorator.class);
 
@@ -96,7 +97,7 @@ public class UpdateReferencesFirstQueryProviderDecorator extends AbstractQueryPr
                         .toList()
                         .flatMapCompletable(refEntities -> refEntities.isEmpty()
                                 ? Completable.complete()
-                                : super.insert(MetaClasses.forTokenWithKeyUnchecked(p.type()), refEntities, true)));
+                                : insert(MetaClasses.forTokenWithKeyUnchecked(p.type()), refEntities, true)));
     }
 
     private <K, S> Single<Boolean> isExisting(Set<Object> isExistingCache, MetaClassWithKey<K, S> metaClass, S entity) {
