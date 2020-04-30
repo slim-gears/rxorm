@@ -10,6 +10,7 @@ import org.junit.Test;
 
 import java.util.stream.Collectors;
 
+@SuppressWarnings("UnstableApiUsage")
 public class MongoQueriesTest {
     @Test
     public void testPropertyExpression() {
@@ -51,7 +52,10 @@ public class MongoQueriesTest {
                         "{\"$project\": {\"product.inventory__ref\": 0}}\n" +
                         "{\"$lookup\": {\"from\": \"Inventory\", \"localField\": \"product.inventory.inventory__ref\", \"foreignField\": \"_id\", \"as\": \"product.inventory.inventory\"}}\n" +
                         "{\"$unwind\": {\"path\": \"$product.inventory.inventory\", \"preserveNullAndEmptyArrays\": true}}\n" +
-                        "{\"$project\": {\"product.inventory.inventory__ref\": 0}}",
+                        "{\"$project\": {\"product.inventory.inventory__ref\": 0}}\n" +
+                        "{\"$lookup\": {\"from\": \"Manufacturer\", \"localField\": \"product.inventory.manufacturer__ref\", \"foreignField\": \"_id\", \"as\": \"product.inventory.manufacturer\"}}\n" +
+                        "{\"$unwind\": {\"path\": \"$product.inventory.manufacturer\", \"preserveNullAndEmptyArrays\": true}}\n" +
+                        "{\"$project\": {\"product.inventory.manufacturer__ref\": 0}}",
                 json);
     }
 
