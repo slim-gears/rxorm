@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Objects;
 import java.util.Optional;
 
+@SuppressWarnings("UnstableApiUsage")
 class OrientDbSchemaProvider implements SchemaProvider {
     private final static Logger log = LoggerFactory.getLogger(OrientDbSchemaProvider.class);
     private final OrientDbSessionProvider dbSessionProvider;
@@ -48,8 +49,7 @@ class OrientDbSchemaProvider implements SchemaProvider {
     @Override
     public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
         return sequenceCreated.concatWith(Completable
-                .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass)))
-                .subscribeOn(Schedulers.newThread()));
+                .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass))));
     }
 
     @Override

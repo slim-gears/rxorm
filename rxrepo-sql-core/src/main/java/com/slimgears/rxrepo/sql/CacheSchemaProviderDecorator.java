@@ -48,12 +48,8 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
     private <T> Completable createOrUpdateWithReferences(MetaClass<T> metaClass) {
         log.trace("Creating meta class: {}", metaClass.simpleName());
         Completable references = referencedTypesOf(metaClass)
-                .concatMapCompletable(token -> {
-                    MetaClass<?> meta = MetaClasses.forTokenUnchecked(token);
-                    String tableName = tableName(meta);
-                    return Optional.ofNullable(cache.get(tableName))
-                            .orElseGet(() -> createOrUpdate(meta));
-                });
+                .map(MetaClasses::forTokenUnchecked)
+                .concatMapCompletable(this::createOrUpdate);
 
         return references.andThen(underlyingProvider.createOrUpdate(metaClass));
     }
