@@ -127,7 +127,7 @@ public class MongoDbClientTest {
                         .builder()
                         .key(UniqueId.productId(1))
                         .name("Product 1")
-                        .type(ProductPrototype.Type.ComputeHardware)
+                        .type(ProductEntity.Type.ComputeHardware)
                         .price(100)
                         .inventory(Inventory
                                 .builder()

@@ -18,9 +18,9 @@ public class Products {
 
     public static Iterable<Product> createMany(int startingId, int count) {
         final Product.Type[] productTypes = {
-                ProductPrototype.Type.ConsumerElectronics,
-                ProductPrototype.Type.ComputeHardware,
-                ProductPrototype.Type.ComputerSoftware
+                ProductEntity.Type.ConsumerElectronics,
+                ProductEntity.Type.ComputeHardware,
+                ProductEntity.Type.ComputerSoftware
         };
 
         Manufacturer manufacturer = Manufacturer.create(UniqueId.manufacturerId(0), "Manufacturer 0");

@@ -3,6 +3,7 @@ dependencies {
     implementation libs.slimAutoValueUtilsAnnotations
     compileOnly libs.autoValueAnnotations
     annotationProcessor project(':rxrepo-apt')
+    annotationProcessor project(':rxrepo-core')
     annotationProcessor libs.autoValue, libs.slimAutoValueUtils
     implementation libs.jacksonCore, libs.jacksonAnnotations
     implementation libs.guava

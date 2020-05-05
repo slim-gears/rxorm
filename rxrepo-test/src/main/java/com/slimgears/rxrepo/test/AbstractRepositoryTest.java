@@ -405,7 +405,7 @@ public abstract class AbstractRepositoryTest {
 
         productSet
                 .query()
-                .where(Product.$.type.in(ProductPrototype.Type.ComputerSoftware, ProductPrototype.Type.ComputeHardware))
+                .where(Product.$.type.in(ProductEntity.Type.ComputerSoftware, ProductEntity.Type.ComputeHardware))
                 .skip(20)
                 .retrieve()
                 .test()
@@ -627,7 +627,7 @@ public abstract class AbstractRepositoryTest {
                         .name("Inventory2")
                         .build())
                 .price(100)
-                .type(ProductPrototype.Type.ComputeHardware)
+                .type(ProductEntity.Type.ComputeHardware)
                 .aliases(ImmutableList.of("p1", "p2"))
                 .build();
 
@@ -669,7 +669,7 @@ public abstract class AbstractRepositoryTest {
                         .name("Inventory2")
                         .build())
                 .price(100)
-                .type(ProductPrototype.Type.ComputeHardware)
+                .type(ProductEntity.Type.ComputeHardware)
                 .relatedIds(ImmutableList.of(UniqueId.storageId(3), UniqueId.inventoryId(2), UniqueId.productId(1)))
                 .build();
 
@@ -935,19 +935,19 @@ public abstract class AbstractRepositoryTest {
                             .name("Product 3-1")
                             .key(UniqueId.productId(11))
                             .price(100)
-                            .type(ProductPrototype.Type.ComputeHardware)
+                            .type(ProductEntity.Type.ComputeHardware)
                             .build(),
                     Product.builder()
                             .name("Product 1-1")
                             .key(UniqueId.productId(13))
                             .price(100)
-                            .type(ProductPrototype.Type.ComputeHardware)
+                            .type(ProductEntity.Type.ComputeHardware)
                             .build(),
                     Product.builder()
                             .name("Product 5-1")
                             .key(UniqueId.productId(12))
                             .price(100)
-                            .type(ProductPrototype.Type.ComputeHardware)
+                            .type(ProductEntity.Type.ComputeHardware)
                             .build()))
                     .blockingAwait();
 
@@ -1016,7 +1016,7 @@ public abstract class AbstractRepositoryTest {
                         .build())
                 .key(UniqueId.productId(2))
                 .price(100)
-                .type(ProductPrototype.Type.ComputeHardware)
+                .type(ProductEntity.Type.ComputeHardware)
                 .build();
 
         products.update(product2).ignoreElement().blockingAwait();
@@ -1042,7 +1042,7 @@ public abstract class AbstractRepositoryTest {
                         .build())
                 .key(UniqueId.productId(1))
                 .price(100)
-                .type(ProductPrototype.Type.ComputeHardware)
+                .type(ProductEntity.Type.ComputeHardware)
                 .build();
 
         products.update(product1).ignoreElement().blockingAwait();
@@ -1135,10 +1135,10 @@ public abstract class AbstractRepositoryTest {
 
         repository.entities(Product.metaClass)
                 .update(UniqueId.productId(1), productMaybe -> productMaybe
-                        .map(p -> p.toBuilder().type(ProductPrototype.Type.ComputerSoftware).build()))
+                        .map(p -> p.toBuilder().type(ProductEntity.Type.ComputerSoftware).build()))
                 .test()
                 .await()
-                .assertValue(p -> ProductPrototype.Type.ComputerSoftware.equals(p.get().type()))
+                .assertValue(p -> ProductEntity.Type.ComputerSoftware.equals(p.get().type()))
                 .assertNoErrors();
 
         productTypeChanges.assertOf(countExactly(11));
@@ -1147,8 +1147,8 @@ public abstract class AbstractRepositoryTest {
 
         productTypeChanges
                 .assertValueAt(10, NotificationPrototype::isModify)
-                .assertValueAt(10, n -> ProductPrototype.Type.ComputeHardware.equals(requireNonNull(n.oldValue()).type()))
-                .assertValueAt(10, n -> ProductPrototype.Type.ComputerSoftware.equals(requireNonNull(n.newValue()).type()));
+                .assertValueAt(10, n -> ProductEntity.Type.ComputeHardware.equals(requireNonNull(n.oldValue()).type()))
+                .assertValueAt(10, n -> ProductEntity.Type.ComputerSoftware.equals(requireNonNull(n.newValue()).type()));
     }
 
     @Test

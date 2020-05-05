@@ -1,48 +1,44 @@
 package com.slimgears.rxrepo.test;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.slimgears.rxrepo.annotations.EntityModel;
 import com.slimgears.rxrepo.annotations.Filterable;
-import com.slimgears.rxrepo.annotations.UseExpressions;
-import com.slimgears.util.autovalue.annotations.AutoValuePrototype;
-import com.slimgears.util.autovalue.annotations.UseCopyAnnotator;
 import com.slimgears.util.autovalue.annotations.UseJacksonAnnotator;
 
 import java.io.Serializable;
 
-@AutoValuePrototype
-@UseExpressions
-@UseCopyAnnotator
+@EntityModel
 @UseJacksonAnnotator
-public interface UniqueIdPrototype extends Serializable {
+public interface UniqueIdEntity extends Serializable {
     @Filterable @JsonProperty int id();
     @Filterable @JsonProperty int areaId();
     @Filterable @JsonProperty String type();
 
-    static UniqueIdPrototype productDescriptionId(int id) {
+    static UniqueIdEntity productDescriptionId(int id) {
         return UniqueId.create(id, 0, ProductDescription.class);
     }
 
-    static UniqueIdPrototype storageId(int id) {
+    static UniqueIdEntity storageId(int id) {
         return UniqueId.create(id, 0, Storage.class);
     }
 
-    static UniqueIdPrototype productId(int id) {
+    static UniqueIdEntity productId(int id) {
         return UniqueId.create(id, 0, Product.class);
     }
 
-    static UniqueIdPrototype inventoryId(int id) {
+    static UniqueIdEntity inventoryId(int id) {
         return UniqueId.create(id, 0, Inventory.class);
     }
 
-    static UniqueIdPrototype vendorId(int id) {
+    static UniqueIdEntity vendorId(int id) {
         return UniqueId.create(id, 0, Vendor.class);
     }
 
-    static UniqueIdPrototype manufacturerId(int id) {
+    static UniqueIdEntity manufacturerId(int id) {
         return UniqueId.create(id, 0, Manufacturer.class);
     }
 
-    static UniqueIdPrototype create(int id, int areaId, Class<?> type) {
+    static UniqueIdEntity create(int id, int areaId, Class<?> type) {
         return UniqueId.create(id, areaId, type.getName());
     }
 }

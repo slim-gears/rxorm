@@ -1,9 +1,6 @@
 package com.slimgears.rxrepo.test;
 
-import com.slimgears.rxrepo.annotations.Filterable;
-import com.slimgears.rxrepo.annotations.Searchable;
-import com.slimgears.rxrepo.annotations.UseExpressions;
-import com.slimgears.rxrepo.annotations.UseFilters;
+import com.slimgears.rxrepo.annotations.*;
 import com.slimgears.util.autovalue.annotations.AutoValuePrototype;
 import com.slimgears.util.autovalue.annotations.Key;
 import com.slimgears.util.autovalue.annotations.UseCopyAnnotator;
@@ -12,11 +9,8 @@ import javax.annotation.Nullable;
 import java.util.Date;
 import java.util.List;
 
-@AutoValuePrototype
-@UseExpressions
-@UseCopyAnnotator
-@UseFilters
-public interface ProductPrototype {
+@EntityModelWithFilters
+public interface ProductEntity {
     enum Type {
         ConsumerElectronics,
         ComputeHardware,
