@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.orientdb;
 
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.query.decorator.OperationTimeoutQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.SubscribeOnSchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.test.*;
 import com.slimgears.rxrepo.util.SchedulingProvider;
@@ -15,10 +16,12 @@ import io.micrometer.core.instrument.logging.LoggingMeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.reactivex.Observable;
 import io.reactivex.Scheduler;
+import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.schedulers.Schedulers;
 import org.junit.*;
 
+import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -54,7 +57,9 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
                 .type(dbType)
                 .name(name)
                 .schedulingProvider(schedulingProvider)
-                .decorate(SubscribeOnSchedulingQueryProviderDecorator.create(updateScheduler, queryScheduler, Schedulers.from(Runnable::run)))
+                .decorate(
+                        SubscribeOnSchedulingQueryProviderDecorator.create(updateScheduler, queryScheduler, Schedulers.from(Runnable::run)),
+                        OperationTimeoutQueryProviderDecorator.create(Duration.ofSeconds(20), Duration.ofSeconds(60)))
                 .enableBatchSupport()
                 .maxConnections(10)
                 .build();
@@ -154,5 +159,34 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
 
         testObserver.await()
                 .assertNoErrors();
+    }
+
+    @Ignore @Test @UseLogLevel(LogLevel.TRACE)
+    public void testDecoratorEmptyEntitySet() {
+        products
+                .query()
+                .queryAndObserve()
+                .test()
+                .awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 30000)
+                .assertNoErrors()
+                .assertValueCount(0);
+
+        products
+                .query()
+                .observeCount()
+                .test()
+                .awaitCount(2, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 30000)
+                .assertNoErrors()
+                .assertValueCount(1)
+                .assertValueAt(0, 0L);
+
+        products
+                .query()
+                .liveSelect()
+                .observe()
+                .test()
+                .awaitCount(1, BaseTestConsumer.TestWaitStrategy.SLEEP_100MS, 30000)
+                .assertNoErrors()
+                .assertValueCount(0);
     }
 }

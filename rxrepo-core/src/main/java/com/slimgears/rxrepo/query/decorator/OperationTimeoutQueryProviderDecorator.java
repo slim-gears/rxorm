@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.query.decorator;
 
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.query.Notifications;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
@@ -58,6 +59,7 @@ public class OperationTimeoutQueryProviderDecorator extends AbstractQueryProvide
     @Override
     public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
         return super.queryAndObserve(queryInfo, observeInfo)
+                .doOnNext(n -> log.trace("Notification: {}", Notifications.toBriefString(queryInfo.metaClass(), n)))
                 .compose(Timeout.tillFirst(queryTimeout));
     }
 
@@ -65,12 +67,6 @@ public class OperationTimeoutQueryProviderDecorator extends AbstractQueryProvide
     public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
         return super.aggregate(query, aggregator)
                 .compose(Timeout.forMaybe(queryTimeout));
-    }
-
-    @Override
-    public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return super.liveAggregate(query, aggregator)
-                .compose(Timeout.tillFirst(queryTimeout));
     }
 
     @Override
@@ -93,6 +89,7 @@ public class OperationTimeoutQueryProviderDecorator extends AbstractQueryProvide
 
     @Override
     public Completable dropAll() {
-        return super.dropAll();
+        return super.dropAll()
+                .compose(Timeout.forCompletable(updateTimeout));
     }
 }
