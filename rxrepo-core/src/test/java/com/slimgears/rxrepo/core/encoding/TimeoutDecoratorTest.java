@@ -66,7 +66,7 @@ public class TimeoutDecoratorTest {
     @Test
     public void testTimeout() throws InterruptedException {
         Stopwatch stopwatch = Stopwatch.createStarted();
-        Completable.fromAction(() -> Thread.sleep(100000))
+        Completable.fromAction(() -> Thread.sleep(2000))
                 .timeout(500, TimeUnit.MILLISECONDS)
                 .test()
                 .await()

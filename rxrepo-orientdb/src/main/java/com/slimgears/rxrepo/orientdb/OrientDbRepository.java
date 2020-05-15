@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.orientdb;
 import com.google.common.collect.ImmutableMap;
 import com.orientechnologies.orient.core.config.OGlobalConfiguration;
 import com.orientechnologies.orient.core.db.*;
+import com.slimgears.nanometer.ExecutorMetrics;
 import com.slimgears.nanometer.MetricCollector;
 import com.slimgears.nanometer.Metrics;
 import com.slimgears.rxrepo.query.Repository;
@@ -25,6 +26,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -63,8 +65,9 @@ public class OrientDbRepository {
         private int maxNotificationQueues = 10;
         private Duration maxQueueIdleTime = Duration.ofSeconds(120);
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
-        private Supplier<SchedulingProvider> schedulingProvider = () -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxQueueIdleTime);
+        private Function<Executor, Executor> executorDecorator = Function.identity();
         private Function<SchedulingProvider, SchedulingProvider> schedulingProviderDecorator = Function.identity();
+        private Supplier<SchedulingProvider> schedulingProvider = () -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxQueueIdleTime, executorDecorator);
         private RepositoryConfig.Builder configBuilder = RepositoryConfig
                 .builder()
                 .retryCount(10)
@@ -116,6 +119,11 @@ public class OrientDbRepository {
 
         public final Builder schedulingProvider(Function<SchedulingProvider, SchedulingProvider> schedulingProvider) {
             this.schedulingProviderDecorator = schedulingProvider;
+            return this;
+        }
+
+        public final Builder decorateExecutor(Function<Executor, Executor> executorDecorator) {
+            this.executorDecorator = this.executorDecorator.andThen(executorDecorator);
             return this;
         }
 
@@ -239,6 +247,13 @@ public class OrientDbRepository {
         @Override
         public Builder retryInitialDurationMillis(int value) {
             configBuilder.retryInitialDurationMillis(value);
+            return this;
+        }
+
+        public Builder enableMetrics(MetricCollector metricCollector) {
+            MetricsQueryProviderDecorator decorator = MetricsQueryProviderDecorator.create(metricCollector);
+            decorate(decorator);
+            decorateExecutor(decorator.executorDecorator());
             return this;
         }
 

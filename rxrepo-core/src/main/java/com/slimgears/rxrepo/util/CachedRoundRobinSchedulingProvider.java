@@ -1,27 +1,23 @@
 package com.slimgears.rxrepo.util;
 
-import com.slimgears.nanometer.MetricCollector;
-import com.slimgears.nanometer.MetricTag;
-import com.slimgears.nanometer.Metrics;
 import com.slimgears.util.generic.ScopedInstance;
-import io.reactivex.Observable;
-import io.reactivex.ObservableTransformer;
 import io.reactivex.Scheduler;
 import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.slimgears.util.generic.MoreStrings.lazy;
 
 public class CachedRoundRobinSchedulingProvider implements SchedulingProvider {
     private final static Logger log = LoggerFactory.getLogger(CachedRoundRobinSchedulingProvider.class);
-    private final static MetricCollector metrics = Metrics.collector(CachedRoundRobinSchedulingProvider.class);
     private final int maxExecutors;
     private final Supplier<Executor> executorSupplier;
     private final List<Executor> executors = new ArrayList<>();
@@ -38,11 +34,15 @@ public class CachedRoundRobinSchedulingProvider implements SchedulingProvider {
     }
 
     public static SchedulingProvider create(int maxExecutors, Duration maxIdleTime) {
+        return create(maxExecutors, maxIdleTime, Function.identity());
+    }
+
+    public static SchedulingProvider create(int maxExecutors, Duration maxIdleTime, Function<Executor, Executor> executorDecorator) {
         return new CachedRoundRobinSchedulingProvider(maxExecutors, () ->
-                new ThreadPoolExecutor(
+                executorDecorator.apply(new ThreadPoolExecutor(
                         0, 1,
                         maxIdleTime.toMillis(), TimeUnit.MILLISECONDS,
-                        new LinkedBlockingQueue<>()));
+                        new LinkedBlockingQueue<>())));
     }
 
     protected Executor createExecutor() {
@@ -51,27 +51,11 @@ public class CachedRoundRobinSchedulingProvider implements SchedulingProvider {
 
     protected Executor getExecutor() {
         if (executors.size() < maxExecutors) {
-            Executor executor = withMetrics(createExecutor(), executors.size());
+            Executor executor = createExecutor();
             executors.add(executor);
             return executor;
         }
         return executors.get(nextQueueIndex.getAndUpdate(index -> (index + 1) % executors.size()));
-    }
-
-    private Executor withMetrics(Executor executor, int queueIndex) {
-        AtomicInteger queueSize = new AtomicInteger();
-        MetricCollector.Gauge gauge = metrics.gauge("queueSize", MetricTag.of("#" + queueIndex));
-        return runnable -> {
-            int sizeBefore = queueSize.incrementAndGet();
-            gauge.record(sizeBefore);
-            log.debug("Added task to queue #{}, new size: {}", queueIndex, sizeBefore);
-            executor.execute(() -> {
-                int sizeAfter = queueSize.decrementAndGet();
-                gauge.record(sizeAfter);
-                log.debug("Task from to queue #{} completed, new size: {}", queueIndex, sizeAfter);
-                runnable.run();
-            });
-        };
     }
 
     @Override

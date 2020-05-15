@@ -119,10 +119,18 @@ public class NotificationsToSlidingListTransformer<K, T> implements ObservableTr
         if (notification.isDelete() && isBeforeFirst(notification.oldValue())) {
             firstItemIndex.decrementAndGet();
         } else if (notification.isCreate() && isBeforeFirst(notification.newValue())) {
-            firstItemIndex.incrementAndGet();
+            if (firstItemIndex.get() > 0) {
+                firstItemIndex.incrementAndGet();
+            } else {
+                firstItem.set(notification.newValue());
+            }
         } else if (notification.isModify()) {
             if (isBeforeFirst(notification.newValue()) && !isBeforeFirst(notification.oldValue())) {
-                firstItemIndex.incrementAndGet();
+                if (firstItemIndex.get() > 0) {
+                    firstItemIndex.incrementAndGet();
+                } else {
+                    firstItem.set(notification.newValue());
+                }
             } else if (!isBeforeFirst(notification.newValue()) && isBeforeFirst(notification.oldValue())) {
                 firstItemIndex.decrementAndGet();
             }

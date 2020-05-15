@@ -88,12 +88,6 @@ public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decor
             return super.liveAggregate(query, aggregator).compose(applyTakeUntilClose());
         }
 
-//        @Override
-//        public Completable dropAll() {
-//            closeSubject.onComplete();
-//            return super.dropAll();
-//        }
-//
         @Override
         public void close() {
             if (wasClosed.compareAndSet(false, true)) {

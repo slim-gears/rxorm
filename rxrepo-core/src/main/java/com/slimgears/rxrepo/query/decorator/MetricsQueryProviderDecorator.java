@@ -1,6 +1,8 @@
 package com.slimgears.rxrepo.query.decorator;
 
+import com.slimgears.nanometer.ExecutorMetrics;
 import com.slimgears.nanometer.MetricCollector;
+import com.slimgears.nanometer.MetricTag;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
@@ -9,9 +11,14 @@ import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import io.reactivex.*;
+import io.reactivex.Completable;
+import io.reactivex.Maybe;
+import io.reactivex.Observable;
+import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -30,9 +37,17 @@ public class MetricsQueryProviderDecorator implements QueryProvider.Decorator, M
         return new MetricsQueryProviderDecorator(collector);
     }
 
+    public java.util.function.Function<Executor, Executor> executorDecorator() {
+        return this::decorateExecutor;
+    }
+
+    private Executor decorateExecutor(Executor executor) {
+        return ExecutorMetrics.wrap(executor, metricCollector.get().name("scheduler"));
+    }
+
     @Override
     public void bindTo(MetricCollector.Factory factory) {
-        metricCollector.set(factory.create().name("rxrepo"));
+        metricCollector.set(factory.name("rxrepo").create());
     }
 
     @Override
@@ -54,68 +69,68 @@ public class MetricsQueryProviderDecorator implements QueryProvider.Decorator, M
         public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
             return super
                     .insert(metaClass, entities, recursive)
-                    .lift(asyncCollector("insert", metaClass).forCompletable());
+                    .compose(asyncCollector("insert", metaClass).forCompletable());
         }
 
         @Override
         public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
             return super
                     .insertOrUpdate(metaClass, entity, recursive)
-                    .lift(asyncCollector("insertOrUpdate", metaClass).forSingle());
+                    .compose(asyncCollector("insertOrUpdate", metaClass).forSingle());
         }
 
         @Override
         public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
             return super.insertOrUpdate(metaClass, key, recursive, entityUpdater)
-                    .lift(asyncCollector("insertOrUpdateAtomic", metaClass).forMaybe());
+                    .compose(asyncCollector("insertOrUpdateAtomic", metaClass).forMaybe());
         }
 
         @Override
         public <K, S, T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
             return super.query(query)
-                    .lift(asyncCollector("query", query.metaClass()).forObservable());
+                    .compose(asyncCollector("query", query.metaClass()).forObservable());
         }
 
         @Override
         public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
             return super.liveQuery(query)
-                    .lift(asyncCollector("liveQuery", query.metaClass()).forObservable());
+                    .compose(asyncCollector("liveQuery", query.metaClass()).forObservable());
         }
 
         @Override
         public <K, S, T> Observable<Notification<T>> queryAndObserve(QueryInfo<K, S, T> queryInfo, QueryInfo<K, S, T> observeInfo) {
             return super.queryAndObserve(queryInfo, observeInfo)
-                    .lift(asyncCollector("queryAndObserve", queryInfo.metaClass()).forObservable());
+                    .compose(asyncCollector("queryAndObserve", queryInfo.metaClass()).forObservable());
         }
 
         @Override
         public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
             return super.aggregate(query, aggregator)
-                    .lift(asyncCollector("aggregate", query.metaClass()).forMaybe());
+                    .compose(asyncCollector("aggregate", query.metaClass()).forMaybe());
         }
 
         @Override
         public <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
             return super.liveAggregate(query, aggregator)
-                    .lift(asyncCollector("liveAggregate", query.metaClass()).forObservable());
+                    .compose(asyncCollector("liveAggregate", query.metaClass()).forObservable());
         }
 
         @Override
         public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
             return super.update(update)
-                    .lift(asyncCollector("batchUpdate", update.metaClass()).forSingle());
+                    .compose(asyncCollector("batchUpdate", update.metaClass()).forSingle());
         }
 
         @Override
         public <K, S> Single<Integer> delete(DeleteInfo<K, S> delete) {
             return super.delete(delete)
-                    .lift(asyncCollector("delete", delete.metaClass()).forSingle());
+                    .compose(asyncCollector("delete", delete.metaClass()).forSingle());
         }
 
         @Override
         public <K, S> Completable drop(MetaClassWithKey<K, S> metaClass) {
             return super.drop(metaClass)
-                    .lift(asyncCollector("drop", metaClass).forCompletable());
+                    .compose(asyncCollector("drop", metaClass).forCompletable());
         }
 
         private MetricCollector.Async asyncCollector(String operation, MetaClass<?> metaClass) {
@@ -123,7 +138,8 @@ public class MetricsQueryProviderDecorator implements QueryProvider.Decorator, M
                     .name(metaClass.simpleName())
                     .name(operation)
                     .async()
-                    .countSubscriptions("subscriptionCount")
+                    .countSubscriptions("totalSubscriptionCount")
+                    .countActiveSubscriptions("activeSubscriptionCount")
                     .countCompletions("completeCount")
                     .countErrors("errorCount")
                     .countItems("itemCount")
