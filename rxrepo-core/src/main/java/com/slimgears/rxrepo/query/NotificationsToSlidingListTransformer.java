@@ -7,6 +7,7 @@ import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.Observable;
 import io.reactivex.ObservableSource;
 import io.reactivex.ObservableTransformer;
+import io.reactivex.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +57,7 @@ public class NotificationsToSlidingListTransformer<K, T> implements ObservableTr
     }
 
     @Override
-    public ObservableSource<List<T>> apply(Observable<List<Notification<T>>> src) {
+    public @NonNull ObservableSource<List<T>> apply(@NonNull Observable<List<Notification<T>>> src) {
         return src
                 .doOnNext(this::updateMap)
                 .map(n -> toList());
@@ -119,18 +120,10 @@ public class NotificationsToSlidingListTransformer<K, T> implements ObservableTr
         if (notification.isDelete() && isBeforeFirst(notification.oldValue())) {
             firstItemIndex.decrementAndGet();
         } else if (notification.isCreate() && isBeforeFirst(notification.newValue())) {
-            if (firstItemIndex.get() > 0) {
-                firstItemIndex.incrementAndGet();
-            } else {
-                firstItem.set(notification.newValue());
-            }
+            firstItemIndex.incrementAndGet();
         } else if (notification.isModify()) {
             if (isBeforeFirst(notification.newValue()) && !isBeforeFirst(notification.oldValue())) {
-                if (firstItemIndex.get() > 0) {
-                    firstItemIndex.incrementAndGet();
-                } else {
-                    firstItem.set(notification.newValue());
-                }
+                firstItemIndex.incrementAndGet();
             } else if (!isBeforeFirst(notification.newValue()) && isBeforeFirst(notification.oldValue())) {
                 firstItemIndex.decrementAndGet();
             }
