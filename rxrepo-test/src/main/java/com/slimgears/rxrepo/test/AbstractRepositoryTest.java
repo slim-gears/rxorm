@@ -14,6 +14,7 @@ import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
+import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
@@ -61,8 +62,11 @@ public abstract class AbstractRepositoryTest {
     @After
     public void tearDown() {
         System.out.println("Test finished: " + testNameRule.getMethodName());
-        this.repository.clear().doOnComplete(this.repository::close).blockingAwait();
-        this.repository.close();
+        Completable.complete()
+                .doOnComplete(this.repository::close).blockingAwait();
+        Repository repository = createRepository(CachedRoundRobinSchedulingProvider.create(1, Duration.ofSeconds(60)));
+        repository.clear().blockingAwait();
+
     }
 
     protected abstract Repository createRepository(SchedulingProvider schedulingProvider);
