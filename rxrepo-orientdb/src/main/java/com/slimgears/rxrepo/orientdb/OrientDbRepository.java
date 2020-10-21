@@ -132,6 +132,11 @@ public class OrientDbRepository {
             return this;
         }
 
+        public final Builder setProperties(@Nonnull Map<String, Object> properties) {
+            properties.forEach(this::setProperty);
+            return this;
+        }
+
         public final Builder url(@Nonnull String url) {
             this.url = url;
             return this;
