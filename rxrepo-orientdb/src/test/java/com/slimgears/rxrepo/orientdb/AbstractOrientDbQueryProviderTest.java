@@ -41,8 +41,10 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
 
     @AfterClass
     public static void tearDownClass() {
-        loggingMeterRegistry.stop();
-        Metrics.globalRegistry.close();
+        if (loggingMeterRegistry != null) {
+            loggingMeterRegistry.stop();
+            Metrics.globalRegistry.close();
+        }
     }
 
     protected Repository createRepository(SchedulingProvider schedulingProvider, String dbUrl, OrientDbRepository.Type dbType) {
@@ -59,7 +61,7 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
                 .schedulingProvider(schedulingProvider)
                 .decorate(
                         SubscribeOnSchedulingQueryProviderDecorator.create(updateScheduler, queryScheduler, Schedulers.from(Runnable::run)),
-                        OperationTimeoutQueryProviderDecorator.create(Duration.ofSeconds(20), Duration.ofSeconds(60)))
+                        OperationTimeoutQueryProviderDecorator.create(Duration.ofSeconds(20), Duration.ofSeconds(360)))
                 .enableBatchSupport()
                 .maxConnections(10)
                 .build();

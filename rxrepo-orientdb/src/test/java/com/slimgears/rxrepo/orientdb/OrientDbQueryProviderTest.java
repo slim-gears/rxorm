@@ -20,6 +20,10 @@ public class OrientDbQueryProviderTest extends AbstractOrientDbQueryProviderTest
 
     @Override
     protected Repository createRepository(SchedulingProvider schedulingProvider) {
+        return createRepository(schedulingProvider, dbType);
+    }
+
+    protected Repository createRepository(SchedulingProvider schedulingProvider, OrientDbRepository.Type dbType) {
         return super.createRepository(schedulingProvider, dbUrl, dbType);
     }
 }
