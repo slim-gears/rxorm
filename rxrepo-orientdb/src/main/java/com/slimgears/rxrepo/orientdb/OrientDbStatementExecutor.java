@@ -88,7 +88,9 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                                 statement.statement(),
                                 new OrientDbLiveQueryListener(emitter, statement),
                                 statement.args());
-                        emitter.setCancellable(monitor::unSubscribe);
+                       emitter.setCancellable(()-> sessionProvider.withSession(s -> {
+                           monitor.unSubscribe();
+                       }));
                     });
                 })
                 .map(res -> Notification.ofModified(

@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static com.orientechnologies.orient.core.config.OGlobalConfiguration.CLIENT_CONNECTION_STRATEGY;
+
 public class OrientDbRepository {
     private final static Logger log = LoggerFactory.getLogger(OrientDbRepository.class);
     private final static MetricCollector metrics = Metrics.collector(OrientDbRepository.class);
@@ -214,6 +216,7 @@ public class OrientDbRepository {
 
         private OrientDB createClient(String url, String serverUser, String serverPassword, String dbName, ODatabaseType dbType) {
             OrientDBConfig config = OrientDBConfig.builder()
+                    .addConfig(CLIENT_CONNECTION_STRATEGY, "ROUND_ROBIN_CONNECT")
                     .fromGlobalMap(customConfig)
                     .build();
 
