@@ -1309,7 +1309,10 @@ public abstract class AbstractRepositoryTest {
     @Test
     @UseLogLevel(LogLevel.DEBUG)
     public void testLargeUpdate() throws InterruptedException {
-        Observable.fromIterable(Products.createMany(200000))
+        int count = Optional.ofNullable(System.getProperty("testLargeUpdate.count"))
+                .map(Integer::valueOf)
+                .orElse(20000);
+        Observable.fromIterable(Products.createMany(count))
                 .buffer(10000)
                 .observeOn(Schedulers.io())
                 .flatMapCompletable(buff -> repository.entities(Product.metaClass).update(buff))
