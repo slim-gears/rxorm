@@ -309,6 +309,6 @@ public class OrientDbClientTest {
                     .map(OElement.class::cast)
                     .forEach(OElement::save);
         });
-        System.out.println(MoreStrings.format("{}: {} rows stored in {} seconds", url, count, stopwatch.elapsed(TimeUnit.SECONDS));
+        System.out.println(MoreStrings.format("{}: {} rows stored in {} seconds", url, count, stopwatch.elapsed(TimeUnit.SECONDS)));
     }
 }
