@@ -263,26 +263,9 @@ public class OrientDbClientTest {
     }
 
     @Test
-    public void testRemoteBulkInsert() throws IOException, InterruptedException {
-        Runtime rt = Runtime.getRuntime();
-        Process proc = rt.exec(new String[]{"docker-compose", "up", "-d"});
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.out.println(line);
-            }
-        }
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getErrorStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.err.println(line);
-            }
-        }
-        try {
-            Thread.sleep(5000);
+    public void testRemoteBulkInsert() throws Exception {
+        try (AutoCloseable ignored = RemoteOrientDbTestUtils.withOrient()){
             testBulkInsert("remote:localhost/db", 100000);
-        } finally {
-            rt.exec(new String[]{"docker-compose", "down"}).waitFor();
         }
     }
 

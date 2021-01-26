@@ -4,6 +4,7 @@ import com.orientechnologies.orient.core.db.OrientDB;
 import com.orientechnologies.orient.core.db.OrientDBConfig;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.util.SchedulingProvider;
+import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 
@@ -14,7 +15,13 @@ public class RemoteOrientDbQueryProviderTest extends OrientDbQueryProviderTest {
 
     @BeforeClass
     public static void setUpClass() {
+        RemoteOrientDbTestUtils.start();
         Assume.assumeTrue(isDbAvailable(dbUrl));
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        RemoteOrientDbTestUtils.stop();
     }
 
     private static boolean isDbAvailable(String dbUrl) {
