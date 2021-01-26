@@ -263,7 +263,7 @@ public class OrientDbClientTest {
     }
 
     @Test
-    public void testRemoteBulkInsert() throws IOException {
+    public void testRemoteBulkInsert() throws IOException, InterruptedException {
         Runtime rt = Runtime.getRuntime();
         Process proc = rt.exec(new String[]{"docker-compose", "up", "-d"});
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
@@ -278,7 +278,12 @@ public class OrientDbClientTest {
                 System.err.println(line);
             }
         }
-        testBulkInsert("remote:localhost/db", 100000);
+        try {
+            Thread.sleep(5000);
+            testBulkInsert("remote:localhost/db", 100000);
+        } finally {
+            rt.exec(new String[]{"docker-compose", "down"}).waitFor();
+        }
     }
 
     @Test
