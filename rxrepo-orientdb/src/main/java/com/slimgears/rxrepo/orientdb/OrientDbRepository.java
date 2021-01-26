@@ -86,8 +86,8 @@ public class OrientDbRepository {
             return this;
         }
 
-        public final Builder enableBatchSupport(boolean enable, int bufferSize) {
-            this.batchSupport = enable;
+        public final Builder enableBatchSupport(int bufferSize) {
+            this.batchSupport = true;
             this.batchBufferSize = bufferSize;
             return this;
         }

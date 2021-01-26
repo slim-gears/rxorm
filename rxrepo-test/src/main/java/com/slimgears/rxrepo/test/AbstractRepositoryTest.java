@@ -1309,8 +1309,8 @@ public abstract class AbstractRepositoryTest {
     @Test
     @UseLogLevel(LogLevel.DEBUG)
     public void testLargeUpdate() throws InterruptedException {
-        Observable.fromIterable(Products.createMany(20000))
-                .buffer(1000)
+        Observable.fromIterable(Products.createMany(200000))
+                .buffer(10000)
                 .observeOn(Schedulers.io())
                 .flatMapCompletable(buff -> repository.entities(Product.metaClass).update(buff))
                 .test()
