@@ -17,8 +17,10 @@ import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
+import io.reactivex.Scheduler;
 import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.CompletableSubject;
 import org.junit.*;
 import org.junit.rules.MethodRule;
@@ -35,6 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.slimgears.rxrepo.test.TestUtils.*;
 import static java.util.Objects.requireNonNull;
@@ -43,7 +46,7 @@ import static java.util.Objects.requireNonNull;
 public abstract class AbstractRepositoryTest {
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
-    @Rule public final Timeout timeout = new Timeout(3, TimeUnit.MINUTES);
+    @Rule public final Timeout timeout = new Timeout(4, TimeUnit.MINUTES);
 
     private Repository repository;
     protected EntitySet<UniqueId, Product> products;
@@ -52,7 +55,7 @@ public abstract class AbstractRepositoryTest {
 
     @Before
     public void setUp() {
-        this.repository = createRepository(CachedRoundRobinSchedulingProvider.create(1, Duration.ofSeconds(60)));
+        this.repository = createRepository(CachedRoundRobinSchedulingProvider.create(10, Duration.ofSeconds(60)));
         this.products = repository.entities(Product.metaClass);
         this.inventories = repository.entities(Inventory.metaClass);
         System.out.println("Starting test: " + testNameRule.getMethodName());
@@ -117,6 +120,7 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
+    @UseLogLevel(LogLevel.TRACE)
     public void testAddAndRetrieveByKey() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Product product = Product.builder()
@@ -1305,7 +1309,23 @@ public abstract class AbstractRepositoryTest {
     @Test
     @UseLogLevel(LogLevel.DEBUG)
     public void testLargeUpdate() throws InterruptedException {
-        repository.entities(Product.metaClass).update(Products.createMany(2000))
+        Observable.fromIterable(Products.createMany(20000))
+                .buffer(1000)
+                .observeOn(Schedulers.io())
+                .flatMapCompletable(buff -> repository.entities(Product.metaClass).update(buff))
+                .test()
+                .await()
+                .assertNoErrors()
+                .assertComplete();
+    }
+
+    @Test
+    @UseLogLevel(LogLevel.DEBUG)
+    public void testLargeUpdateNoReferences() throws InterruptedException {
+        repository.entities(Inventory.metaClass).update(Streams
+                .fromIterable(Products.createMany(1, 100000, 1))
+                .map(Product::inventory)
+                .collect(Collectors.toList()))
                 .test()
                 .await()
                 .assertNoErrors()
@@ -1417,7 +1437,7 @@ public abstract class AbstractRepositoryTest {
 
         Assert.assertEquals(Long.valueOf(count), repository.entities(Product.metaClass).query().count().blockingGet());
 
-        products = Products.createMany(count, count);
+        products = Products.createMany(count, count, 10);
         stopwatch.reset().start();
         productEntitySets.update(products).blockingAwait();
 

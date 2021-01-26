@@ -61,7 +61,7 @@ public class OrientDbRepository {
         private String serverUser = "root";
         private String serverPassword = "root";
         private boolean batchSupport = false;
-        private int batchBufferSize = 20000;
+        private int batchBufferSize = 2000;
         private int maxNotificationQueues = 10;
         private Duration maxQueueIdleTime = Duration.ofSeconds(120);
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
@@ -265,13 +265,14 @@ public class OrientDbRepository {
         private SqlServiceFactory.Builder serviceFactoryBuilder(OrientDbSessionProvider dbSessionProvider) {
             return SqlServiceFactory.builder()
                     .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
-                    .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider)))
-                    .expressionGenerator(OrientDbSqlExpressionGenerator::new)
-                    .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
+                    .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider), svc.keyEncoder()))
+                    .expressionGenerator(svc -> OrientDbSqlExpressionGenerator.create(svc.keyEncoder()))
+                    .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator(), svc.keyEncoder()))
                     .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
                     .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
                     .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider, batchBufferSize) : SqlQueryProvider.create(svc))
-                    .schedulingProvider(() -> schedulingProviderDecorator.apply(schedulingProvider.get()));
+                    .schedulingProvider(() -> schedulingProviderDecorator.apply(schedulingProvider.get()))
+                    .keyEncoder(() -> DigestKeyEncoder.create());
         }
     }
 }

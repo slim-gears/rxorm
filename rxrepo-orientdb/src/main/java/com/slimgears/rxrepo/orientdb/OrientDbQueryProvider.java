@@ -6,6 +6,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Table;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
+import com.orientechnologies.orient.core.intent.OIntentMassiveInsert;
 import com.orientechnologies.orient.core.metadata.sequence.OSequence;
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
@@ -13,8 +14,8 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.sql.*;
-import com.slimgears.rxrepo.util.LockProvider;
 import com.slimgears.rxrepo.util.SchedulingProvider;
+import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
@@ -26,16 +27,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ConcurrentModificationException;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 public class OrientDbQueryProvider extends SqlQueryProvider {
     private final static Logger log = LoggerFactory.getLogger(OrientDbQueryProvider.class);
     private final OrientDbSessionProvider dbSessionProvider;
     private final int bufferSize;
+    private final KeyEncoder keyEncoder;
 
     OrientDbQueryProvider(SqlStatementProvider statementProvider,
                           SqlStatementExecutor statementExecutor,
@@ -43,10 +43,12 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
                           ReferenceResolver referenceResolver,
                           SchedulingProvider schedulingProvider,
                           OrientDbSessionProvider dbSessionProvider,
+                          KeyEncoder keyEncoder,
                           int bufferSize) {
         super(statementProvider, statementExecutor, schemaProvider, referenceResolver, schedulingProvider);
         this.dbSessionProvider = dbSessionProvider;
         this.bufferSize = bufferSize;
+        this.keyEncoder = keyEncoder;
     }
 
     static OrientDbQueryProvider create(SqlServiceFactory serviceFactory, OrientDbSessionProvider sessionProvider, int bufferSize) {
@@ -57,6 +59,7 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
                 serviceFactory.referenceResolver(),
                 serviceFactory.schedulingProvider(),
                 sessionProvider,
+                serviceFactory.keyEncoder(),
                 bufferSize);
     }
 
@@ -79,16 +82,20 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
         AtomicLong seqNum = new AtomicLong();
         dbSessionProvider.withSession(dbSession -> {
             try {
-                dbSession.begin();
+                dbSession.declareIntent(new OIntentMassiveInsert());
+//                dbSession.begin();
                 OSequence sequence = dbSession.getMetadata().getSequenceLibrary().getSequence(OrientDbSchemaProvider.sequenceName);
                 seqNum.set(sequence.next());
                 Streams.fromIterable(entities)
                         .map(entity -> toOrientDbObject(entity, queryCache, dbSession, seqNum.get()))
                         .forEach(OElement::save);
-                dbSession.commit();
+                log.debug("Saving {} objects ({} types)", queryCache.size(), queryCache.rowKeySet().size());
+//                dbSession.commit();
             } catch (OConcurrentModificationException | ORecordDuplicatedException e) {
-                dbSession.rollback();
+//                dbSession.rollback();
                 throw new ConcurrentModificationException(e.getMessage(), e);
+            } finally {
+                dbSession.declareIntent(null);
             }
             //log.info("{} Written sequence num: {}", metaClass.simpleName(), seqNum.get());
         });
@@ -99,7 +106,7 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
     }
 
     private <S> OElement toOrientDbObject(S entity, Table<MetaClass<?>, Object, OElement> queryCache, ODatabaseDocument dbSession, long seqNum) {
-        return toOrientDbObject(entity, OrientDbObjectConverter.create(
+        OElement oEl = toOrientDbObject(entity, OrientDbObjectConverter.create(
                 meta -> {
                     OElement element = dbSession.newElement(schemaProvider.tableName(meta));
                     element.setProperty(sequenceNumField, seqNum);
@@ -123,7 +130,10 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
                         queryCache.put(metaClass, key, oElement);
                     }
                     return oElement;
-                }));
+                },
+                keyEncoder));
+        queryCache.put(((HasMetaClass)entity).metaClass(), entity, oEl);
+        return oEl;
     }
 
     @SuppressWarnings("unchecked")

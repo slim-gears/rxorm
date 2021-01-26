@@ -20,6 +20,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     private final Lazy<SqlAssignmentGenerator> assignmentGenerator;
     private final Lazy<QueryProvider> queryProvider;
     private final Lazy<SchedulingProvider> executorPool;
+    private final Lazy<KeyEncoder> keyEncoder;
 
     private DefaultSqlServiceFactory(
             @Nonnull Function<SqlServiceFactory, SqlStatementProvider> statementProvider,
@@ -29,7 +30,8 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             @Nonnull Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
             @Nonnull Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator,
             @Nonnull Function<SqlServiceFactory, QueryProvider> queryProviderGenerator,
-            @Nonnull Function<SqlServiceFactory, SchedulingProvider> executorPool) {
+            @Nonnull Function<SqlServiceFactory, SchedulingProvider> executorPool,
+            @Nonnull Function<SqlServiceFactory, KeyEncoder> keyEncoder) {
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
         this.statementExecutor = Lazy.of(() -> statementExecutor.apply(this));
         this.referenceResolver = Lazy.of(() -> referenceResolver.apply(this));
@@ -38,6 +40,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         this.assignmentGenerator = Lazy.of(() -> assignmentGenerator.apply(this));
         this.queryProvider = Lazy.of(() -> queryProviderGenerator.apply(this));
         this.executorPool = Lazy.of(() -> executorPool.apply(this));
+        this.keyEncoder = Lazy.of(() -> keyEncoder.apply(this));
     }
 
     @Override
@@ -80,6 +83,11 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         return executorPool.get();
     }
 
+    @Override
+    public KeyEncoder keyEncoder() {
+        return keyEncoder.get();
+    }
+
     public static SqlServiceFactory.Builder builder() {
         return new Builder()
                 .expressionGenerator(DefaultSqlExpressionGenerator::new)
@@ -100,6 +108,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         private Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator;
         private Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator;
         private Function<SqlServiceFactory, SchedulingProvider> schedulingProvider = f -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxNotificationQueueIdleDuration);
+        private Function<SqlServiceFactory, KeyEncoder> keyEncoder = f -> Object::toString;
         private Function<SqlServiceFactory, QueryProvider> queryProviderGenerator = factory -> new SqlQueryProvider(
                 factory.statementProvider(),
                 factory.statementExecutor(),
@@ -155,6 +164,12 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             return this;
         }
 
+        @Override
+        public SqlServiceFactory.Builder keyEncoder(Function<SqlServiceFactory, KeyEncoder> keyEncoder) {
+            this.keyEncoder = keyEncoder;
+            return this;
+        }
+
         public SqlServiceFactory.Builder maxNotificationQueues(int maxNotificationQueues) {
             this.maxNotificationQueues = maxNotificationQueues;
             return this;
@@ -175,7 +190,8 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                     requireNonNull(expressionGenerator),
                     requireNonNull(assignmentGenerator),
                     requireNonNull(queryProviderGenerator),
-                    requireNonNull(schedulingProvider));
+                    requireNonNull(schedulingProvider),
+                    requireNonNull(keyEncoder));
         }
     }
 }
