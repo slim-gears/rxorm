@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.orientdb;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.reflect.TypeToken;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.db.record.OTrackedList;
 import com.orientechnologies.orient.core.db.record.OTrackedMap;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
+@SuppressWarnings("UnstableApiUsage")
 public abstract class AbstractOrientPropertyResolver implements PropertyResolver {
     final OrientDbSessionProvider dbSessionProvider;
 
@@ -27,21 +29,21 @@ public abstract class AbstractOrientPropertyResolver implements PropertyResolver
     }
 
     @Override
-    public Object getProperty(String name, Class<?> type) {
+    public Object getProperty(String name, TypeToken<?> type) {
         Object obj = getPropertyInternal(name, type);
         return toValue(obj, type);
     }
 
-    private Object toValue(Object obj, Class<?> expectedType) {
+    private Object toValue(Object obj, TypeToken<?> expectedType) {
         return toValue(dbSessionProvider, obj, expectedType);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static Object toValue(OrientDbSessionProvider dbSessionProvider, Object obj, Class<?> expectedType) {
+    private static Object toValue(OrientDbSessionProvider dbSessionProvider, Object obj, TypeToken<?> expectedType) {
         if (obj instanceof OElement) {
             return OElementPropertyResolver.create(dbSessionProvider, (OElement)obj);
-        } else if (expectedType.isEnum() && obj != null) {
-            return Enum.valueOf((Class)expectedType, obj.toString());
+        } else if (expectedType.getRawType().isEnum() && obj != null) {
+            return Enum.valueOf((Class)expectedType.getRawType(), obj.toString());
         } else if (obj instanceof ORecordId) {
             return toValue(dbSessionProvider, dbSessionProvider.withSession((ODatabaseDocument s) -> s.load((ORecordId)obj)), expectedType);
         } else if (obj instanceof OTrackedList) {
@@ -85,5 +87,5 @@ public abstract class AbstractOrientPropertyResolver implements PropertyResolver
         return obj;
     }
 
-    protected abstract Object getPropertyInternal(String name, Class<?> type);
+    protected abstract Object getPropertyInternal(String name, TypeToken<?> type);
 }

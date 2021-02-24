@@ -1,9 +1,11 @@
 package com.slimgears.rxrepo.util;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.util.stream.Lazy;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+@SuppressWarnings("UnstableApiUsage")
 public class CachedPropertyResolver implements PropertyResolver {
     private final PropertyResolver underlyingResolver;
     private final Lazy<Iterable<String>> propertyNames;
@@ -25,7 +27,7 @@ public class CachedPropertyResolver implements PropertyResolver {
     }
 
     @Override
-    public Object getProperty(String name, Class<?> type) {
+    public Object getProperty(String name, TypeToken<?> type) {
         return values.get().computeIfAbsent(name, n -> underlyingResolver.getProperty(n, type));
     }
 }

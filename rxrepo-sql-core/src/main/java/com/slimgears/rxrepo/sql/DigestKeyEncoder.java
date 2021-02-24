@@ -1,6 +1,4 @@
-package com.slimgears.rxrepo.orientdb;
-
-import com.slimgears.rxrepo.sql.KeyEncoder;
+package com.slimgears.rxrepo.sql;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

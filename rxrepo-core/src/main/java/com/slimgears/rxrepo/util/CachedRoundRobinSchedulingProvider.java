@@ -63,10 +63,10 @@ public class CachedRoundRobinSchedulingProvider implements SchedulingProvider {
         Callable<T> loggingRunnable = () -> {
             Object lazyIndex = lazy(() -> executors.indexOf(currentExecutor.current()));
             try {
-                log.debug(">>> Entering scope (Queue #{})", lazyIndex);
+                log.trace(">>> Entering scope (Queue #{})", lazyIndex);
                 return runnable.call();
             } finally {
-                log.debug("<<< Left scope (Queue #{})", lazyIndex);
+                log.trace("<<< Left scope (Queue #{})", lazyIndex);
             }
         };
         if (currentExecutor.current() != null) {
@@ -84,10 +84,10 @@ public class CachedRoundRobinSchedulingProvider implements SchedulingProvider {
     public Scheduler scheduler() {
         Executor executor = currentExecutor.current();
         if (executor != null) {
-            log.debug("Scoped executor found: Queue #{}", lazy(() -> executors.indexOf(executor)));
+            log.trace("Scoped executor found: Queue #{}", lazy(() -> executors.indexOf(executor)));
             return Schedulers.from(executor);
         }
-        log.debug("Scoped executor not found.");
+        log.trace("Scoped executor not found.");
         return Schedulers.from(Runnable::run);
     }
 }

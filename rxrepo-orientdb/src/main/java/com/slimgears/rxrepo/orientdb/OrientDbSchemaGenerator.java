@@ -10,12 +10,11 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence;
 import com.orientechnologies.orient.core.metadata.sequence.OSequenceLibrary;
 import com.orientechnologies.orient.core.serialization.serializer.binary.impl.OLinkSerializer;
 import com.slimgears.rxrepo.annotations.Indexable;
-import com.slimgears.rxrepo.sql.SchemaProvider;
+import com.slimgears.rxrepo.sql.SchemaGenerator;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
-import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,13 +22,13 @@ import java.util.Objects;
 import java.util.Optional;
 
 @SuppressWarnings("UnstableApiUsage")
-class OrientDbSchemaProvider implements SchemaProvider {
-    private final static Logger log = LoggerFactory.getLogger(OrientDbSchemaProvider.class);
+class OrientDbSchemaGenerator implements SchemaGenerator {
+    private final static Logger log = LoggerFactory.getLogger(OrientDbSchemaGenerator.class);
     private final OrientDbSessionProvider dbSessionProvider;
     private final Completable sequenceCreated;
     final static String sequenceName = "sequenceNum";
 
-    OrientDbSchemaProvider(OrientDbSessionProvider sessionProvider) {
+    OrientDbSchemaGenerator(OrientDbSessionProvider sessionProvider) {
         this.dbSessionProvider = sessionProvider;
         this.sequenceCreated = Completable.create(emitter -> dbSessionProvider.withSession(session -> {
             OSequenceLibrary sequenceLibrary = session.getMetadata().getSequenceLibrary();
@@ -42,19 +41,9 @@ class OrientDbSchemaProvider implements SchemaProvider {
     }
 
     @Override
-    public String databaseName() {
-        return dbSessionProvider.withSession(ODatabaseDocument::getName);
-    }
-
-    @Override
-    public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
+    public <K, T> Completable createOrUpdate(MetaClassWithKey<K, T> metaClass) {
         return sequenceCreated.concatWith(Completable
                 .fromAction(() -> dbSessionProvider.withSession(dbSession -> (OClass)createClass(dbSession, metaClass))));
-    }
-
-    @Override
-    public <T> String tableName(MetaClass<T> metaClass) {
-        return toClassName(metaClass);
     }
 
     @Override

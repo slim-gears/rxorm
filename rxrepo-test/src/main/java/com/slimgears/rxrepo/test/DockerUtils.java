@@ -1,17 +1,31 @@
-package com.slimgears.rxrepo.orientdb;
+package com.slimgears.rxrepo.test;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
-public class RemoteOrientDbTestUtils {
-    public static AutoCloseable withOrient() {
-        start();
-        return RemoteOrientDbTestUtils::stop;
+public class DockerUtils {
+    private static String defaultComposeFile = "docker-compose.yaml";
+
+    public static AutoCloseable withContainer() {
+        return withContainer(defaultComposeFile);
+    }
+
+    public static AutoCloseable withContainer(String composeFile) {
+        start(composeFile);
+        return () -> stop(composeFile);
     }
 
     public static void start() {
+        start(defaultComposeFile);
+    }
+
+    public static void stop() {
+        stop(defaultComposeFile);
+    }
+
+    public static void start(String composeFilePath) {
         try {
-            Process proc = Runtime.getRuntime().exec(new String[]{"docker-compose", "up", "-d"});
+            Process proc = Runtime.getRuntime().exec(new String[]{"docker-compose", "-f", composeFilePath, "up", "-d"});
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -30,9 +44,9 @@ public class RemoteOrientDbTestUtils {
         }
     }
 
-    public static void stop() {
+    public static void stop(String composeFilePath) {
         try {
-            Runtime.getRuntime().exec(new String[]{"docker-compose", "down"}).waitFor();
+            Runtime.getRuntime().exec(new String[]{"docker-compose", "-f", composeFilePath, "down"}).waitFor();
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }

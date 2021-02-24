@@ -1,7 +1,6 @@
 package com.slimgears.rxrepo.expressions;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.internal.*;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
 

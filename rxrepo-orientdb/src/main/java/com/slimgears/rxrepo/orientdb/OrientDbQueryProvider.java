@@ -31,7 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class OrientDbQueryProvider extends SqlQueryProvider {
+public class OrientDbQueryProvider extends DefaultSqlQueryProvider {
     private final static Logger log = LoggerFactory.getLogger(OrientDbQueryProvider.class);
     private final OrientDbSessionProvider dbSessionProvider;
     private final int bufferSize;
@@ -39,13 +39,13 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
 
     OrientDbQueryProvider(SqlStatementProvider statementProvider,
                           SqlStatementExecutor statementExecutor,
-                          SchemaProvider schemaProvider,
+                          SchemaGenerator schemaGenerator,
                           ReferenceResolver referenceResolver,
                           SchedulingProvider schedulingProvider,
                           OrientDbSessionProvider dbSessionProvider,
                           KeyEncoder keyEncoder,
                           int bufferSize) {
-        super(statementProvider, statementExecutor, schemaProvider, referenceResolver, schedulingProvider);
+        super(statementProvider, statementExecutor, schemaGenerator, referenceResolver, schedulingProvider);
         this.dbSessionProvider = dbSessionProvider;
         this.bufferSize = bufferSize;
         this.keyEncoder = keyEncoder;
@@ -70,21 +70,21 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
         }
 
         Stopwatch stopwatch = Stopwatch.createStarted();
-        return schemaProvider.createOrUpdate(metaClass)
+        return schemaGenerator.useTable(metaClass)
                 .andThen(Observable.fromIterable(entities)
                         .buffer(bufferSize)
-                        .concatMapCompletable(buffer -> Completable.fromAction(() -> createAndSaveElements(metaClass, buffer))))
+                        .concatMapCompletable(buffer -> Completable.fromAction(() -> createAndSaveElements(buffer))))
                 .doOnComplete(() -> log.debug("Total insert time: {}s", stopwatch.elapsed(TimeUnit.SECONDS)));
     }
 
-    private <S> void createAndSaveElements(MetaClass<S> metaClass, Iterable<S> entities) {
+    private <S> void createAndSaveElements(Iterable<S> entities) {
         Table<MetaClass<?>, Object, OElement> queryCache = HashBasedTable.create();
         AtomicLong seqNum = new AtomicLong();
         dbSessionProvider.withSession(dbSession -> {
             try {
                 dbSession.declareIntent(new OIntentMassiveInsert());
 //                dbSession.begin();
-                OSequence sequence = dbSession.getMetadata().getSequenceLibrary().getSequence(OrientDbSchemaProvider.sequenceName);
+                OSequence sequence = dbSession.getMetadata().getSequenceLibrary().getSequence(OrientDbSchemaGenerator.sequenceName);
                 seqNum.set(sequence.next());
                 Streams.fromIterable(entities)
                         .map(entity -> toOrientDbObject(entity, queryCache, dbSession, seqNum.get()))
@@ -105,10 +105,11 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
         return (OElement)converter.toOrientDbObject(entity);
     }
 
+    @SuppressWarnings("unchecked")
     private <S> OElement toOrientDbObject(S entity, Table<MetaClass<?>, Object, OElement> queryCache, ODatabaseDocument dbSession, long seqNum) {
         OElement oEl = toOrientDbObject(entity, OrientDbObjectConverter.create(
                 meta -> {
-                    OElement element = dbSession.newElement(schemaProvider.tableName(meta));
+                    OElement element = dbSession.newElement(statementProvider.tableName((MetaClassWithKey<?, S>)meta));
                     element.setProperty(sequenceNumField, seqNum);
                     return element;
                 },
@@ -132,7 +133,7 @@ public class OrientDbQueryProvider extends SqlQueryProvider {
                     return oElement;
                 },
                 keyEncoder));
-        queryCache.put(((HasMetaClass)entity).metaClass(), entity, oEl);
+        queryCache.put(((HasMetaClass<?>)entity).metaClass(), entity, oEl);
         return oEl;
     }
 

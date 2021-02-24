@@ -17,7 +17,7 @@ public interface ProductPrototype {
         ComputerSoftware
     }
 
-    @Key int id();
+    @Key ObjectId id();
     @Nullable String name();
     @Nullable Inventory inventory();
     @Nullable Type type();

@@ -1,8 +1,10 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.google.common.reflect.TypeToken;
 import com.orientechnologies.orient.core.record.OElement;
 import com.slimgears.rxrepo.util.PropertyResolver;
 
+@SuppressWarnings("UnstableApiUsage")
 class OElementPropertyResolver extends AbstractOrientPropertyResolver {
     private final OElement oElement;
 
@@ -17,7 +19,7 @@ class OElementPropertyResolver extends AbstractOrientPropertyResolver {
     }
 
     @Override
-    protected Object getPropertyInternal(String name, Class<?> type) {
+    protected Object getPropertyInternal(String name, TypeToken<?> type) {
         return oElement.getProperty(name);
     }
 

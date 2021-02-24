@@ -1,4 +1,4 @@
-package com.slimgears.rxrepo.jdbc;
+package com.slimgears.rxrepo.sql.jdbc;
 
 import com.slimgears.rxrepo.sql.SqlStatement;
 
@@ -31,24 +31,28 @@ public class JdbcHelper {
     interface ColumnGetter<T> {
         T getValue(ResultSet resultSet, int columnIndex) throws SQLException;
     }
-    static {
-        registerType(Types.INTEGER, PreparedStatement::setInt, ResultSet::getInt, Integer.class, int.class);
-        registerType(Types.BIGINT, PreparedStatement::setLong, ResultSet::getLong, Long.class, long.class);
-        registerType(Types.DOUBLE, PreparedStatement::setDouble, ResultSet::getDouble, Double.class, double.class);
-        registerType(Types.FLOAT, PreparedStatement::setFloat, ResultSet::getFloat, Float.class, float.class);
+     static {
+        registerType(Types.INTEGER, PreparedStatement::setInt, ResultSet::getInt, "INTEGER", Integer.class, int.class);
+        registerType(Types.BIGINT, PreparedStatement::setLong, ResultSet::getLong, "BIGINT", Long.class, long.class);
+        registerType(Types.DOUBLE, PreparedStatement::setDouble, ResultSet::getDouble, "DOUBLE", Double.class, double.class);
+        registerType(Types.FLOAT, PreparedStatement::setFloat, ResultSet::getFloat, "FLOAT", Float.class, float.class);
         registerType(Types.REAL, PreparedStatement::setFloat, ResultSet::getFloat);
-        registerType(Types.SMALLINT, PreparedStatement::setShort, ResultSet::getShort, Short.class, short.class);
-        registerType(Types.TINYINT, PreparedStatement::setByte, ResultSet::getByte, Byte.class, byte.class);
-        registerType(Types.NVARCHAR, PreparedStatement::setString, ResultSet::getString, String.class);
+        registerType(Types.SMALLINT, PreparedStatement::setShort, ResultSet::getShort, "SMALLINT", Short.class, short.class);
+        registerType(Types.TINYINT, PreparedStatement::setByte, ResultSet::getByte, "TINYINT", Byte.class, byte.class);
+        registerType(Types.NVARCHAR, PreparedStatement::setString, ResultSet::getString, "NVARCHAR", String.class);
         registerType(Types.VARCHAR, PreparedStatement::setString, ResultSet::getString);
         registerType(Types.NCHAR, PreparedStatement::setString, ResultSet::getString);
         registerType(Types.CHAR, PreparedStatement::setString, ResultSet::getString);
-        registerType(Types.BLOB, PreparedStatement::setBytes, ResultSet::getBytes, byte[].class);
-        registerType(Types.DATE, PreparedStatement::setDate, ResultSet::getDate, Date.class);
+        registerType(Types.BLOB, PreparedStatement::setBytes, ResultSet::getBytes, "BLOB", byte[].class);
+        registerType(Types.DATE, PreparedStatement::setDate, ResultSet::getDate, "TIMESTAMP", Date.class);
+    }
+
+    private static <T> void registerType(int type, ParamSetter<T> setter, ColumnGetter<T> getter) {
+        registerType(type, setter, getter, "");
     }
 
     @SafeVarargs
-    private static <T> void registerType(int type, ParamSetter<T> setter, ColumnGetter<T> getter, Class<T>... classes) {
+    private static <T> void registerType(int type, ParamSetter<T> setter, ColumnGetter<T> getter, String sqlType, Class<T>... classes) {
         columnGettersByType.put(type, getter);
         Arrays.asList(classes).forEach(cls -> paramSettersByClass.put(cls, setter));
     }
@@ -70,12 +74,11 @@ public class JdbcHelper {
             throw new RuntimeException(e);
         }
     }
-
     @SuppressWarnings("unchecked")
     private static void setParams(PreparedStatement preparedStatement, Object[] params) throws SQLException {
         for (int i = 0; i < params.length; ++i) {
             Object param = Optional.ofNullable(params[i]).orElse("NULL");
-            Class paramClass = param.getClass();
+            Class<?> paramClass = param.getClass();
             ParamSetter<Object> setter = Optional
                     .ofNullable(paramSettersByClass.get(paramClass))
                     .map(ParamSetter.class::cast)

@@ -1,11 +1,15 @@
 package com.slimgears.rxrepo.query.decorator;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.rxrepo.util.PropertyMetas;
+import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
 import io.reactivex.Completable;
@@ -16,6 +20,7 @@ import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ConcurrentModificationException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -79,26 +84,43 @@ public class UpdateReferencesFirstQueryProviderDecorator extends AbstractQueryPr
     }
 
     private <K, S> Completable insertReferences(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
-        Set<Object> isExistingCache = Sets.newConcurrentHashSet();
         return Observable.fromIterable(metaClass.properties())
                 .filter(PropertyMetas::isReference)
                 .flatMapCompletable(p -> Observable.fromIterable(entities)
                         .filter(e -> Optional.ofNullable(p.getValue(e)).isPresent())
                         .map(p::getValue)
-                        .flatMapMaybe(e -> isExisting(isExistingCache, MetaClasses.forTokenWithKeyUnchecked(p.type()), e)
-                                .flatMapMaybe(isExisting -> {
-                                    if (isExisting) {
-                                        return Maybe.empty();
-                                    } else {
-                                        isExistingCache.add(MetaClasses.forTokenWithKeyUnchecked(p.type()).keyOf(e));
-                                        return Maybe.just(e);
-                                    }
-                                }))
                         .toList()
+                        .map(ImmutableSet::copyOf)
                         .flatMapCompletable(refEntities -> refEntities.isEmpty()
                                 ? Completable.complete()
-                                : insert(MetaClasses.forTokenWithKeyUnchecked(p.type()), refEntities, true)));
+                                : insert(MetaClasses.forTokenWithKeyUnchecked(p.type()), refEntities, true)
+                                .onErrorResumeNext(e -> e instanceof ConcurrentModificationException
+                                        ? Observable.fromIterable(refEntities)
+                                        .flatMapCompletable(entity -> insertEntity(MetaClasses.forTokenWithKeyUnchecked(p.type()), entity, true)
+                                        .onErrorComplete())
+                                        : Completable.error(e))));
     }
+//    private <K, S> Completable insertReferences(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+//        Set<Object> isExistingCache = Sets.newConcurrentHashSet();
+//        return Observable.fromIterable(metaClass.properties())
+//                .filter(PropertyMetas::isReference)
+//                .flatMapCompletable(p -> Observable.fromIterable(entities)
+//                        .filter(e -> Optional.ofNullable(p.getValue(e)).isPresent())
+//                        .map(p::getValue)
+//                        .flatMapMaybe(e -> isExisting(isExistingCache, MetaClasses.forTokenWithKeyUnchecked(p.type()), e)
+//                                .flatMapMaybe(isExisting -> {
+//                                    if (isExisting) {
+//                                        return Maybe.empty();
+//                                    } else {
+//                                        isExistingCache.add(MetaClasses.forTokenWithKeyUnchecked(p.type()).keyOf(e));
+//                                        return Maybe.just(e);
+//                                    }
+//                                }))
+//                        .toList()
+//                        .flatMapCompletable(refEntities -> refEntities.isEmpty()
+//                                ? Completable.complete()
+//                                : insert(MetaClasses.forTokenWithKeyUnchecked(p.type()), refEntities, true)));
+//    }
 
     private <K, S> Single<Boolean> isExisting(Set<Object> isExistingCache, MetaClassWithKey<K, S> metaClass, S entity) {
         K key = metaClass.keyOf(entity);
@@ -114,6 +136,7 @@ public class UpdateReferencesFirstQueryProviderDecorator extends AbstractQueryPr
                 .metaClass(metaClass)
                 .limit(1L)
                 .predicate(PropertyExpression.ofObject(metaClass.keyProperty()).eq(metaClass.keyOf(entity)))
+                .properties(PropertyExpressions.mandatoryProperties(metaClass.asType()).collect(ImmutableSet.toImmutableSet()))
                 .build())
                 .map(Notification::newValue)
                 .firstElement();

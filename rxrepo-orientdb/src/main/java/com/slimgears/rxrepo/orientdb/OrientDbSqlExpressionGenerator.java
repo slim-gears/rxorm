@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Streams;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 import com.slimgears.rxrepo.expressions.Expression;
@@ -17,9 +18,11 @@ import com.slimgears.util.autovalue.annotations.HasMetaClass;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerator {
     private final ExpressionTextGenerator.Interceptor searchTextInterceptor = ExpressionTextGenerator.Interceptor.builder()
@@ -98,6 +101,18 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
         }
 
         return visitor.apply(expression);
+    }
+
+    @Override
+    protected <S, T> String reduceProperty(ObjectExpression<S, T> expression, String[] parts) {
+        return Streams.concat(
+                Arrays.stream(parts).limit(parts.length - 1),
+                Stream.of(Optional.ofNullable(parts[parts.length - 1])
+                        .filter(p -> !p.isEmpty())
+                        .map(p -> "`" + p + "`")
+                        .orElse("")))
+                .filter(p -> !p.isEmpty())
+                .collect(Collectors.joining("."));
     }
 
     private String searchTextToWildcard(String searchText) {

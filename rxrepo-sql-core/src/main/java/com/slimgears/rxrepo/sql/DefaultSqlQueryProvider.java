@@ -14,8 +14,8 @@ import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.rxrepo.util.PropertyResolvers;
 import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
-import com.slimgears.util.reflect.TypeTokens;
 import com.slimgears.util.stream.Optionals;
+import com.slimgears.util.stream.Streams;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
 import org.slf4j.Logger;
@@ -25,34 +25,34 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.slimgears.util.generic.LazyString.lazy;
 
-public class SqlQueryProvider implements QueryProvider {
-    private final static Logger log = LoggerFactory.getLogger(SqlQueryProvider.class);
-    public final static String aggregationField = "__aggregation";
-    public final static String sequenceNumField = "__sequenceNum";
+@SuppressWarnings("UnstableApiUsage")
+public class DefaultSqlQueryProvider implements QueryProvider {
+    private final static Logger log = LoggerFactory.getLogger(DefaultSqlQueryProvider.class);
     protected final SqlStatementProvider statementProvider;
     private final SqlStatementExecutor statementExecutor;
-    protected final SchemaProvider schemaProvider;
+    protected final SchemaGenerator schemaGenerator;
     private final ReferenceResolver referenceResolver;
     private final SchedulingProvider schedulingProvider;
     private final Map<SqlStatement, Observable<Notification<PropertyResolver>>> liveQueriesCache = new ConcurrentHashMap<>();
 
-    protected SqlQueryProvider(SqlStatementProvider statementProvider,
-                               SqlStatementExecutor statementExecutor,
-                               SchemaProvider schemaProvider,
-                               ReferenceResolver referenceResolver,
-                               SchedulingProvider schedulingProvider) {
+    protected DefaultSqlQueryProvider(SqlStatementProvider statementProvider,
+                                      SqlStatementExecutor statementExecutor,
+                                      SchemaGenerator schemaGenerator,
+                                      ReferenceResolver referenceResolver,
+                                      SchedulingProvider schedulingProvider) {
         this.statementProvider = statementProvider;
         this.statementExecutor = statementExecutor;
-        this.schemaProvider = schemaProvider;
+        this.schemaGenerator = schemaGenerator;
         this.referenceResolver = referenceResolver;
         this.schedulingProvider = schedulingProvider;
     }
 
     public static QueryProvider create(SqlServiceFactory serviceFactory) {
-        return new SqlQueryProvider(
+        return new DefaultSqlQueryProvider(
                 serviceFactory.statementProvider(),
                 serviceFactory.statementExecutor(),
                 serviceFactory.schemaProvider(),
@@ -65,12 +65,16 @@ public class SqlQueryProvider implements QueryProvider {
         return Optional
                 .of(entities)
                 .filter(e -> !Iterables.isEmpty(e))
-                .map(meta -> schemaProvider.createOrUpdate(metaClass)
-                        .doOnSubscribe(d -> log.debug("Beginning creating class {}", lazy(metaClass::simpleName)))
-                        .doOnComplete(() -> log.debug("Finished creating class {}", lazy(metaClass::simpleName)))
-                        .andThen(Observable.fromIterable(entities)
-                                .flatMapSingle(e -> insert(metaClass, e))
-                                .ignoreElements()))
+                .map(meta -> schemaGenerator.useTable(metaClass)
+                        .doOnSubscribe(d -> log.trace("Beginning creating class {}", lazy(metaClass::simpleName)))
+                        .doOnComplete(() -> log.trace("Finished creating class {}", lazy(metaClass::simpleName)))
+                        .andThen(statementExecutor.executeCommand(
+                                statementProvider.forInsert(
+                                        metaClass,
+                                        Streams.fromIterable(entities)
+                                                .map(e -> PropertyResolver.fromObject(metaClass, e))
+                                                .collect(Collectors.toList()),
+                                        referenceResolver))))
                 .orElseGet(Completable::complete);
     }
 
@@ -88,7 +92,7 @@ public class SqlQueryProvider implements QueryProvider {
                 .limit(1L)
                 .build());
 
-        return schemaProvider.createOrUpdate(metaClass)
+        return schemaGenerator.useTable(metaClass)
             .andThen(statementExecutor
                 .executeQuery(statement)
                 .firstElement()
@@ -116,7 +120,7 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     private <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, SqlStatement statement) {
-        return schemaProvider.createOrUpdate(metaClass)
+        return schemaGenerator.useTable(metaClass)
                 .doOnSubscribe(d -> log.trace("Ensuring class {}", metaClass.simpleName()))
                 .doOnError(e -> log.trace("Error when updating class: {}", metaClass.simpleName(), e))
                 .doOnComplete(() -> log.trace("Class updated {}", metaClass.simpleName()))
@@ -141,8 +145,8 @@ public class SqlQueryProvider implements QueryProvider {
         log.trace("Preparing query of {}", query.metaClass().simpleName());
         Scheduler scheduler = schedulingProvider.scheduler();
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
-        return schemaProvider
-                .createOrUpdate(query.metaClass())
+        return schemaGenerator
+                .useTable(query.metaClass())
                 .andThen(statementExecutor
                         .executeQuery(statementProvider.forQuery(query))
                         .compose(toCreateNotifications(objectType, query.mapping(), query.properties())))
@@ -158,7 +162,7 @@ public class SqlQueryProvider implements QueryProvider {
                 .flatMap(Optionals.ofType(PropertyExpression.class))
                 .map(PropertyExpression::path)
                 .<Function<PropertyResolver, Maybe<Notification<T>>>>map(path -> pr -> Optional
-                            .ofNullable(pr.getProperty(path, TypeTokens.asClass(objectType)))
+                            .ofNullable(pr.getProperty(path, objectType))
                             .map(obj -> obj instanceof PropertyResolver
                                     ? PropertyResolvers.withProperties(properties, () -> (PropertyResolver) obj).toObject(objectType)
                                     : (T)obj)
@@ -172,7 +176,9 @@ public class SqlQueryProvider implements QueryProvider {
     }
 
     private Long generationOf(PropertyResolver propertyResolver) {
-        return (Long)propertyResolver.getProperty(sequenceNumField, Long.class);
+        return Optional.ofNullable(propertyResolver.getProperty(SqlFields.sequenceFieldName, TypeToken.of(Long.class)))
+                .map(Long.class::cast)
+                .orElse(0L);
     }
 
     @Override
@@ -181,8 +187,8 @@ public class SqlQueryProvider implements QueryProvider {
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
         Scheduler scheduler = schedulingProvider.scheduler();
         SqlStatement statement = statementProvider.forQuery(query.toBuilder().properties(ImmutableSet.of()).build());
-        return schemaProvider
-                .createOrUpdate(query.metaClass())
+        return schemaGenerator
+                .useTable(query.metaClass())
                 .andThen(liveQueryForStatement(statement))
                 .map(notification -> notification.<T>map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType))))
                 .observeOn(scheduler)
@@ -205,10 +211,10 @@ public class SqlQueryProvider implements QueryProvider {
         TypeToken<T> elementType = HasMapping.objectType(query);
         ObjectExpression<T, R> aggregation = aggregator.apply(CollectionExpression.indirectArg(MoreTypeTokens.collection(elementType)));
         TypeToken<R> resultType = aggregation.reflect().objectType();
-        return schemaProvider.createOrUpdate(query.metaClass()).andThen(statementExecutor
-                .executeQuery(statementProvider.forAggregation(query, aggregation, aggregationField))
+        return schemaGenerator.useTable(query.metaClass()).andThen(statementExecutor
+                .executeQuery(statementProvider.forAggregation(query, aggregation, SqlFields.aggregationField))
                 .map(pr -> {
-                    Object obj = pr.getProperty(aggregationField, TypeTokens.asClass(resultType));
+                    Object obj = pr.getProperty(SqlFields.aggregationField, resultType);
                     //noinspection unchecked
                     return (obj instanceof PropertyResolver)
                             ? ((PropertyResolver)obj).toObject(resultType)
@@ -219,22 +225,22 @@ public class SqlQueryProvider implements QueryProvider {
 
     @Override
     public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
-        return schemaProvider
-                .createOrUpdate(update.metaClass())
+        return schemaGenerator
+                .useTable(update.metaClass())
                 .andThen(statementExecutor.executeCommandReturnCount(statementProvider.forUpdate(update)));
     }
 
     @Override
     public <K, S> Single<Integer> delete(DeleteInfo<K, S> deleteInfo) {
-        return schemaProvider
-                .createOrUpdate(deleteInfo.metaClass())
+        return schemaGenerator
+                .useTable(deleteInfo.metaClass())
                 .andThen(statementExecutor.executeCommandReturnCount(statementProvider.forDelete(deleteInfo)));
     }
 
     @Override
     public <K, S> Completable drop(MetaClassWithKey<K, S> metaClass) {
         return Completable.defer(() -> {
-            SqlStatement statement = statementProvider.forDrop(metaClass);
+            SqlStatement statement = statementProvider.forDropTable(metaClass);
             return statementExecutor.executeCommand(statement);
         });
     }
@@ -242,9 +248,9 @@ public class SqlQueryProvider implements QueryProvider {
     @Override
     public Completable dropAll() {
         return Completable.defer(() -> {
-            SqlStatement statement = statementProvider.forDrop();
+            SqlStatement statement = statementProvider.forDropSchema();
             return statementExecutor.executeCommand(statement)
-                    .doOnComplete(schemaProvider::clear);
+                    .doOnComplete(schemaGenerator::clear);
         });
     }
 }

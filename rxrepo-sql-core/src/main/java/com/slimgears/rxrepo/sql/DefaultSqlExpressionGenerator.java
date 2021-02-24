@@ -5,6 +5,8 @@ import com.slimgears.rxrepo.expressions.ConstantExpression;
 import com.slimgears.rxrepo.expressions.Expression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.util.ExpressionTextGenerator;
+import com.slimgears.util.autovalue.annotations.HasMetaClass;
+import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.stream.Lazy;
 
 import java.util.Arrays;
@@ -16,10 +18,14 @@ import java.util.stream.Stream;
 
 public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
     private final Lazy<ExpressionTextGenerator> sqlGenerator;
+    private final KeyEncoder keyEncoder;
+    private final SqlTypeMapper typeMapper;
 
-    public DefaultSqlExpressionGenerator() {
-        sqlGenerator = Lazy.of(this::createBuilder)
+    public DefaultSqlExpressionGenerator(KeyEncoder keyEncoder, SqlTypeMapper typeMapper) {
+        this.sqlGenerator = Lazy.of(this::createBuilder)
                 .map(ExpressionTextGenerator.Builder::build);
+        this.keyEncoder = keyEncoder;
+        this.typeMapper = typeMapper;
     }
 
     protected ExpressionTextGenerator.Builder createBuilder() {
@@ -96,19 +102,19 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
         return reduceProperty(expression,
                 Stream.concat(
                         Stream.of(parts),
-                        Stream.of(SqlQueryProvider.sequenceNumField))
+                        Stream.of("\"" + SqlFields.sequenceFieldName + "\""))
                 .toArray(String[]::new));
     }
 
-    private <S, T> String reduceProperty(ObjectExpression<S, T> expression, String[] parts) {
+    protected <S, T> String reduceProperty(ObjectExpression<S, T> expression, String[] parts) {
         return Streams.concat(
                 Arrays.stream(parts).limit(parts.length - 1),
                 Stream.of(Optional.ofNullable(parts[parts.length - 1])
                         .filter(p -> !p.isEmpty())
-                        .map(p -> "`" + p + "`")
                         .orElse("")))
+                .map(p -> p.replace("\"", ""))
                 .filter(p -> !p.isEmpty())
-                .collect(Collectors.joining("."));
+                .collect(Collectors.joining(".", "\"", "\""));
     }
 
     protected ExpressionTextGenerator.Interceptor createInterceptor() {
@@ -119,11 +125,26 @@ public class DefaultSqlExpressionGenerator implements SqlExpressionGenerator {
         return ExpressionTextGenerator.Reducer.fromFormat(format).andThen(str -> str.replaceAll("' \\+ '", ""));
     }
 
-    private static ExpressionTextGenerator.Interceptor paramsInterceptor(List<Object> params) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    protected ExpressionTextGenerator.Interceptor paramsInterceptor(List<Object> params) {
         return ExpressionTextGenerator.Interceptor.ofType(ConstantExpression.class, (visitor, expression, visitSupplier) -> {
-            params.add(expression.value());
-            return "?";
+            Object val = expression.value();
+            if (val instanceof HasMetaClassWithKey) {
+                val = ((HasMetaClassWithKey)val).metaClass().keyOf(val);
+            }
+            if (val instanceof HasMetaClass) {
+                val = keyEncoder.encode(val);
+            } else if (val != null) {
+                val = typeMapper.toSqlValue(expression.value());
+            }
+            params.add(val);
+            return paramToken(params.size());
         });
+    }
+
+    protected String paramToken(int paramIndex) {
+//        return "$" + paramIndex;
+        return "?";
     }
 
     protected String reduce(ObjectExpression<?, ?> expression, String... parts) {

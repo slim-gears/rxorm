@@ -3,8 +3,6 @@ package com.slimgears.rxrepo.orientdb;
 import com.google.common.base.Stopwatch;
 import com.orientechnologies.common.exception.OException;
 import com.orientechnologies.common.serialization.types.OBinaryTypeSerializer;
-import com.orientechnologies.orient.core.command.OCommandExecutor;
-import com.orientechnologies.orient.core.command.OCommandRequestText;
 import com.orientechnologies.orient.core.db.*;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
@@ -14,11 +12,11 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence;
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
-import com.slimgears.rxrepo.sql.CacheSchemaProviderDecorator;
-import com.slimgears.rxrepo.sql.SchemaProvider;
+import com.slimgears.rxrepo.sql.CacheSchemaGeneratorDecorator;
+import com.slimgears.rxrepo.sql.DigestKeyEncoder;
+import com.slimgears.rxrepo.sql.SchemaGenerator;
 import com.slimgears.rxrepo.test.*;
 import com.slimgears.util.generic.MoreStrings;
-import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
@@ -30,14 +28,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.MethodRule;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.file.Paths;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class OrientDbClientTest {
@@ -156,15 +148,15 @@ public class OrientDbClientTest {
     }
 
     @Test
-    public void testOrientDbSchemeProvider() throws InterruptedException {
+    public void testOrientDbSchemaProvider() throws InterruptedException {
         OrientDB dbClient = new OrientDB(dbUrl, OrientDBConfig.defaultConfig());
         dbClient.createIfNotExists(dbName, ODatabaseType.MEMORY);
         try {
             ODatabasePool oDatabasePool = new ODatabasePool(dbClient, dbName, "admin", "admin");
             Supplier<ODatabaseDocument> dbSessionSupplier = oDatabasePool::acquire;
-            SchemaProvider schemaProvider = new OrientDbSchemaProvider(OrientDbSessionProvider.create(dbSessionSupplier));
-            SchemaProvider cachedSchemaProvider = CacheSchemaProviderDecorator.decorate(schemaProvider);
-            cachedSchemaProvider.createOrUpdate(Inventory.metaClass)
+            SchemaGenerator schemaGenerator = new OrientDbSchemaGenerator(OrientDbSessionProvider.create(dbSessionSupplier));
+            SchemaGenerator cachedSchemaGenerator = CacheSchemaGeneratorDecorator.decorate(schemaGenerator);
+            cachedSchemaGenerator.createOrUpdate(Inventory.metaClass)
                     .test()
                     .await()
                     .assertNoErrors()
@@ -229,7 +221,7 @@ public class OrientDbClientTest {
                 ((c, entity) -> (OElement) c.toOrientDbObject(entity)),
                 DigestKeyEncoder.create());
         OrientDbSessionProvider sessionProvider = OrientDbSessionProvider.create(() -> dbClient.open(dbName, "admin", "admin"));
-        OrientDbSchemaProvider schemaProvider = new OrientDbSchemaProvider(sessionProvider);
+        OrientDbSchemaGenerator schemaProvider = new OrientDbSchemaGenerator(sessionProvider);
         schemaProvider.createOrUpdate(Inventory.metaClass)
                 .andThen(schemaProvider.createOrUpdate(Product.metaClass))
                 .blockingAwait();
@@ -285,7 +277,7 @@ public class OrientDbClientTest {
                 ((c, entity) -> (OElement) c.toOrientDbObject(entity)),
                 DigestKeyEncoder.create("SHA-1", 8));
         OrientDbSessionProvider sessionProvider = OrientDbSessionProvider.create(() -> dbClient.open(dbName, "admin", "admin"));
-        OrientDbSchemaProvider schemaProvider = new OrientDbSchemaProvider(sessionProvider);
+        OrientDbSchemaGenerator schemaProvider = new OrientDbSchemaGenerator(sessionProvider);
         schemaProvider.createOrUpdate(Manufacturer.metaClass).blockingAwait();
 
         Stopwatch stopwatch = Stopwatch.createStarted();

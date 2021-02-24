@@ -8,6 +8,7 @@ import com.slimgears.util.stream.Lazy;
 import javax.annotation.Nonnull;
 import java.time.Duration;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 
@@ -15,32 +16,35 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     private final Lazy<SqlStatementProvider> statementProvider;
     private final Lazy<SqlStatementExecutor> statementExecutor;
     private final Lazy<ReferenceResolver> referenceResolver;
-    private final Lazy<SchemaProvider> schemaProvider;
+    private final Lazy<SchemaGenerator> schemaProvider;
     private final Lazy<SqlExpressionGenerator> expressionGenerator;
-    private final Lazy<SqlAssignmentGenerator> assignmentGenerator;
     private final Lazy<QueryProvider> queryProvider;
     private final Lazy<SchedulingProvider> executorPool;
     private final Lazy<KeyEncoder> keyEncoder;
+    private final Lazy<SqlTypeMapper> typeMapper;
+    private final Lazy<Supplier<String>> dbNameProvider;
 
     private DefaultSqlServiceFactory(
             @Nonnull Function<SqlServiceFactory, SqlStatementProvider> statementProvider,
             @Nonnull Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor,
             @Nonnull Function<SqlServiceFactory, ReferenceResolver> referenceResolver,
-            @Nonnull Function<SqlServiceFactory, SchemaProvider> schemaProvider,
+            @Nonnull Function<SqlServiceFactory, SchemaGenerator> schemaProvider,
             @Nonnull Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
-            @Nonnull Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator,
             @Nonnull Function<SqlServiceFactory, QueryProvider> queryProviderGenerator,
             @Nonnull Function<SqlServiceFactory, SchedulingProvider> executorPool,
-            @Nonnull Function<SqlServiceFactory, KeyEncoder> keyEncoder) {
+            @Nonnull Function<SqlServiceFactory, KeyEncoder> keyEncoder,
+            @Nonnull Function<SqlServiceFactory, SqlTypeMapper> typeMapper,
+            @Nonnull Function<SqlServiceFactory, Supplier<String>> dbNameProvider) {
         this.statementProvider = Lazy.of(() -> statementProvider.apply(this));
         this.statementExecutor = Lazy.of(() -> statementExecutor.apply(this));
         this.referenceResolver = Lazy.of(() -> referenceResolver.apply(this));
-        this.schemaProvider = Lazy.of(() -> CacheSchemaProviderDecorator.decorate(schemaProvider.apply(this)));
+        this.schemaProvider = Lazy.of(() -> CacheSchemaGeneratorDecorator.decorate(schemaProvider.apply(this)));
         this.expressionGenerator = Lazy.of(() -> expressionGenerator.apply(this));
-        this.assignmentGenerator = Lazy.of(() -> assignmentGenerator.apply(this));
         this.queryProvider = Lazy.of(() -> queryProviderGenerator.apply(this));
         this.executorPool = Lazy.of(() -> executorPool.apply(this));
         this.keyEncoder = Lazy.of(() -> keyEncoder.apply(this));
+        this.typeMapper = Lazy.of(() -> typeMapper.apply(this));
+        this.dbNameProvider = Lazy.of(() -> dbNameProvider.apply(this));
     }
 
     @Override
@@ -54,18 +58,13 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     }
 
     @Override
-    public SchemaProvider schemaProvider() {
+    public SchemaGenerator schemaProvider() {
         return schemaProvider.get();
     }
 
     @Override
     public SqlExpressionGenerator expressionGenerator() {
         return expressionGenerator.get();
-    }
-
-    @Override
-    public SqlAssignmentGenerator assignmentGenerator() {
-        return assignmentGenerator.get();
     }
 
     @Override
@@ -88,13 +87,23 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         return keyEncoder.get();
     }
 
+    @Override
+    public SqlTypeMapper typeMapper() {
+        return typeMapper.get();
+    }
+
+    @Override
+    public Supplier<String> dbNameProvider() {
+        return dbNameProvider.get();
+    }
+
     public static SqlServiceFactory.Builder builder() {
         return new Builder()
-                .expressionGenerator(DefaultSqlExpressionGenerator::new)
+                .expressionGenerator(factory -> new DefaultSqlExpressionGenerator(factory.keyEncoder(), factory.typeMapper()))
                 .statementProvider(factory -> new DefaultSqlStatementProvider(
                         factory.expressionGenerator(),
-                        factory.assignmentGenerator(),
-                        factory.schemaProvider()));
+                        factory.typeMapper(),
+                        factory.dbNameProvider()));
     }
 
     static class Builder extends SqlServiceFactory.Builder {
@@ -103,13 +112,14 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
 
         private Function<SqlServiceFactory, SqlStatementProvider> statementProvider;
         private Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor;
-        private Function<SqlServiceFactory, SchemaProvider> schemaProvider;
+        private Function<SqlServiceFactory, SchemaGenerator> schemaProvider;
         private Function<SqlServiceFactory, ReferenceResolver> referenceResolver;
         private Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator;
-        private Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator;
         private Function<SqlServiceFactory, SchedulingProvider> schedulingProvider = f -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxNotificationQueueIdleDuration);
         private Function<SqlServiceFactory, KeyEncoder> keyEncoder = f -> Object::toString;
-        private Function<SqlServiceFactory, QueryProvider> queryProviderGenerator = factory -> new SqlQueryProvider(
+        private Function<SqlServiceFactory, SqlTypeMapper> typeMapper = f -> SqlTypes.instance;
+        private Function<SqlServiceFactory, Supplier<String>> dbNameProvider;
+        private Function<SqlServiceFactory, QueryProvider> queryProviderGenerator = factory -> new DefaultSqlQueryProvider(
                 factory.statementProvider(),
                 factory.statementExecutor(),
                 factory.schemaProvider(),
@@ -129,7 +139,7 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         }
 
         @Override
-        public SqlServiceFactory.Builder schemaProvider(Function<SqlServiceFactory, SchemaProvider> schemaProvider) {
+        public SqlServiceFactory.Builder schemaProvider(Function<SqlServiceFactory, SchemaGenerator> schemaProvider) {
             this.schemaProvider = schemaProvider;
             return this;
         }
@@ -145,13 +155,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             this.expressionGenerator = expressionGenerator;
             return this;
         }
-
-        @Override
-        public SqlServiceFactory.Builder assignmentGenerator(Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator) {
-            this.assignmentGenerator = assignmentGenerator;
-            return this;
-        }
-
         @Override
         public SqlServiceFactory.Builder queryProviderGenerator(Function<SqlServiceFactory, QueryProvider> queryProviderGenerator) {
             this.queryProviderGenerator = queryProviderGenerator;
@@ -167,6 +170,18 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         @Override
         public SqlServiceFactory.Builder keyEncoder(Function<SqlServiceFactory, KeyEncoder> keyEncoder) {
             this.keyEncoder = keyEncoder;
+            return this;
+        }
+
+        @Override
+        public SqlServiceFactory.Builder typeMapper(Function<SqlServiceFactory, SqlTypeMapper> typeMapper) {
+            this.typeMapper = typeMapper;
+            return this;
+        }
+
+        @Override
+        public SqlServiceFactory.Builder dbNameProvider(Function<SqlServiceFactory, Supplier<String>> dbNameProvider) {
+            this.dbNameProvider = dbNameProvider;
             return this;
         }
 
@@ -188,10 +203,11 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                     requireNonNull(referenceResolver),
                     requireNonNull(schemaProvider),
                     requireNonNull(expressionGenerator),
-                    requireNonNull(assignmentGenerator),
                     requireNonNull(queryProviderGenerator),
                     requireNonNull(schedulingProvider),
-                    requireNonNull(keyEncoder));
+                    requireNonNull(keyEncoder),
+                    requireNonNull(typeMapper),
+                    requireNonNull(dbNameProvider));
         }
     }
 }

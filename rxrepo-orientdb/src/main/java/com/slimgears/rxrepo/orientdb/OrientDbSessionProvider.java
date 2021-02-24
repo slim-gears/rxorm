@@ -29,6 +29,10 @@ class OrientDbSessionProvider {
         });
     }
 
+    <T> Supplier<T> toSupplier(Function<ODatabaseDocument, T> func) {
+        return () -> withSession(func);
+    }
+
     <T> T withSession(Function<ODatabaseDocument, T> func) {
         ODatabaseDocument dbSession = databaseSessionProvider.acquire();
         try {

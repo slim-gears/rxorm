@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.orientdb;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.stream.Lazy;
@@ -45,7 +46,7 @@ class OResultPropertyResolver extends AbstractOrientPropertyResolver {
     }
 
     @Override
-    protected Object getPropertyInternal(String name, Class<?> type) {
+    protected Object getPropertyInternal(String name, TypeToken<?> type) {
         propertyNames.get();
         return Optional
                 .ofNullable(resolvers.get(fromCanonic(name)))

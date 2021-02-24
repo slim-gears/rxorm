@@ -3,34 +3,24 @@ package com.slimgears.rxrepo.orientdb;
 import com.orientechnologies.orient.core.db.OLiveQueryMonitor;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
-import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.sql.AbstractSqlStatementExecutor;
 import com.slimgears.rxrepo.sql.SqlStatement;
-import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.util.PropertyResolver;
-import com.slimgears.util.generic.MoreStrings;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ConcurrentModificationException;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static com.slimgears.util.generic.LazyString.lazy;
 
-class OrientDbStatementExecutor implements SqlStatementExecutor {
-    private final static AtomicLong operationCounter = new AtomicLong();
-    private final static Logger log = LoggerFactory.getLogger(OrientDbStatementExecutor.class);
+class OrientDbStatementExecutor extends AbstractSqlStatementExecutor {
     private final OrientDbSessionProvider sessionProvider;
 
     OrientDbStatementExecutor(OrientDbSessionProvider sessionProvider) {
@@ -113,23 +103,5 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
                     emitter.onComplete();
                 }))
                 .map(res -> OResultPropertyResolver.create(sessionProvider, res));
-    }
-
-    private void logStatement(String title, SqlStatement statement) {
-        log.trace("[{}] {}: {}", operationCounter.get(), title, lazy(() -> toString(statement)));
-    }
-
-    private String toString(SqlStatement statement) {
-        return statement.statement() + "(params: [" +
-                IntStream.range(0, statement.args().length)
-                        .mapToObj(i -> formatArg(i, statement.args()[i]))
-                        .collect(Collectors.joining(", "));
-    }
-
-    private String formatArg(int index, Object obj) {
-        String type = Optional.ofNullable(obj)
-                .map(o -> o.getClass().getSimpleName())
-                .orElse("null");
-        return MoreStrings.format("#{}[{}]: {}", index, type, obj);
     }
 }

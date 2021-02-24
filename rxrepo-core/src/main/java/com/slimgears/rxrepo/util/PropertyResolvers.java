@@ -17,6 +17,7 @@ import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@SuppressWarnings("UnstableApiUsage")
 public class PropertyResolvers {
     private final static ScopedInstance<Set<PropertyMeta<?, ?>>> requiredProperties = ScopedInstance.create();
 
@@ -58,7 +59,7 @@ public class PropertyResolvers {
             }
 
             @Override
-            public Object getProperty(String name, Class<?> type) {
+            public Object getProperty(String name, TypeToken<?> type) {
                 return null;
             }
         };
@@ -78,7 +79,7 @@ public class PropertyResolvers {
             }
 
             @Override
-            public Object getProperty(String name, Class<?> type) {
+            public Object getProperty(String name, TypeToken<?> type) {
                 return Arrays.stream(propertyResolvers)
                         .filter(Objects::nonNull)
                         .map(pr -> pr.getProperty(name, type))
@@ -111,7 +112,7 @@ public class PropertyResolvers {
             }
 
             @Override
-            public Object getProperty(String name, Class<?> type) {
+            public Object getProperty(String name, TypeToken<?> type) {
                 return Optional.ofNullable(metaClass.getProperty(name))
                         .map(p -> fromValue(p.type(), p.getValue(obj)))
                         .orElse(null);

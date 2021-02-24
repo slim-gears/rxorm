@@ -10,14 +10,15 @@ import com.slimgears.util.reflect.TypeTokens;
 
 import java.util.Optional;
 
+@SuppressWarnings("UnstableApiUsage")
 public interface PropertyResolver {
     Iterable<String> propertyNames();
-    Object getProperty(String name, Class<?> type);
+    Object getProperty(String name, TypeToken<?> type);
     //Object getKey(Class<?> keyClass);
 
     @SuppressWarnings("unchecked")
     default <V> V getProperty(PropertyMeta<?, V> propertyMeta) {
-        Object value = getProperty(propertyMeta.name(), TypeTokens.asClass(propertyMeta.type()));
+        Object value = getProperty(propertyMeta.name(), propertyMeta.type());
         return (value instanceof PropertyResolver)
                 ? ((PropertyResolver)value).toObject(propertyMeta.type())
                 : (V)value;
@@ -42,7 +43,7 @@ public interface PropertyResolver {
         } else {
             return Optional.ofNullable(propertyNames())
                     .map(names -> Iterables.getFirst(names, null))
-                    .map(name -> (T)getProperty(name, Object.class))
+                    .map(name -> (T)getProperty(name, TypeToken.of(Object.class)))
                     .orElse(null);
         }
     }

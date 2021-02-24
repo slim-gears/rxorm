@@ -3,9 +3,8 @@ package com.slimgears.rxrepo.sql;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.MetaClass;
+import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClasses;
-import com.slimgears.util.autovalue.annotations.PropertyMeta;
-import com.slimgears.util.stream.Lazy;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
@@ -14,41 +13,41 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 @SuppressWarnings("UnstableApiUsage")
-public class CacheSchemaProviderDecorator implements SchemaProvider {
-    private final static Logger log = LoggerFactory.getLogger(CacheSchemaProviderDecorator.class);
-    private final SchemaProvider underlyingProvider;
-    private final Lazy<String> dbName;
+public class CacheSchemaGeneratorDecorator implements SchemaGenerator {
+    private final static Logger log = LoggerFactory.getLogger(CacheSchemaGeneratorDecorator.class);
+    private final SchemaGenerator underlyingProvider;
     private final Map<String, Completable> cache = new ConcurrentHashMap<>();
+    private final AtomicReference<Completable> dbCompletable = new AtomicReference<>();
 
-    private CacheSchemaProviderDecorator(SchemaProvider underlyingProvider) {
+    private CacheSchemaGeneratorDecorator(SchemaGenerator underlyingProvider) {
         this.underlyingProvider = underlyingProvider;
-        this.dbName = Lazy.of(underlyingProvider::databaseName);
+        this.clear();
     }
 
-    public static SchemaProvider decorate(SchemaProvider schemaProvider) {
-        return new CacheSchemaProviderDecorator(schemaProvider);
-    }
-
-    @Override
-    public String databaseName() {
-        return dbName.get();
+    public static SchemaGenerator decorate(SchemaGenerator schemaGenerator) {
+        return new CacheSchemaGeneratorDecorator(schemaGenerator);
     }
 
     @Override
-    public <T> Completable createOrUpdate(MetaClass<T> metaClass) {
+    public Completable createDatabase() {
+        return dbCompletable.get();
+    }
+
+    @Override
+    public <K, T> Completable createOrUpdate(MetaClassWithKey<K, T> metaClass) {
         return cache.computeIfAbsent(
-                tableName(metaClass),
+                metaClass.simpleName(),
                 tn -> Completable.defer(() -> createOrUpdateWithReferences(metaClass)).cache());
     }
 
-    private <T> Completable createOrUpdateWithReferences(MetaClass<T> metaClass) {
+    private <K, T> Completable createOrUpdateWithReferences(MetaClassWithKey<K, T> metaClass) {
         log.trace("Creating meta class: {}", metaClass.simpleName());
         Completable references = referencedTypesOf(metaClass)
-                .map(MetaClasses::forTokenUnchecked)
+                .map(MetaClasses::forTokenWithKeyUnchecked)
                 .concatMapCompletable(this::createOrUpdate);
 
         return references.andThen(underlyingProvider.createOrUpdate(metaClass));
@@ -62,12 +61,8 @@ public class CacheSchemaProviderDecorator implements SchemaProvider {
     }
 
     @Override
-    public <T> String tableName(MetaClass<T> metaClass) {
-        return underlyingProvider.tableName(metaClass);
-    }
-
-    @Override
     public void clear() {
         cache.clear();
+        dbCompletable.set(Completable.defer(underlyingProvider::createDatabase).cache());
     }
 }
