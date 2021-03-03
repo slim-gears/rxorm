@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   postgres:
-    image: postgres:13.1
+    image: postgres:13.2
     mem_limit: 8g
     environment:
       POSTGRES_DB: test_db
@@ -11,7 +11,7 @@ services:
       - 5432:5432
 
   pgadmin:
-    image: dpage/pgadmin4
+    image: dpage/pgadmin4:5
     depends_on:
       - postgres
     ports:

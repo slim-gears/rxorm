@@ -1,10 +1,12 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.google.common.collect.ImmutableSet;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.sql.ReferenceResolver;
 import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.sql.SqlStatementProvider;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 
 class OrientDbReferenceResolver implements ReferenceResolver {

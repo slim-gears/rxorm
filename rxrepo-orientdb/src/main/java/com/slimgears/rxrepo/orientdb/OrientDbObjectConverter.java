@@ -1,7 +1,9 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.orientechnologies.orient.core.id.ORID;
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.record.impl.ODocument;
+import com.orientechnologies.orient.core.record.impl.ODocumentEmbedded;
 import com.slimgears.rxrepo.sql.KeyEncoder;
 import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.util.PropertyMetas;
@@ -18,7 +20,7 @@ class OrientDbObjectConverter {
     private final KeyEncoder keyEncoder;
 
     interface ElementResolver {
-        OElement resolve(OrientDbObjectConverter converter, HasMetaClassWithKey<?, ?> entity);
+        ORID resolve(OrientDbObjectConverter converter, HasMetaClassWithKey<?, ?> entity);
     }
 
     private OrientDbObjectConverter(Function<MetaClass<?>, OElement> elementFactory, ElementResolver elementResolver, KeyEncoder keyEncoder) {
@@ -32,7 +34,7 @@ class OrientDbObjectConverter {
     }
 
     static OrientDbObjectConverter create(KeyEncoder keyEncoder) {
-        return new OrientDbObjectConverter(meta -> new ODocument(), (converter, hasMetaClass) -> null, keyEncoder);
+        return new OrientDbObjectConverter(meta -> new ODocument(meta.simpleName()), (converter, hasMetaClass) -> null, keyEncoder);
     }
 
     @SuppressWarnings("unchecked")
@@ -47,13 +49,11 @@ class OrientDbObjectConverter {
 
         HasMetaClass<S> hasMetaClass = (HasMetaClass<S>)entity;
         MetaClass<S> metaClass = hasMetaClass.metaClass();
-        OElement oElement = entity instanceof HasMetaClassWithKey ? elementFactory.apply(metaClass) : new ODocument();
+        OElement oElement = entity instanceof HasMetaClassWithKey ? elementFactory.apply(metaClass) : new ODocumentEmbedded();
         metaClass.properties().forEach(p -> {
             if (PropertyMetas.isReference(p) && p.getValue(entity) != null) {
                 HasMetaClassWithKey<?, ?> referencedEntity = (HasMetaClassWithKey<?, ?>)p.getValue(entity);
-                OElement refElement = Optional
-                        .ofNullable(elementResolver.resolve(this, referencedEntity))
-                        .orElseGet(() -> (OElement)toOrientDbObject(referencedEntity));
+                ORID refElement = elementResolver.resolve(this, referencedEntity);
                 oElement.setProperty(p.name(), refElement);
             } else {
                 Optional.ofNullable(toOrientDbObject(p.getValue(entity)))

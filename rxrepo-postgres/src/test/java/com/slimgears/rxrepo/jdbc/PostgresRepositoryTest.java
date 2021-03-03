@@ -1,16 +1,109 @@
 package com.slimgears.rxrepo.jdbc;
 
+import com.google.common.base.Stopwatch;
 import com.slimgears.rxrepo.postgres.PostgresRepository;
 import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.sql.AbstractSqlStatementExecutorDecorator;
+import com.slimgears.rxrepo.sql.SqlStatement;
+import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.test.AbstractRepositoryTest;
+import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.rxrepo.util.SchedulingProvider;
+import io.reactivex.Completable;
+import io.reactivex.Observable;
+import io.reactivex.Single;
 import javafx.geometry.Pos;
+import org.junit.Before;
 import org.junit.BeforeClass;
 
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
 public class PostgresRepositoryTest  extends AbstractRepositoryTest {
+    private AtomicLong totalMillis;
+    private AtomicLong totalCount;
+
     @BeforeClass
     public static void setUpClass() {
         PostgresTestUtils.start();
+    }
+
+    static class StopWatchDecorator extends AbstractSqlStatementExecutorDecorator {
+        private final AtomicLong totalMillis;
+        private final AtomicLong totalCount;
+
+        protected StopWatchDecorator(SqlStatementExecutor underlyingExecutor,
+                                     AtomicLong totalMillis,
+                                     AtomicLong totalCount) {
+            super(underlyingExecutor);
+            this.totalMillis = totalMillis;
+            this.totalCount = totalCount;
+        }
+
+        public static SqlStatementExecutor.Decorator create(AtomicLong totalMillis, AtomicLong totalCount) {
+            return src -> new StopWatchDecorator(src, totalMillis, totalCount);
+        }
+
+        @Override
+        public Observable<PropertyResolver> executeQuery(SqlStatement statement) {
+            Stopwatch stopwatch = Stopwatch.createUnstarted();
+            return super.executeQuery(statement)
+                    .doOnSubscribe(d -> stopwatch.start())
+                    .doFinally(() -> {
+                        totalMillis.addAndGet(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+                        totalCount.incrementAndGet();
+                    });
+        }
+
+        @Override
+        public Observable<PropertyResolver> executeCommandReturnEntries(SqlStatement statement) {
+            Stopwatch stopwatch = Stopwatch.createUnstarted();
+            return super.executeCommandReturnEntries(statement)
+                    .doOnSubscribe(d -> stopwatch.start())
+                    .doFinally(() -> {
+                        totalMillis.addAndGet(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+                        totalCount.incrementAndGet();
+                    });
+        }
+
+        @Override
+        public Single<Integer> executeCommandReturnCount(SqlStatement statement) {
+            Stopwatch stopwatch = Stopwatch.createUnstarted();
+            return super.executeCommandReturnCount(statement)
+                    .doOnSubscribe(d -> stopwatch.start())
+                    .doFinally(() -> {
+                        totalMillis.addAndGet(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+                        totalCount.incrementAndGet();
+                    });
+        }
+
+        @Override
+        public Completable executeCommand(SqlStatement statement) {
+            Stopwatch stopwatch = Stopwatch.createUnstarted();
+            return super.executeCommand(statement)
+                    .doOnSubscribe(d -> stopwatch.start())
+                    .doFinally(() -> {
+                        totalMillis.addAndGet(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+                        totalCount.incrementAndGet();
+                    });
+        }
+    }
+
+    @Override
+    public void setUp() {
+        totalMillis = new AtomicLong();
+        totalCount = new AtomicLong();
+        super.setUp();
+    }
+
+    @Override
+    public void tearDown() {
+        System.out.println(
+                "------ Total execution time: " + Duration.ofMillis(totalMillis.get()) +
+                ", count: " + totalCount +
+                ", average time: " + Duration.ofMillis(totalMillis.get() / totalCount.get()));
+        super.tearDown();
     }
 
     @Override
@@ -19,8 +112,9 @@ public class PostgresRepositoryTest  extends AbstractRepositoryTest {
                 .builder()
                 .connection(PostgresTestUtils.connectionUrl)
                 .schemaName(PostgresTestUtils.schemaName)
+                .decorateExecutor(StopWatchDecorator.create(totalMillis, totalCount))
                 .enableBatch(1000)
-                .schedulingProvider(schedulingProvider)
+//                .schedulingProvider(schedulingProvider)
                 .build();
     }
 }

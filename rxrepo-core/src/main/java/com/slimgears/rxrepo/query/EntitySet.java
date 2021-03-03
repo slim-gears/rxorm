@@ -22,11 +22,11 @@ public interface EntitySet<K, S> {
 
     EntityUpdateQuery<S> update();
 
-    Single<Supplier<S>> update(S entity);
-    Single<Supplier<S>> updateNonRecursive(S entity);
+    Single<Single<S>> update(S entity);
+    Single<Single<S>> updateNonRecursive(S entity);
 
-    Maybe<Supplier<S>> update(K key, Function<Maybe<S>, Maybe<S>> updater);
-    Maybe<Supplier<S>> updateNonRecursive(K key, Function<Maybe<S>, Maybe<S>> updater);
+    Maybe<Single<S>> update(K key, Function<Maybe<S>, Maybe<S>> updater);
+    Maybe<Single<S>> updateNonRecursive(K key, Function<Maybe<S>, Maybe<S>> updater);
 
     Completable update(Iterable<S> entities);
     Completable updateNonRecursive(Iterable<S> entities);

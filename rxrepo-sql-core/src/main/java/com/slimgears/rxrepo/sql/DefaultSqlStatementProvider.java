@@ -5,6 +5,7 @@ import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.*;
+import com.slimgears.rxrepo.util.PropertyExpressionValueProvider;
 import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.rxrepo.util.PropertyResolver;
@@ -158,7 +159,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                 .map(this::toFieldDef);
     }
 
-    private <K, S> SqlStatement forUpdateStatement(UpdateInfo<K, S> updateInfo) {
+    protected <K, S> SqlStatement forUpdateStatement(UpdateInfo<K, S> updateInfo) {
         return of(
                 "update",
                 fullTableName(updateInfo.metaClass()),
@@ -172,7 +173,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                 "returning *");
     }
 
-    private <K, S> SqlStatement forInsertStatement(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver, ReferenceResolver resolver) {
+    protected <K, S> SqlStatement forInsertStatement(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver, ReferenceResolver resolver) {
         Collection<Assignment> assignments = toAssignments(metaClass, propertyResolver, resolver)
                 .collect(Collectors.toList());
 
@@ -188,7 +189,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
         );
     }
 
-    private <K, S> SqlStatement forBatchInsertStatement(MetaClassWithKey<K, S> metaClass, Iterable<PropertyResolver> propertyResolvers, ReferenceResolver resolver) {
+    protected <K, S> SqlStatement forBatchInsertStatement(MetaClassWithKey<K, S> metaClass, Iterable<PropertyResolver> propertyResolvers, ReferenceResolver resolver) {
         Set<String> fields = Sets.newLinkedHashSet();
         List<Map<String, String>> values = Streams.fromIterable(propertyResolvers)
                 .map(pr -> toAssignments(metaClass, pr, resolver).collect(ImmutableMap.toImmutableMap(Assignment::name, Assignment::value)))
@@ -237,7 +238,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
 
         String selectOperator = Optional.ofNullable(queryInfo.distinct()).orElse(false) ? "select distinct" : "select";
 
-        return Optional.of(toMappingClause(expression, queryInfo.properties()))
+        return Optional.of(toMappingClause(queryInfo.metaClass(), expression, queryInfo.properties()))
                 .filter(exp -> !exp.isEmpty())
                 .map(exp -> concat(selectOperator, exp))
                 .orElse(selectOperator);
@@ -339,19 +340,24 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
 //        return builder.toString();
 //    }
 //
-    private <S, T> String toMappingClause(ObjectExpression<S, T> expression, Collection<PropertyExpression<T, ?, ?>> properties) {
+    protected <S, T> String toMappingClause(MetaClassWithKey<?, S> metaClass, ObjectExpression<S, T> expression, Collection<PropertyExpression<T, ?, ?>> properties) {
         return Optionals.or(
                 () -> Optional.ofNullable(properties)
-                        .filter(p -> !p.isEmpty())
                         .map(this::eliminateRedundantProperties)
-                        .map(p -> toProjectionFields(expression, p).collect(Collectors.joining(", "))),
+                        .filter(p -> !p.isEmpty())
+                        .map(p -> toProjectionFields(metaClass, expression, p).collect(Collectors.joining(", ")))
+                        .filter(e -> !e.isEmpty()),
                 () -> Optional
                         .of(sqlExpressionGenerator.toSqlExpression(expression))
                         .filter(e -> !e.isEmpty()))
-                .orElse("");
+                .orElseGet(() -> toProjectionFields(
+                        metaClass,
+                        expression,
+                        eliminateRedundantProperties(PropertyExpressions.mandatoryProperties(expression.reflect().objectType()).collect(Collectors.toList())))
+                        .collect(Collectors.joining(", ")));
     }
 
-    protected <S, T> Stream<String> toProjectionFields(ObjectExpression<S, T> expression, Collection<PropertyExpression<T, ?, ?>> properties) {
+    protected <S, T> Stream<String> toProjectionFields(MetaClassWithKey<?, S> metaClass, ObjectExpression<S, T> expression, Collection<PropertyExpression<T, ?, ?>> properties) {
         return properties.stream()
                 .map(prop -> sqlExpressionGenerator.toSqlExpression(prop, expression));
     }
@@ -360,7 +366,7 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
         return "from " + fullTableName(statement.metaClass());
     }
 
-    protected <S, Q extends HasPredicate<S>> String whereClauseForUpdate(Q statement) {
+    protected <S, Q extends HasPredicate<S> & HasEntityMeta<?, S>> String whereClauseForUpdate(Q statement) {
         return whereClause(statement);
     }
 
@@ -376,13 +382,22 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
                                                       PropertyResolver propertyResolver,
                                                       ReferenceResolver referenceResolver) {
         T object = propertyResolver.toObject(metaClass);
-        return PropertyExpressions
-                .valueProvidersFromMeta(metaClass)
-                .map(vp -> Assignment.of(sqlExpressionGenerator.toSqlExpression(vp.property()), toValue(vp.value(object), referenceResolver)))
+        return toAssignableProperties(metaClass)
+                .map(PropertyExpressionValueProvider::fromProperty)
+                .flatMap(vp -> toAssignment(vp, object, referenceResolver))
                 .filter(entry -> entry.value() != null);
     }
 
-    private String toValue(Object value, ReferenceResolver referenceResolver) {
+    protected <K, T> Stream<PropertyExpression<T, ?, ?>> toAssignableProperties(MetaClassWithKey<K, T> metaClass) {
+        return PropertyExpressions.embeddedPropertiesForMeta(metaClass);
+    }
+
+    protected <T> Stream<Assignment> toAssignment(PropertyExpressionValueProvider<T, ?, ?> vp, T object, ReferenceResolver referenceResolver) {
+        return Stream.of(Assignment.of(sqlExpressionGenerator.toSqlExpression(vp.property()),
+                toValue(vp.value(object), referenceResolver)));
+    }
+
+    protected String toValue(Object value, ReferenceResolver referenceResolver) {
         if (value == null) {
             return null;
         }
@@ -441,26 +456,26 @@ public class DefaultSqlStatementProvider implements SqlStatementProvider {
         return sqlExpressionGenerator.toSqlExpression(condition);
     }
 
-    private <T> Collection<PropertyExpression<T, ?, ?>> eliminateRedundantProperties(Collection<PropertyExpression<T, ?, ?>> properties) {
-        log.trace("Requested properties: {}", lazy(() -> properties.stream()
-                .map(PropertyExpression::path)
-                .collect(Collectors.joining(", "))));
+    protected  <T> Collection<PropertyExpression<T, ?, ?>> eliminateRedundantProperties(Collection<PropertyExpression<T, ?, ?>> properties) {
+//        log.trace("Requested properties: {}", lazy(() -> properties.stream()
+//                .map(PropertyExpression::path)
+//                .collect(Collectors.joining(", "))));
 
         Set<PropertyExpression<T, ?, ?>> propertySet = Sets.newLinkedHashSet(properties);
 
         properties.stream()
                 .flatMap(PropertyExpressions::parentProperties)
-                .peek(p -> log.trace("Removing property {}", p.path()))
+//                .peek(p -> log.trace("Removing property {}", p.path()))
                 .forEach(propertySet::remove);
 
-        log.trace("Filtered properties: [{}]", lazy(() -> propertySet.stream()
-                .map(PropertyExpression::path)
-                .collect(Collectors.joining(", "))));
+//        log.trace("Filtered properties: [{}]", lazy(() -> propertySet.stream()
+//                .map(PropertyExpression::path)
+//                .collect(Collectors.joining(", "))));
 
         return propertySet;
     }
 
-    private String fullTableName(MetaClassWithKey<?, ?> metaClass) {
+    protected String fullTableName(MetaClassWithKey<?, ?> metaClass) {
         return databaseName() + "." + tableName(metaClass);
     }
 

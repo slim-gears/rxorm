@@ -45,6 +45,10 @@ public class DockerUtils {
     }
 
     public static void stop(String composeFilePath) {
+        if (System.getProperty("tearDown.keepContainer") != null) {
+            return;
+        }
+
         try {
             Runtime.getRuntime().exec(new String[]{"docker-compose", "-f", composeFilePath, "down"}).waitFor();
         } catch (Throwable e) {

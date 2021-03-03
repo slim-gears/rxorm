@@ -17,14 +17,18 @@ public abstract class AbstractEntityQueryProviderAdapter implements QueryProvide
     private final Map<Class<?>, EntityQueryProvider<?, ?>> providerCache = new ConcurrentHashMap<>();
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
-        return entities(metaClass).insert(entities, recursive);
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return entities(metaClass).insert(entities);
     }
 
     @Override
-    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return entities(metaClass)
-                .insertOrUpdate(key, recursive, entityUpdater);
+    public <K, S> Maybe<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+        return entities(metaClass).insertOrUpdate(key, entityUpdater);
+    }
+
+    @Override
+    public <K, S> Single<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
+        return entities(metaClass).insertOrUpdate(entity);
     }
 
     @Override
@@ -39,20 +43,17 @@ public abstract class AbstractEntityQueryProviderAdapter implements QueryProvide
 
     @Override
     public <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {
-        return entities(query.metaClass())
-                .aggregate(query, aggregator);
+        return entities(query.metaClass()).aggregate(query, aggregator);
     }
 
     @Override
     public <K, S> Single<Integer> update(UpdateInfo<K, S> update) {
-        return entities(update.metaClass())
-                .update(update);
+        return entities(update.metaClass()).update(update);
     }
 
     @Override
     public <K, S> Single<Integer> delete(DeleteInfo<K, S> delete) {
-        return entities(delete.metaClass())
-                .delete(delete);
+        return entities(delete.metaClass()).delete(delete);
     }
 
     @Override

@@ -89,7 +89,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
     }
 
     @Override
-    public Maybe<Supplier<S>> insertOrUpdate(K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+    public Maybe<Single<S>> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return Maybe.defer(() -> {
             synchronized (metaClass) {
                 long seqNum = sequenceNumber.incrementAndGet();
@@ -98,7 +98,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
                 return entityUpdater
                         .apply(Optional.ofNullable(referenceResolver.get().get()).map(Maybe::just).orElseGet(Maybe::empty))
                         .flatMap(e -> referenceResolver.get().compareAndSet(oldValue, e)
-                                ? (e != null ? Maybe.just(e): Maybe.empty())
+                                ? Maybe.just(e)
                                 : Maybe.error(new ConcurrentModificationException("Concurrent modification of " + metaClass.simpleName() + " detected")))
                         .doOnSuccess(e -> {
                             if (!Objects.equals(oldValue, e)) {
@@ -107,7 +107,7 @@ public class MemoryEntityQueryProvider<K, S> implements EntityQueryProvider<K, S
                                 log.debug("Published notification: {}", notification);
                             }
                         })
-                        .map(e -> () -> e);
+                        .map(Single::just);
             }
         });
     }

@@ -3,16 +3,25 @@ package com.slimgears.rxrepo.postgres;
 import com.google.common.base.Strings;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
+import com.slimgears.rxrepo.query.provider.HasEntityMeta;
 import com.slimgears.rxrepo.query.provider.HasPredicate;
+import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.rxrepo.sql.*;
+import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.rxrepo.util.PropertyResolver;
+import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.util.autovalue.annotations.MetaClasses;
 import com.slimgears.util.generic.MoreStrings;
 
 import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.slimgears.rxrepo.sql.SqlStatement.of;
+import static com.slimgears.rxrepo.sql.StatementUtils.concat;
 
 public class PostgresSqlStatementProvider extends DefaultSqlStatementProvider {
     private static final String sequenceName = "generation";
@@ -36,18 +45,18 @@ public class PostgresSqlStatementProvider extends DefaultSqlStatementProvider {
     }
 
     @Override
-    protected <S, T> Stream<String> toProjectionFields(ObjectExpression<S, T> expression, Collection<PropertyExpression<T, ?, ?>> properties) {
+    protected <S, T> Stream<String> toProjectionFields(MetaClassWithKey<?, S> metaClass, ObjectExpression<S, T> expression, Collection<PropertyExpression<T, ?, ?>> properties) {
         return Stream.concat(
-                super.toProjectionFields(expression, properties),
+                super.toProjectionFields(metaClass, expression, properties),
                 Stream.of("\"" + SqlFields.sequenceFieldName + "\""));
     }
 
     @Override
-    protected <S, Q extends HasPredicate<S>> String whereClauseForUpdate(Q statement) {
+    protected <S, Q extends HasPredicate<S> & HasEntityMeta<?, S>> String whereClauseForUpdate(Q statement) {
         return Optional.of(super.whereClauseForUpdate(statement))
                 .map(Strings::emptyToNull)
-                .map(w -> MoreStrings.format("({}) AND ({} <= currval('{}'))", w, SqlFields.sequenceFieldName, sequenceName()))
-                .orElseGet(() -> MoreStrings.format("where {} <= currval('{}')", SqlFields.sequenceFieldName, sequenceName()));
+                .map(w -> MoreStrings.format("{} AND ({}.\"{}\" <= currval('{}'))", w, fullTableName(statement.metaClass()), SqlFields.sequenceFieldName, sequenceName()))
+                .orElseGet(() -> MoreStrings.format("where {}.\"{}\" <= currval('{}')", fullTableName(statement.metaClass()), SqlFields.sequenceFieldName, sequenceName()));
     }
 
     @Override
@@ -56,6 +65,21 @@ public class PostgresSqlStatementProvider extends DefaultSqlStatementProvider {
                 super.toAssignments(metaClass, propertyResolver, referenceResolver),
                 Stream.of(Assignment.of("\"" + SqlFields.sequenceFieldName + "\"", "nextval('" + sequenceName() + "')")));
     }
+
+    @Override
+    protected <K, S> SqlStatement forUpdateStatement(UpdateInfo<K, S> updateInfo) {
+        return of(
+                "update",
+                fullTableName(updateInfo.metaClass()),
+                "set",
+                updateInfo.propertyUpdates()
+                        .stream()
+                        .map(pu -> concat(sqlExpressionGenerator.toSqlExpression(pu.property()), "=", sqlExpressionGenerator.toSqlExpression(pu.updater())))
+                        .collect(Collectors.joining(", ")),
+                whereClauseForUpdate(updateInfo),
+                "returning *");
+    }
+
 
     private String sequenceName() {
         return databaseName() + "." + sequenceName;

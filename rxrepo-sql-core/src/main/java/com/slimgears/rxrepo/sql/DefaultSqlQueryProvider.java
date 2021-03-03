@@ -1,7 +1,6 @@
 package com.slimgears.rxrepo.sql;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.CollectionExpression;
@@ -21,13 +20,12 @@ import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import static com.slimgears.util.generic.LazyString.lazy;
+import java.util.stream.Stream;
 
 @SuppressWarnings("UnstableApiUsage")
 public class DefaultSqlQueryProvider implements QueryProvider {
@@ -61,30 +59,35 @@ public class DefaultSqlQueryProvider implements QueryProvider {
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
-        return Optional
-                .of(entities)
-                .filter(e -> !Iterables.isEmpty(e))
-                .map(meta -> schemaGenerator.useTable(metaClass)
-                        .doOnSubscribe(d -> log.trace("Beginning creating class {}", lazy(metaClass::simpleName)))
-                        .doOnComplete(() -> log.trace("Finished creating class {}", lazy(metaClass::simpleName)))
-                        .andThen(statementExecutor.executeCommand(
-                                statementProvider.forInsert(
-                                        metaClass,
-                                        Streams.fromIterable(entities)
-                                                .map(e -> PropertyResolver.fromObject(metaClass, e))
-                                                .collect(Collectors.toList()),
-                                        referenceResolver))))
-                .orElseGet(Completable::complete);
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+//        return Optional
+//                .of(entities)
+//                .filter(e -> !Iterables.isEmpty(e))
+//                .map(meta -> schemaGenerator.useTable(metaClass)
+//                        .doOnSubscribe(d -> log.trace("Beginning creating class {}", lazy(metaClass::simpleName)))
+//                        .doOnComplete(() -> log.trace("Finished creating class {}", lazy(metaClass::simpleName)))
+//                        .andThen(statementExecutor.executeCommand(
+//                                statementProvider.forInsert(
+//                                        metaClass,
+//                                        Streams.fromIterable(entities)
+//                                                .map(e -> PropertyResolver.fromObject(metaClass, e))
+//                                                .collect(Collectors.toList()),
+//                                        referenceResolver))))
+//                .orElseGet(Completable::complete);
+        return schemaGenerator.useTable(metaClass)
+                .andThen(Observable.fromIterable(entities)
+                        .map(e -> statementProvider.forInsert(metaClass, e, referenceResolver))
+                        .toList()
+                        .flatMapCompletable(statementExecutor::executeCommands));
     }
 
     @Override
-    public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
-        return insertOrUpdate(metaClass, PropertyResolver.fromObject(metaClass, entity));
+    public <K, S> Completable insertOrUpdate(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return insertOrUpdatePropertyResolvers(metaClass, Streams.fromIterable(entities).map(e -> PropertyResolver.fromObject(metaClass, e)));
     }
 
     @Override
-    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+    public <K, S> Maybe<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         SqlStatement statement = statementProvider.forQuery(QueryInfo
                 .<K, S, S>builder()
                 .metaClass(metaClass)
@@ -102,42 +105,48 @@ public class DefaultSqlQueryProvider implements QueryProvider {
                             .apply(Maybe.just(oldObj))
                             .map(newObj -> pr.mergeWith(PropertyResolver.fromObject(metaClass, newObj)))
                             .filter(newPr -> !pr.equals(newPr))
-                            .flatMap(newPr -> update(metaClass, newPr).toMaybe());
+                            .flatMap(newPr -> updatePropertyResolver(metaClass, newPr));
                 })
                 .switchIfEmpty(Maybe.defer(() -> entityUpdater
                         .apply(Maybe.empty())
-                        .flatMap(e -> insert(metaClass, e).toMaybe()))));
+                        .flatMap(e -> insert(metaClass, Collections.singleton(e)).toMaybe()))));
     }
 
-    private <K, S> Single<Supplier<S>> update(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
-        SqlStatement statement = statementProvider.forUpdate(metaClass, propertyResolver, referenceResolver);
-        return insertOrUpdate(metaClass, statement);
+    @Override
+    public <K, S> Single<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
+        return updatePropertyResolver(metaClass, PropertyResolver.fromObject(metaClass, entity))
+                .toSingle();
     }
 
-    private <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
-        SqlStatement statement = statementProvider.forInsertOrUpdate(metaClass, propertyResolver, referenceResolver);
-        return insertOrUpdate(metaClass, statement);
+//    private <K, S> Completable updatePropertyResolvers(MetaClassWithKey<K, S> metaClass, Stream<PropertyResolver> propertyResolvers) {
+//        return insertOrUpdateStatements(metaClass, propertyResolvers.map(pr -> statementProvider.forUpdate(metaClass, pr, referenceResolver)));
+//    }
+//
+    private <K, S> Maybe<Single<S>> updatePropertyResolver(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
+        return insertOrUpdateStatement(metaClass, statementProvider.forUpdate(metaClass, propertyResolver, referenceResolver));
     }
 
-    private <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, SqlStatement statement) {
+    private <K, S> Completable insertOrUpdatePropertyResolvers(MetaClassWithKey<K, S> metaClass, Stream<PropertyResolver> propertyResolvers) {
+        return insertOrUpdateStatements(metaClass, propertyResolvers
+                .map(pr -> statementProvider.forInsertOrUpdate(metaClass, pr, referenceResolver)));
+    }
+
+    private <K, S> Completable insertOrUpdateStatements(MetaClassWithKey<K, S> metaClass, Stream<SqlStatement> statements) {
         return schemaGenerator.useTable(metaClass)
                 .doOnSubscribe(d -> log.trace("Ensuring class {}", metaClass.simpleName()))
                 .doOnError(e -> log.trace("Error when updating class: {}", metaClass.simpleName(), e))
                 .doOnComplete(() -> log.trace("Class updated {}", metaClass.simpleName()))
-                .andThen(statementExecutor
-                        .executeCommandReturnEntries(statement)
-                        .<Supplier<S>>map(pr -> () -> pr.toObject(metaClass))
-                        .doOnSubscribe(d -> log.trace("Executing statement: {}", statement.statement()))
-                        .doOnError(e -> log.trace("Failed to execute statement: {}", statement.statement(), e))
-                        .doOnComplete(() -> log.trace("Execution complete: {}", statement.statement()))
-                        .doOnNext(obj -> log.trace("Updated {}", obj))
-                        .take(1)
-                        .singleOrError());
+                .andThen(statementExecutor.executeCommands(statements.collect(Collectors.toList())));
     }
 
-    private <K, S> Single<Supplier<S>> insert(MetaClassWithKey<K, S> metaClass, S entity) {
-        SqlStatement statement = statementProvider.forInsert(metaClass, entity, referenceResolver);
-        return insertOrUpdate(metaClass, statement);
+    private <K, S> Maybe<Single<S>> insertOrUpdateStatement(MetaClassWithKey<K, S> metaClass, SqlStatement statement) {
+        return schemaGenerator.useTable(metaClass)
+                .doOnSubscribe(d -> log.trace("Ensuring class {}", metaClass.simpleName()))
+                .doOnError(e -> log.trace("Error when updating class: {}", metaClass.simpleName(), e))
+                .doOnComplete(() -> log.trace("Class updated {}", metaClass.simpleName()))
+                .andThen(statementExecutor.executeCommandReturnEntries(statement)
+                        .firstElement()
+                        .map(pr -> Single.fromCallable(() -> pr.toObject(metaClass))));
     }
 
     @Override

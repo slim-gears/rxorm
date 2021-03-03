@@ -19,8 +19,13 @@ public class EmptyQueryProvider implements QueryProvider {
     public static QueryProvider instance = new EmptyQueryProvider();
 
     @Override
-    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+    public <K, S> Maybe<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
         return Maybe.empty();
+    }
+
+    @Override
+    public <K, S> Single<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
+        return Single.never();
     }
 
     @Override

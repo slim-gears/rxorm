@@ -103,18 +103,6 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
         return visitor.apply(expression);
     }
 
-    @Override
-    protected <S, T> String reduceProperty(ObjectExpression<S, T> expression, String[] parts) {
-        return Streams.concat(
-                Arrays.stream(parts).limit(parts.length - 1),
-                Stream.of(Optional.ofNullable(parts[parts.length - 1])
-                        .filter(p -> !p.isEmpty())
-                        .map(p -> "`" + p + "`")
-                        .orElse("")))
-                .filter(p -> !p.isEmpty())
-                .collect(Collectors.joining("."));
-    }
-
     private String searchTextToWildcard(String searchText) {
         searchText = searchText.replaceAll("([:+\\-*(){}\\[\\]\\\\/;%])", "?");
         searchText = Arrays
@@ -122,5 +110,10 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
                 .map(t -> "+*" + t + "*")
                 .collect(Collectors.joining(" && "));
         return searchText;
+    }
+
+    @Override
+    protected String fieldName(String fieldName) {
+        return "`" + fieldName.replace("`", "") + "`";
     }
 }

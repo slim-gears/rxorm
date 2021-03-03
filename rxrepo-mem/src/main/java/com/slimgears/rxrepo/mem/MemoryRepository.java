@@ -21,7 +21,6 @@ public class MemoryRepository {
                         LiveQueryProviderDecorator.create(Duration.ofMillis(2000)),
                         ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider),
                         SubscribeOnSchedulingQueryProviderDecorator.createDefault(),
-                        UpdateReferencesFirstQueryProviderDecorator.create(),
                         QueryProvider.Decorator.of(decorators));
     }
 }

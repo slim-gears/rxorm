@@ -2,7 +2,6 @@ package com.slimgears.rxrepo.query.decorator;
 
 import com.slimgears.nanometer.ExecutorMetrics;
 import com.slimgears.nanometer.MetricCollector;
-import com.slimgears.nanometer.MetricTag;
 import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.DeleteInfo;
@@ -17,8 +16,8 @@ import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
+import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -66,22 +65,22 @@ public class MetricsQueryProviderDecorator implements QueryProvider.Decorator, M
         }
 
         @Override
-        public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
+        public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
             return super
-                    .insert(metaClass, entities, recursive)
+                    .insert(metaClass, entities)
                     .compose(asyncCollector("insert", metaClass).forCompletable());
         }
 
         @Override
-        public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
+        public <K, S> Completable insertOrUpdate(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
             return super
-                    .insertOrUpdate(metaClass, entity, recursive)
-                    .compose(asyncCollector("insertOrUpdate", metaClass).forSingle());
+                    .insertOrUpdate(metaClass, entities)
+                    .compose(asyncCollector("insertOrUpdate", metaClass).forCompletable());
         }
 
         @Override
-        public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-            return super.insertOrUpdate(metaClass, key, recursive, entityUpdater)
+        public <K, S> Maybe<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+            return super.insertOrUpdate(metaClass, key, entityUpdater)
                     .compose(asyncCollector("insertOrUpdateAtomic", metaClass).forMaybe());
         }
 

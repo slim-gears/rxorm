@@ -5,12 +5,13 @@ import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.internal.*;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
 public interface ConstantExpression<S, T> extends ObjectExpression<S, T> {
-    @JsonProperty T value();
+    @Nullable @JsonProperty T value();
 
     @SuppressWarnings("unchecked")
     default TypeToken<T> objectType() {

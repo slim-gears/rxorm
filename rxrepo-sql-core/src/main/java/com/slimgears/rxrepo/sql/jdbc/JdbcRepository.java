@@ -2,11 +2,8 @@ package com.slimgears.rxrepo.sql.jdbc;
 
 import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.decorator.BatchUpdateQueryProviderDecorator;
-import com.slimgears.rxrepo.query.decorator.LockQueryProviderDecorator;
 import com.slimgears.rxrepo.query.decorator.ObserveOnSchedulingQueryProviderDecorator;
-import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.sql.*;
-import com.slimgears.rxrepo.util.SemaphoreLockProvider;
 import com.slimgears.util.stream.Safe;
 
 import java.sql.Connection;
@@ -24,10 +21,6 @@ public class JdbcRepository {
             return self();
         }
 
-        public B connection(Connection connection) {
-            return connection(() -> connection);
-        }
-
         public B connection(String connectionStr) {
             return connection(Safe.ofSupplier(() -> DriverManager.getConnection(connectionStr)));
         }
@@ -38,27 +31,27 @@ public class JdbcRepository {
         }
 
         @Override
-        protected SqlServiceFactory.Builder serviceFactoryBuilder(RepositoryConfig config) {
+        protected SqlServiceFactory.Builder<?> serviceFactoryBuilder(RepositoryConfig config) {
             Objects.requireNonNull(connectionSupplier);
             return serviceFactoryBuilder(config, connectionSupplier);
         }
 
-        protected SqlServiceFactory.Builder serviceFactoryBuilder(RepositoryConfig config, Supplier<Connection> connectionSupplier) {
-            return SqlServiceFactory.builder()
+        protected SqlServiceFactory.Builder<?> serviceFactoryBuilder(RepositoryConfig config, Supplier<Connection> connectionSupplier) {
+            return DefaultSqlServiceFactory.builder()
                     .keyEncoder(DigestKeyEncoder::create)
-                    .expressionGenerator(sf -> new DefaultSqlExpressionGenerator(sf.keyEncoder(), sf.typeMapper()))
+                    .expressionGenerator(DefaultSqlExpressionGenerator::new)
                     .dbNameProvider(() -> "repository")
                     .typeMapper(() -> SqlTypes.instance)
                     .schemaProvider(sf -> new JdbcSchemaGenerator(sf.statementExecutor(), sf.statementProvider()))
                     .referenceResolver(sf -> new DefaultSqlReferenceResolver(sf.keyEncoder(), sf.expressionGenerator()))
                     .statementProvider(sf -> new DefaultSqlStatementProvider(sf.expressionGenerator(), sf.typeMapper(), sf.dbNameProvider()))
-                    .statementExecutor(sf -> new JdbcSqlStatementExecutor(connectionSupplier.get(), sf.typeMapper()))
+                    .statementExecutor(sf -> new JdbcSqlStatementExecutor(connectionSupplier, sf.typeMapper()))
                     .schedulingProvider(schedulingProvider)
+                    .decorateExecutor(sf -> JdbcSqlStatementExecutorDecorator.create(sf.typeMapper(), sf.keyEncoder()))
                     .decorate(
-                            LockQueryProviderDecorator.create(SemaphoreLockProvider.create()),
+//                            LockQueryProviderDecorator.create(SemaphoreLockProvider.create()),
 //                            LiveQueryProviderDecorator.create(Duration.ofMillis(config.aggregationDebounceTimeMillis())),
                             ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider.get()),
-                            UpdateReferencesFirstQueryProviderDecorator.create(),
                             BatchUpdateQueryProviderDecorator.create(batchSize)
                     );
         }

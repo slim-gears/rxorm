@@ -4,7 +4,7 @@ import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfig;
 
 public abstract class AbstractSqlRepositoryBuilder<_B extends AbstractSqlRepositoryBuilder<_B>> extends AbstractRepositoryBuilder<_B> {
-    protected abstract SqlServiceFactory.Builder serviceFactoryBuilder(RepositoryConfig config);
+    protected abstract SqlServiceFactory.Builder<?> serviceFactoryBuilder(RepositoryConfig config);
 
     protected AbstractSqlRepositoryBuilder() {
         this
@@ -16,6 +16,7 @@ public abstract class AbstractSqlRepositoryBuilder<_B extends AbstractSqlReposit
 
     public Repository build() {
         RepositoryConfig config = configBuilder.build();
-        return serviceFactoryBuilder(config).buildRepository(config);
+        return serviceFactoryBuilder(config)
+                .buildRepository(config);
     }
 }

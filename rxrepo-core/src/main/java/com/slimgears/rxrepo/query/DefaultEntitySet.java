@@ -1,15 +1,18 @@
 package com.slimgears.rxrepo.query;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.slimgears.rxrepo.expressions.*;
 import com.slimgears.rxrepo.expressions.internal.CollectionPropertyExpression;
 import com.slimgears.rxrepo.filters.Filter;
 import com.slimgears.rxrepo.query.provider.*;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
+import com.slimgears.rxrepo.util.PropertyMetas;
+import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.rx.Maybes;
 import com.slimgears.util.rx.Observables;
 import com.slimgears.util.rx.Singles;
+import com.slimgears.util.stream.Optionals;
+import com.slimgears.util.stream.Streams;
 import io.reactivex.Observable;
 import io.reactivex.*;
 import io.reactivex.exceptions.CompositeException;
@@ -22,8 +25,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @SuppressWarnings("UnstableApiUsage")
 public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
@@ -31,20 +34,24 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     private final QueryProvider queryProvider;
     private final MetaClassWithKey<K, S> metaClass;
     private final RepositoryConfigModel config;
+    private final Repository repository;
 
     private DefaultEntitySet(QueryProvider queryProvider,
                              MetaClassWithKey<K, S> metaClass,
-                             RepositoryConfigModel config) {
+                             RepositoryConfigModel config,
+                             Repository repository) {
         this.queryProvider = queryProvider;
         this.metaClass = metaClass;
         this.config = config;
+        this.repository = repository;
     }
 
     static <K, S> DefaultEntitySet<K, S> create(
             QueryProvider queryProvider,
             MetaClassWithKey<K, S> metaClass,
-            RepositoryConfigModel config) {
-        return new DefaultEntitySet<>(queryProvider, metaClass, config);
+            RepositoryConfigModel config,
+            Repository repository) {
+        return new DefaultEntitySet<>(queryProvider, metaClass, config, repository);
     }
 
     @Override
@@ -356,66 +363,106 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     }
 
     @Override
-    public Single<Supplier<S>> update(S entity) {
-        return update(entity, true);
-    }
-
-    private Single<Supplier<S>> update(S entity, boolean recursive) {
-        return queryProvider.insert(metaClass, Collections.singleton(entity), recursive)
-                .andThen(Single.<Supplier<S>>just(() -> entity))
-                .onErrorResumeNext(e ->
-                        isConcurrencyException(e)
-                        ? Single.defer(() -> queryProvider.insertOrUpdate(metaClass, entity, recursive))
-                                .compose(Singles.backOffDelayRetry(
-                                        DefaultEntitySet::isConcurrencyException,
-                                        Duration.ofMillis(config.retryInitialDurationMillis()),
-                                        config.retryCount()))
-                        : Single.error(e));
+    public Single<Single<S>> update(S entity) {
+        return updateReferences(entity).andThen(updateNonRecursive(entity));
     }
 
     @Override
-    public Single<Supplier<S>> updateNonRecursive(S entity) {
-        return update(entity, false);
+    public Single<Single<S>> updateNonRecursive(S entity) {
+        return queryProvider.insertOrUpdate(metaClass, entity);
+//        return queryProvider.insert(metaClass, Collections.singleton(entity))
+//                .andThen(Single.<Supplier<S>>just(() -> entity))
+//                .onErrorResumeNext(e ->
+//                        isConcurrencyException(e)
+//                                ? Single.defer(() -> queryProvider.insertOrUpdate(metaClass, entity))
+//                                .compose(Singles.backOffDelayRetry(
+//                                        DefaultEntitySet::isConcurrencyException,
+//                                        Duration.ofMillis(config.retryInitialDurationMillis()),
+//                                        config.retryCount()))
+//                                : Single.error(e));
     }
 
     @Override
     public Completable update(Iterable<S> entities) {
-        return update(entities, true);
+        return Iterables.isEmpty(entities)
+                ? Completable.complete()
+                : updateReferences(entities).andThen(updateNonRecursive(entities));
+    }
+
+    private Completable updateReferences(Iterable<S> entities) {
+        return Observable.fromIterable(metaClass.properties())
+                .filter(PropertyMetas::isReference)
+                .flatMapCompletable(p -> updateReferences(p, entities));
+    }
+
+    private <_K, T> Completable updateReferences(PropertyMeta<S, T> property, Iterable<S> entities) {
+        MetaClassWithKey<_K, T> refMeta = MetaClasses.forTokenWithKeyUnchecked(property.type());
+        List<T> referencedObjects = Streams.fromIterable(entities)
+                .map(property::getValue)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(this::keyOf, Collectors.reducing((a, b) -> a)))
+                .values().stream()
+                .flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty))
+                .collect(Collectors.toList());
+        return referencedObjects.isEmpty()
+                ? Completable.complete()
+                : queryProvider.insertOrUpdate(refMeta, referencedObjects);
+//                : Observable
+//                .fromIterable(referencedObjects)
+//                .flatMapCompletable(e -> queryProvider.insertOrUpdate(refMeta, e).ignoreElement());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <_K, T> _K keyOf(T entity) {
+        return Optional.ofNullable(entity)
+                .flatMap(Optionals.ofType(HasMetaClassWithKey.class))
+                .map(e -> (HasMetaClassWithKey<_K, T>)e)
+                .map(e -> e.metaClass().keyOf(entity))
+                .orElse(null);
     }
 
     @Override
     public Completable updateNonRecursive(Iterable<S> entities) {
-        return update(entities, false);
-    }
-
-    private Completable update(Iterable<S> entities, boolean recursive) {
-        return queryProvider.insert(metaClass, entities, recursive)
-                .onErrorResumeNext(e -> isConcurrencyException(e)
-                        ? Completable.defer(() -> Observable
-                                .fromIterable(entities)
-                                .flatMapSingle(this::update)
-                                .ignoreElements())
-                        : Completable.error(e));
-    }
-
-    @Override
-    public Maybe<Supplier<S>> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
-        return update(key, true, updater);
+        return queryProvider.insertOrUpdate(metaClass, entities);
+//        return Iterables.isEmpty(entities)
+//                ? Completable.complete()
+//                : queryProvider.insert(metaClass, entities)
+//                .onErrorResumeNext(e -> isConcurrencyException(e)
+//                        ? Completable.defer(() -> Observable
+//                        .fromIterable(entities)
+//                        .flatMapSingle(this::update)
+//                        .ignoreElements())
+//                        : Completable.error(e));
     }
 
     @Override
-    public Maybe<Supplier<S>> updateNonRecursive(K key, Function<Maybe<S>, Maybe<S>> updater) {
-        return update(key, false, updater);
+    public Maybe<Single<S>> update(K key, Function<Maybe<S>, Maybe<S>> updater) {
+        return updateNonRecursive(key, src -> updater.apply(src)
+                .flatMap(s -> updateReferences(s).andThen(Maybe.just(s))));
     }
 
-    private Maybe<Supplier<S>> update(K key, boolean recursive, Function<Maybe<S>, Maybe<S>> updater) {
+    private Completable updateReferences(S object) {
+        return Observable.fromIterable(metaClass.properties())
+                .filter(PropertyMetas::isReference)
+                .flatMapCompletable(p -> updateReferences(p, object));
+    }
+
+    private <_K, T> Completable updateReferences(PropertyMeta<S, T> property, S object) {
+        MetaClassWithKey<_K, T> refMeta = MetaClasses.forTokenWithKeyUnchecked(property.type());
+        return Optional.ofNullable(property.getValue(object))
+                .map(e -> repository.entities(refMeta).update(e).ignoreElement())
+                .orElseGet(Completable::complete);
+    }
+
+    @Override
+    public Maybe<Single<S>> updateNonRecursive(K key, Function<Maybe<S>, Maybe<S>> updater) {
         Function<Maybe<S>, Maybe<S>> filteredUpdater = maybe -> {
             AtomicReference<S> entity = new AtomicReference<>();
             return updater.apply(maybe.doOnSuccess(entity::set))
                     .filter(e -> !Objects.equals(entity.get(), e))
                     .switchIfEmpty(Maybe.fromCallable(entity::get));
         };
-        return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, recursive, filteredUpdater))
+        return Maybe.defer(() -> queryProvider.insertOrUpdate(metaClass, key, filteredUpdater))
                 .compose(Maybes.backOffDelayRetry(
                         DefaultEntitySet::isConcurrencyException,
                         Duration.ofMillis(config.retryInitialDurationMillis()),
@@ -423,7 +470,7 @@ public class DefaultEntitySet<K, S> implements EntitySet<K, S> {
     }
 
     private static boolean isConcurrencyException(Throwable exception) {
-        log.debug("Checking exception: {}", exception.getMessage(), exception);
+//        log.trace("Checking exception: {}", exception.getMessage(), exception);
         return exception instanceof ConcurrentModificationException ||
                 exception instanceof NoSuchElementException ||
                 (exception instanceof CompositeException && ((CompositeException)exception)

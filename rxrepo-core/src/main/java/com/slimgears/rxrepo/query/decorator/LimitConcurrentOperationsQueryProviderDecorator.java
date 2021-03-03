@@ -30,23 +30,23 @@ public class LimitConcurrentOperationsQueryProviderDecorator extends AbstractQue
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
         return Observable.fromIterable(entities)
-                .flatMapCompletable(e -> super.insert(metaClass, Collections.singleton(e), recursive)
+                .flatMapCompletable(e -> super.insert(metaClass, Collections.singleton(e))
                         .doOnSubscribe(d -> doOnSubscribe())
                         .doFinally(this::doFinally));
     }
 
     @Override
-    public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
-        return super.insertOrUpdate(metaClass, entity, recursive)
+    public <K, S> Completable insertOrUpdate(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return super.insertOrUpdate(metaClass, entities)
                 .doOnSubscribe(d -> doOnSubscribe())
                 .doFinally(this::doFinally);
     }
 
     @Override
-    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return super.insertOrUpdate(metaClass, key, recursive, entityUpdater)
+    public <K, S> Maybe<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+        return super.insertOrUpdate(metaClass, key, entityUpdater)
                 .doOnSubscribe(d -> doOnSubscribe())
                 .doFinally(this::doFinally);
     }

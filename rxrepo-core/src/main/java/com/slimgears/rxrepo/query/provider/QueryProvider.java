@@ -13,11 +13,11 @@ import io.reactivex.functions.Function;
 
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 public interface QueryProvider extends AutoCloseable {
-    <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater);
+    <K, S> Maybe<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater);
+    <K, S> Single<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity);
     <K, S, T> Observable<Notification<T>> query(QueryInfo<K, S, T> query);
     <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query);
     <K, S, T, R> Maybe<R> aggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator);
@@ -27,18 +27,19 @@ public interface QueryProvider extends AutoCloseable {
     <K, S> Completable drop(MetaClassWithKey<K, S> metaClass);
     Completable dropAll();
 
-    default <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
-        return Observable.fromIterable(entities)
-                .concatMapEager(e -> insertOrUpdate(metaClass, e, recursive).toObservable())
-                .ignoreElements();
+    default <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return insertOrUpdate(metaClass, entities);
     }
 
-    default <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
-        K key = metaClass.keyOf(entity);
-        return insertOrUpdate(metaClass, key, recursive, val -> val
-                .map(e -> MetaClasses.merge(metaClass, e, entity))
-                .switchIfEmpty(Maybe.just(entity)))
-                .toSingle();
+    default <K, S> Completable insertOrUpdate(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return Observable.fromIterable(entities)
+                .flatMapCompletable(e -> {
+                    K key = metaClass.keyOf(e);
+                    return insertOrUpdate(metaClass, key, val -> val
+                            .map(_e -> MetaClasses.merge(metaClass, _e, e))
+                            .switchIfEmpty(Maybe.just(e)))
+                            .ignoreElement();
+                });
     }
 
     default <K, S, T, R> Observable<R> liveAggregate(QueryInfo<K, S, T> query, Aggregator<T, T, R> aggregator) {

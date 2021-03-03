@@ -84,7 +84,7 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
     }
 
     @Override
-    public Completable insert(Iterable<S> entities, boolean recursive) {
+    public Completable insert(Iterable<S> entities) {
         List<Document> documents = Streams
                 .fromIterable(entities)
                 .map(e -> objectToDocument(e, 0))
@@ -103,7 +103,7 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
     }
 
     @Override
-    public Maybe<Supplier<S>> insertOrUpdate(K key, boolean recursive, Function<Maybe<S>, Maybe<S>> update) {
+    public Maybe<Single<S>> insertOrUpdate(K key, Function<Maybe<S>, Maybe<S>> update) {
         AtomicLong version = new AtomicLong();
         AtomicReference<S> oldObject = new AtomicReference<>();
         AtomicReference<S> newObject = new AtomicReference<>();
@@ -151,7 +151,7 @@ class MongoEntityQueryProvider<K, S> implements EntityQueryProvider<K, S>, AutoC
                                 .onErrorResumeNext((Throwable e) -> Maybe.error(convertError(e)))))
                 .doOnSuccess(obj -> log.trace("Final object after update/insert: {}", obj))
                 .doOnError(e -> log.trace("Could not update object: ", e))
-                .map(e -> () -> e);
+                .map(Single::just);
     }
 
     @Override

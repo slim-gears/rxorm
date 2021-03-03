@@ -50,7 +50,7 @@ public class DefaultRepository implements Repository {
     }
 
     private <K, T> EntitySet<K, T> createEntitySet(MetaClassWithKey<K, T> metaClass) {
-        return DefaultEntitySet.create(queryProvider, metaClass, config);
+        return DefaultEntitySet.create(queryProvider, metaClass, config, this);
     }
 
     @Override

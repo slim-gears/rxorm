@@ -6,7 +6,6 @@ import com.slimgears.rxrepo.query.provider.DeleteInfo;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.query.provider.UpdateInfo;
-import com.slimgears.rxrepo.util.Queries;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
@@ -14,6 +13,7 @@ import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 public class SubscribeOnSchedulingQueryProviderDecorator extends AbstractQueryProviderDecorator {
@@ -49,18 +49,18 @@ public class SubscribeOnSchedulingQueryProviderDecorator extends AbstractQueryPr
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
-        return super.insert(metaClass, entities, recursive).subscribeOn(updateScheduler);
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return super.insert(metaClass, entities).subscribeOn(updateScheduler);
     }
 
     @Override
-    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return super.insertOrUpdate(metaClass, key, recursive, entityUpdater).subscribeOn(updateScheduler);
+    public <K, S> Maybe<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+        return super.insertOrUpdate(metaClass, key, entityUpdater).subscribeOn(updateScheduler);
     }
 
     @Override
-    public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
-        return super.insertOrUpdate(metaClass, entity, recursive).subscribeOn(updateScheduler);
+    public <K, S> Completable insertOrUpdate(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return super.insertOrUpdate(metaClass, entities).subscribeOn(updateScheduler);
     }
 
     @Override

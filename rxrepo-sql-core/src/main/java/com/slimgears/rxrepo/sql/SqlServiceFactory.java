@@ -3,12 +3,15 @@ package com.slimgears.rxrepo.sql;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfigModel;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
+import com.slimgears.rxrepo.util.CachedRoundRobinSchedulingProvider;
 import com.slimgears.rxrepo.util.SchedulingProvider;
 
+import java.time.Duration;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.slimgears.rxrepo.query.provider.QueryProvider.Decorator.of;
+import static java.util.Objects.requireNonNull;
 
 public interface SqlServiceFactory {
     SqlStatementProvider statementProvider();
@@ -22,71 +25,162 @@ public interface SqlServiceFactory {
     SqlTypeMapper typeMapper();
     Supplier<String> dbNameProvider();
 
-    static Builder builder() {
-        return DefaultSqlServiceFactory.builder();
-    }
-
-    abstract class Builder {
+    abstract class Builder<B extends Builder<B>> {
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
+        protected Function<SqlServiceFactory, SqlStatementExecutor.Decorator> executorDecorator = sf -> SqlStatementExecutor.Decorator.identity();
 
-        public abstract Builder statementProvider(Function<SqlServiceFactory, SqlStatementProvider> statementProvider);
-        public abstract Builder statementExecutor(Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor);
-        public abstract Builder schemaProvider(Function<SqlServiceFactory, SchemaGenerator> schemaProvider);
-        public abstract Builder referenceResolver(Function<SqlServiceFactory, ReferenceResolver> referenceResolver);
-        public abstract Builder expressionGenerator(Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator);
-        public abstract Builder queryProviderGenerator(Function<SqlServiceFactory, QueryProvider> queryProviderGenerator);
-        public abstract Builder schedulingProvider(Function<SqlServiceFactory, SchedulingProvider> executorPool);
-        public abstract Builder keyEncoder(Function<SqlServiceFactory, KeyEncoder> keyEncoder);
-        public abstract Builder typeMapper(Function<SqlServiceFactory, SqlTypeMapper> typeMapper);
-        public abstract Builder dbNameProvider(Function<SqlServiceFactory, Supplier<String>> dbNameProvider);
+        private int maxNotificationQueues = 10;
+        private Duration maxNotificationQueueIdleDuration = Duration.ofSeconds(30);
+
+        protected Function<SqlServiceFactory, SqlStatementProvider> statementProvider;
+        protected Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor;
+        protected Function<SqlServiceFactory, SchemaGenerator> schemaProvider;
+        protected Function<SqlServiceFactory, ReferenceResolver> referenceResolver;
+        protected Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator;
+        protected Function<SqlServiceFactory, SchedulingProvider> schedulingProvider = f -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxNotificationQueueIdleDuration);
+        protected Function<SqlServiceFactory, KeyEncoder> keyEncoder = f -> String::valueOf;
+        protected Function<SqlServiceFactory, SqlTypeMapper> typeMapper = f -> SqlTypes.instance;
+        protected Function<SqlServiceFactory, Supplier<String>> dbNameProvider;
+        protected Function<SqlServiceFactory, QueryProvider> queryProviderGenerator = factory -> new DefaultSqlQueryProvider(
+                factory.statementProvider(),
+                factory.statementExecutor(),
+                factory.schemaProvider(),
+                factory.referenceResolver(),
+                factory.schedulingProvider());
+
+        @SuppressWarnings("unchecked")
+        protected B self() {
+            return (B)this;
+        }
+
+        public B decorateExecutor(Supplier<SqlStatementExecutor.Decorator> decorator) {
+            return decorateExecutor((SqlServiceFactory sf) -> decorator.get());
+        }
+
+        public B decorateExecutor(Function<SqlServiceFactory, SqlStatementExecutor.Decorator> decorator) {
+            Function<SqlServiceFactory, SqlStatementExecutor.Decorator> oldDecorator = this.executorDecorator;
+            this.executorDecorator = sf -> oldDecorator.apply(sf).andThen(decorator.apply(sf));
+            return self();
+        }
+
+        public B decorateExecutorBefore(Supplier<SqlStatementExecutor.Decorator> decorator) {
+            return decorateExecutorBefore((SqlServiceFactory sf) -> decorator.get());
+        }
+
+        public B decorateExecutorBefore(Function<SqlServiceFactory, SqlStatementExecutor.Decorator> decorator) {
+            Function<SqlServiceFactory, SqlStatementExecutor.Decorator> oldDecorator = this.executorDecorator;
+            this.executorDecorator = sf -> decorator.apply(sf).andThen(oldDecorator.apply(sf));
+            return self();
+        }
+
+        public B statementProvider(Function<SqlServiceFactory, SqlStatementProvider> statementProvider) {
+            this.statementProvider = statementProvider;
+            return self();
+        }
+
+        public B statementExecutor(Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor) {
+            this.statementExecutor = statementExecutor;
+            return self();
+        }
+
+        public B schemaProvider(Function<SqlServiceFactory, SchemaGenerator> schemaProvider) {
+            this.schemaProvider = schemaProvider;
+            return self();
+        }
+
+        public B referenceResolver(Function<SqlServiceFactory, ReferenceResolver> referenceResolver) {
+            this.referenceResolver = referenceResolver;
+            return self();
+        }
+
+        public B expressionGenerator(Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator) {
+            this.expressionGenerator = expressionGenerator;
+            return self();
+        }
+
+        public B queryProviderGenerator(Function<SqlServiceFactory, QueryProvider> queryProviderGenerator) {
+            this.queryProviderGenerator = queryProviderGenerator;
+            return self();
+        }
+
+        public B schedulingProvider(Function<SqlServiceFactory, SchedulingProvider> schedulingProvider) {
+            this.schedulingProvider = schedulingProvider;
+            return self();
+        }
+
+        public B keyEncoder(Function<SqlServiceFactory, KeyEncoder> keyEncoder) {
+            this.keyEncoder = keyEncoder;
+            return self();
+        }
+
+        public B typeMapper(Function<SqlServiceFactory, SqlTypeMapper> typeMapper) {
+            this.typeMapper = typeMapper;
+            return self();
+        }
+
+        public B dbNameProvider(Function<SqlServiceFactory, Supplier<String>> dbNameProvider) {
+            this.dbNameProvider = dbNameProvider;
+            return self();
+        }
+
+        public B maxNotificationQueues(int maxNotificationQueues) {
+            this.maxNotificationQueues = maxNotificationQueues;
+            return self();
+        }
+
+        public B maxNotificationQueueIdleDuration(Duration duration) {
+            this.maxNotificationQueueIdleDuration = duration;
+            return self();
+        }
+
         public abstract SqlServiceFactory build();
 
         public final Repository buildRepository(RepositoryConfigModel config, QueryProvider.Decorator... decorators) {
             return Repository.fromProvider(this.decorator.apply(build().queryProvider()), config, decorators);
         }
 
-        public final SqlServiceFactory.Builder decorate(QueryProvider.Decorator... decorators) {
+        public final B decorate(QueryProvider.Decorator... decorators) {
             this.decorator = this.decorator.andThen(of(decorators));
-            return this;
+            return self();
         }
 
-        public Builder keyEncoder(Supplier<KeyEncoder> keyEncoder) {
+        public B keyEncoder(Supplier<KeyEncoder> keyEncoder) {
             return keyEncoder(f -> keyEncoder.get());
         }
 
-        public Builder statementProvider(Supplier<SqlStatementProvider> statementProvider) {
+        public B statementProvider(Supplier<SqlStatementProvider> statementProvider) {
             return statementProvider(f -> statementProvider.get());
         }
 
-        public Builder statementExecutor(Supplier<SqlStatementExecutor> statementExecutor) {
+        public B statementExecutor(Supplier<SqlStatementExecutor> statementExecutor) {
             return statementExecutor(f -> statementExecutor.get());
         }
 
-        public Builder schemaProvider(Supplier<SchemaGenerator> schemaProvider) {
+        public B schemaProvider(Supplier<SchemaGenerator> schemaProvider) {
             return schemaProvider(f -> schemaProvider.get());
         }
 
-        public Builder referenceResolver(Supplier<ReferenceResolver> referenceResolver) {
+        public B referenceResolver(Supplier<ReferenceResolver> referenceResolver) {
             return referenceResolver(f -> referenceResolver.get());
         }
 
-        public Builder expressionGenerator(Supplier<SqlExpressionGenerator> expressionGenerator) {
+        public B expressionGenerator(Supplier<SqlExpressionGenerator> expressionGenerator) {
             return expressionGenerator(f -> expressionGenerator.get());
         }
 
-        public Builder schedulingProvider(Supplier<SchedulingProvider> executorPool) {
+        public B schedulingProvider(Supplier<SchedulingProvider> executorPool) {
             return schedulingProvider(f -> executorPool.get());
         }
 
-        public Builder typeMapper(Supplier<SqlTypeMapper> typeMapper) {
+        public B typeMapper(Supplier<SqlTypeMapper> typeMapper) {
             return typeMapper(f -> typeMapper.get());
         }
 
-        public Builder dbName(String dbName) {
+        public B dbName(String dbName) {
             return dbNameProvider(() -> dbName);
         }
 
-        public Builder dbNameProvider(Supplier<String> dbNameProvider) {
+        public B dbNameProvider(Supplier<String> dbNameProvider) {
             return dbNameProvider(f -> dbNameProvider);
         }
     }

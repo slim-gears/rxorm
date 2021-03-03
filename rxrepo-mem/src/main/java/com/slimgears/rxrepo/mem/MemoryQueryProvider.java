@@ -11,6 +11,7 @@ import com.slimgears.util.stream.Safe;
 import io.reactivex.Completable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
+import io.reactivex.Single;
 
 import java.util.ArrayList;
 import java.util.Collections;

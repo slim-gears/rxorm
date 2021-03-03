@@ -44,7 +44,7 @@ public class PostgresqlRawTest {
     public void setUp() throws SQLException {
         keyEncoder = DigestKeyEncoder.create();
         sqlTypeMapper = SqlTypes.instance;
-        expressionGenerator = new DefaultSqlExpressionGenerator(keyEncoder, sqlTypeMapper);
+        expressionGenerator = new DefaultSqlExpressionGenerator();
         statementProvider = new DefaultSqlStatementProvider(expressionGenerator, sqlTypeMapper, () -> "repository");
         referenceResolver = new DefaultSqlReferenceResolver(keyEncoder, expressionGenerator);
         connection = DriverManager.getConnection("jdbc:postgresql://localhost/test_db?user=root&password=root");

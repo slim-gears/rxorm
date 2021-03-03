@@ -179,6 +179,10 @@ public class OrientDbRepository {
             return super.build();
         }
 
+        private boolean isEmbedded() {
+            return url.startsWith("embedded");
+        }
+
         private OrientDB createClient(String url, String serverUser, String serverPassword, String dbName, ODatabaseType dbType) {
             OrientDBConfig config = OrientDBConfig.builder()
                     .fromGlobalMap(customConfig)
@@ -200,23 +204,27 @@ public class OrientDbRepository {
             return this;
         }
 
-        private SqlServiceFactory.Builder serviceFactoryBuilder(OrientDbSessionProvider dbSessionProvider) {
-            return SqlServiceFactory.builder()
+        private SqlServiceFactory.Builder<?> serviceFactoryBuilder(OrientDbSessionProvider dbSessionProvider) {
+            return DefaultSqlServiceFactory.builder()
                     .schemaProvider(svc -> new OrientDbSchemaGenerator(dbSessionProvider))
                     .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider), svc.keyEncoder()))
                     .expressionGenerator(svc -> OrientDbSqlExpressionGenerator.create(svc.keyEncoder()))
                     .statementProvider(svc -> new OrientDbSqlStatementProvider(
                             svc.expressionGenerator(),
                             svc.typeMapper(),
+                            svc.keyEncoder(),
                             dbSessionProvider.toSupplier(ODatabaseDocument::getName)))
                     .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
-                    .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider, batchBufferSize) : DefaultSqlQueryProvider.create(svc))
+//                    .queryProviderGenerator(svc -> isEmbedded() ? OrientDbQueryProvider.create(svc, dbSessionProvider) : DefaultSqlQueryProvider.create(svc))
+//                    .queryProviderGenerator(DefaultSqlQueryProvider::create)
+                    .queryProviderGenerator(svc -> OrientDbQueryProvider.create(svc, dbSessionProvider))
                     .schedulingProvider(() -> schedulingProviderDecorator.apply(schedulingProvider.get()))
+                    .dbNameProvider(() -> dbSessionProvider.withSession(ODatabaseDocument::getName))
                     .keyEncoder(DigestKeyEncoder::create);
         }
 
         @Override
-        protected SqlServiceFactory.Builder serviceFactoryBuilder(RepositoryConfig config) {
+        protected SqlServiceFactory.Builder<?> serviceFactoryBuilder(RepositoryConfig config) {
             Lazy<OrientDB> dbClient = Lazy.of(() -> createClient(url, serverUser, serverPassword, dbName, dbType));
 
             AtomicInteger currentlyActiveSessions = new AtomicInteger();
@@ -240,9 +248,11 @@ public class OrientDbRepository {
                             LockQueryProviderDecorator.create(SemaphoreLockProvider.create()),
                             LiveQueryProviderDecorator.create(Duration.ofMillis(config.aggregationDebounceTimeMillis())),
                             ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider.get()),
-                            batchSupport ? OrientDbUpdateReferencesFirstQueryProviderDecorator.create() : UpdateReferencesFirstQueryProviderDecorator.create(),
+//                            batchSupport ? OrientDbUpdateReferencesFirstQueryProviderDecorator.create() : UpdateReferencesFirstQueryProviderDecorator.create(),
+//                            UpdateReferencesFirstQueryProviderDecorator.create(),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
-                            decorator);
+                            decorator,
+                            batchSupport ? BatchUpdateQueryProviderDecorator.create(batchBufferSize) : QueryProvider.Decorator.identity());
         }
     }
 }

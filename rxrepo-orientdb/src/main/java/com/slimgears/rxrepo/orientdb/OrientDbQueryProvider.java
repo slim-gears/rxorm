@@ -1,11 +1,14 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Table;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.exception.OConcurrentModificationException;
+import com.orientechnologies.orient.core.id.ORID;
 import com.orientechnologies.orient.core.intent.OIntentMassiveInsert;
 import com.orientechnologies.orient.core.metadata.sequence.OSequence;
 import com.orientechnologies.orient.core.record.OElement;
@@ -15,27 +18,60 @@ import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
 import com.slimgears.rxrepo.sql.*;
 import com.slimgears.rxrepo.util.SchedulingProvider;
-import com.slimgears.util.autovalue.annotations.HasMetaClass;
 import com.slimgears.util.autovalue.annotations.HasMetaClassWithKey;
 import com.slimgears.util.autovalue.annotations.MetaClass;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
-import io.reactivex.Observable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.util.Collection;
 import java.util.ConcurrentModificationException;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 public class OrientDbQueryProvider extends DefaultSqlQueryProvider {
     private final static Logger log = LoggerFactory.getLogger(OrientDbQueryProvider.class);
     private final OrientDbSessionProvider dbSessionProvider;
-    private final int bufferSize;
     private final KeyEncoder keyEncoder;
+    private final Cache<CacheKey, ORID> refCache = CacheBuilder.newBuilder()
+            .initialCapacity(100000)
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .concurrencyLevel(5)
+            .build();
+
+    static class CacheKey {
+        private final MetaClassWithKey<?, ?> metaClass;
+        private final Object key;
+
+        CacheKey(MetaClassWithKey<?, ?> metaClass, Object key) {
+            this.metaClass = metaClass;
+            this.key = key;
+        }
+
+        public static CacheKey create(MetaClassWithKey<?, ?> metaClass, Object key) {
+            return new CacheKey(metaClass, key);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(metaClass, key);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof CacheKey &&
+                    Objects.equals(metaClass, ((CacheKey) obj).metaClass) &&
+                    Objects.equals(key, ((CacheKey) obj).key);
+        }
+    }
 
     OrientDbQueryProvider(SqlStatementProvider statementProvider,
                           SqlStatementExecutor statementExecutor,
@@ -43,15 +79,13 @@ public class OrientDbQueryProvider extends DefaultSqlQueryProvider {
                           ReferenceResolver referenceResolver,
                           SchedulingProvider schedulingProvider,
                           OrientDbSessionProvider dbSessionProvider,
-                          KeyEncoder keyEncoder,
-                          int bufferSize) {
+                          KeyEncoder keyEncoder) {
         super(statementProvider, statementExecutor, schemaGenerator, referenceResolver, schedulingProvider);
         this.dbSessionProvider = dbSessionProvider;
-        this.bufferSize = bufferSize;
         this.keyEncoder = keyEncoder;
     }
 
-    static OrientDbQueryProvider create(SqlServiceFactory serviceFactory, OrientDbSessionProvider sessionProvider, int bufferSize) {
+    static OrientDbQueryProvider create(SqlServiceFactory serviceFactory, OrientDbSessionProvider sessionProvider) {
         return new OrientDbQueryProvider(
                 serviceFactory.statementProvider(),
                 serviceFactory.statementExecutor(),
@@ -59,26 +93,22 @@ public class OrientDbQueryProvider extends DefaultSqlQueryProvider {
                 serviceFactory.referenceResolver(),
                 serviceFactory.schedulingProvider(),
                 sessionProvider,
-                serviceFactory.keyEncoder(),
-                bufferSize);
+                serviceFactory.keyEncoder());
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
         if (entities == null || Iterables.isEmpty(entities)) {
             return Completable.complete();
         }
 
         Stopwatch stopwatch = Stopwatch.createStarted();
         return schemaGenerator.useTable(metaClass)
-                .andThen(Observable.fromIterable(entities)
-                        .buffer(bufferSize)
-                        .concatMapCompletable(buffer -> Completable.fromAction(() -> createAndSaveElements(buffer))))
+                .andThen(Completable.fromAction(() -> createAndSaveElements(entities)))
                 .doOnComplete(() -> log.debug("Total insert time: {}s", stopwatch.elapsed(TimeUnit.SECONDS)));
     }
 
     private <S> void createAndSaveElements(Iterable<S> entities) {
-        Table<MetaClass<?>, Object, OElement> queryCache = HashBasedTable.create();
         AtomicLong seqNum = new AtomicLong();
         dbSessionProvider.withSession(dbSession -> {
             try {
@@ -86,10 +116,10 @@ public class OrientDbQueryProvider extends DefaultSqlQueryProvider {
 //                dbSession.begin();
                 OSequence sequence = dbSession.getMetadata().getSequenceLibrary().getSequence(OrientDbSchemaGenerator.sequenceName);
                 seqNum.set(sequence.next());
-                Streams.fromIterable(entities)
-                        .map(entity -> toOrientDbObject(entity, queryCache, dbSession, seqNum.get()))
-                        .forEach(OElement::save);
-                log.debug("Saving {} objects ({} types)", queryCache.size(), queryCache.rowKeySet().size());
+                Collection<OElement> elements = Streams.fromIterable(entities)
+                        .map(entity -> toOrientDbObject(entity, dbSession, seqNum.get()))
+                        .peek(OElement::save)
+                        .collect(Collectors.toList());
 //                dbSession.commit();
             } catch (OConcurrentModificationException | ORecordDuplicatedException e) {
 //                dbSession.rollback();
@@ -106,35 +136,24 @@ public class OrientDbQueryProvider extends DefaultSqlQueryProvider {
     }
 
     @SuppressWarnings("unchecked")
-    private <S> OElement toOrientDbObject(S entity, Table<MetaClass<?>, Object, OElement> queryCache, ODatabaseDocument dbSession, long seqNum) {
-        OElement oEl = toOrientDbObject(entity, OrientDbObjectConverter.create(
+    private <S> OElement toOrientDbObject(S entity, ODatabaseDocument dbSession, long seqNum) {
+        return toOrientDbObject(entity, OrientDbObjectConverter.create(
                 meta -> {
                     OElement element = dbSession.newElement(statementProvider.tableName((MetaClassWithKey<?, S>)meta));
-                    element.setProperty(sequenceNumField, seqNum);
+                    element.setProperty(SqlFields.sequenceFieldName, seqNum);
                     return element;
                 },
                 (converter, hasMetaClass) -> {
                     Object key = keyOf(hasMetaClass);
-                    MetaClass<?> metaClass = hasMetaClass.metaClass();
-                    OElement oElement = Optionals.or(
-                            () -> Optional.ofNullable(queryCache.get(metaClass, key)),
-                            () -> queryDocument(hasMetaClass, queryCache, dbSession),
-                            () -> Optional
-                                    .ofNullable(converter.toOrientDbObject(hasMetaClass))
-                                    .map(OElement.class::cast)
-                                    .map(element -> {
-                                        element.setProperty(sequenceNumField, seqNum);
-                                        return element;
-                                    }))
-                            .orElse(null);
-                    if (oElement != null) {
-                        queryCache.put(metaClass, key, oElement);
+                    MetaClassWithKey<?, ?> metaClass = hasMetaClass.metaClass();
+                    CacheKey cacheKey = CacheKey.create(metaClass, key);
+                    try {
+                        return refCache.get(cacheKey, () -> queryDocument(hasMetaClass, dbSession));
+                    } catch (ConcurrentModificationException | ExecutionException e) {
+                        return refCache.getIfPresent(cacheKey);
                     }
-                    return oElement;
                 },
                 keyEncoder));
-        queryCache.put(((HasMetaClass<?>)entity).metaClass(), entity, oEl);
-        return oEl;
     }
 
     @SuppressWarnings("unchecked")
@@ -142,25 +161,22 @@ public class OrientDbQueryProvider extends DefaultSqlQueryProvider {
         return hasMetaClass.metaClass().keyOf((S)hasMetaClass);
     }
 
-    private <K, S> Optional<OElement> queryDocument(HasMetaClassWithKey<K, S> entity, Table<MetaClass<?>, Object, OElement> queryCache, ODatabaseDocument dbSession) {
+    private <K, S> ORID queryDocument(HasMetaClassWithKey<K, S> entity, ODatabaseDocument dbSession) {
         MetaClassWithKey<K, S> metaClass = entity.metaClass();
         K keyValue = keyOf(entity);
-        if (queryCache.contains(metaClass, keyValue)) {
-            return Optional.of(queryCache.get(metaClass, keyValue));
-        }
         SqlStatement statement = statementProvider.forQuery(QueryInfo.
                 <K, S, S>builder()
                 .metaClass(metaClass)
                 .predicate(PropertyExpression.ofObject(metaClass.keyProperty()).eq(keyValue))
                 .build());
 
+        statement = SqlStatement.create(
+                statement.statement().replace("select ", "select @rid "),
+                statement.args());
+
         OResultSet queryResults = dbSession.query(statement.statement(), statement.args());
-        Optional<OElement> existing = queryResults.elementStream().findAny();
+        Optional<ORID> rid = queryResults.stream().map(rs -> rs.<ORID>getProperty("@rid")).findAny();
         queryResults.close();
-        if (existing.isPresent()) {
-            queryCache.put(metaClass, keyValue, existing.get());
-            return existing;
-        }
-        return Optional.empty();
+        return rid.orElse(null);
     }
 }

@@ -2,6 +2,8 @@ package com.slimgears.rxrepo.sql;
 
 import com.google.common.reflect.TypeToken;
 import com.slimgears.util.autovalue.annotations.PropertyMeta;
+import com.slimgears.util.reflect.TypeTokens;
+import com.slimgears.util.stream.Optionals;
 
 import java.util.*;
 import java.util.function.Function;
@@ -171,6 +173,12 @@ public class SqlTypes implements SqlTypeMapper {
 
     @Override
     public <T> T fromSqlValue(TypeToken<T> type, Object sqlValue) {
-        return toTypeConverter(type).fromSqlValue(sqlValue);
+        return Optionals.or(
+                () -> Optional
+                        .of(sqlValue)
+                        .flatMap(Optionals.ofType(TypeTokens.asClass(type))),
+                () -> toTypeConverterOptional(type)
+                        .map(c -> c.fromSqlValue(sqlValue)))
+                .orElse(null);
     }
 }

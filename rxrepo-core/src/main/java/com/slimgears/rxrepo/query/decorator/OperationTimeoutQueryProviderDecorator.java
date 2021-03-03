@@ -16,6 +16,7 @@ import io.reactivex.Single;
 import io.reactivex.functions.Function;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.function.Supplier;
 
 public class OperationTimeoutQueryProviderDecorator extends AbstractQueryProviderDecorator {
@@ -33,20 +34,20 @@ public class OperationTimeoutQueryProviderDecorator extends AbstractQueryProvide
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
-        return super.insert(metaClass, entities, recursive)
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return super.insert(metaClass, entities)
                 .compose(Timeout.forCompletable(updateTimeout));
     }
 
     @Override
-    public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
-        return super.insertOrUpdate(metaClass, entity, recursive)
-                .compose(Timeout.forSingle(updateTimeout));
+    public <K, S> Completable insertOrUpdate(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return super.insertOrUpdate(metaClass, entities)
+                .compose(Timeout.forCompletable(updateTimeout));
     }
 
     @Override
-    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return super.insertOrUpdate(metaClass, key, recursive, entityUpdater)
+    public <K, S> Maybe<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+        return super.insertOrUpdate(metaClass, key, entityUpdater)
                 .compose(Timeout.forMaybe(updateTimeout));
     }
 

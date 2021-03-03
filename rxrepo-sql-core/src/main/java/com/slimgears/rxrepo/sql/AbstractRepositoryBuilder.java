@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 
 public abstract class AbstractRepositoryBuilder<_B extends AbstractRepositoryBuilder<_B>> implements RepositoryConfigModelBuilder<_B> {
     protected final RepositoryConfig.Builder configBuilder = RepositoryConfig.builder();
-    protected Lazy<SchedulingProvider> schedulingProvider;
+    protected Lazy<SchedulingProvider> schedulingProvider = Lazy.of(SchedulingProvider::empty);
 
     @SuppressWarnings("unchecked")
     protected _B self() {

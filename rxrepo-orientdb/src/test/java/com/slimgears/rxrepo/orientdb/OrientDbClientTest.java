@@ -211,84 +211,84 @@ public class OrientDbClientTest {
         });
     }
 
-    @Test
-    @UseLogLevel(LogLevel.TRACE)
-    public void insertWithAutoIncrementWithProvider() {
-        OrientDB dbClient = new OrientDB(dbUrl, OrientDBConfig.defaultConfig());
-        dbClient.createIfNotExists(dbName, ODatabaseType.MEMORY);
-        OrientDbObjectConverter converter = OrientDbObjectConverter.create(
-                metaClass -> new ODocument(metaClass.simpleName()),
-                ((c, entity) -> (OElement) c.toOrientDbObject(entity)),
-                DigestKeyEncoder.create());
-        OrientDbSessionProvider sessionProvider = OrientDbSessionProvider.create(() -> dbClient.open(dbName, "admin", "admin"));
-        OrientDbSchemaGenerator schemaProvider = new OrientDbSchemaGenerator(sessionProvider);
-        schemaProvider.createOrUpdate(Inventory.metaClass)
-                .andThen(schemaProvider.createOrUpdate(Product.metaClass))
-                .blockingAwait();
+//    @Test
+//    @UseLogLevel(LogLevel.TRACE)
+//    public void insertWithAutoIncrementWithProvider() {
+//        OrientDB dbClient = new OrientDB(dbUrl, OrientDBConfig.defaultConfig());
+//        dbClient.createIfNotExists(dbName, ODatabaseType.MEMORY);
+//        OrientDbObjectConverter converter = OrientDbObjectConverter.create(
+//                metaClass -> new ODocument(metaClass.simpleName()),
+//                ((c, entity) -> (OElement) c.toOrientDbObject(entity)),
+//                DigestKeyEncoder.create());
+//        OrientDbSessionProvider sessionProvider = OrientDbSessionProvider.create(() -> dbClient.open(dbName, "admin", "admin"));
+//        OrientDbSchemaGenerator schemaProvider = new OrientDbSchemaGenerator(sessionProvider);
+//        schemaProvider.createOrUpdate(Inventory.metaClass)
+//                .andThen(schemaProvider.createOrUpdate(Product.metaClass))
+//                .blockingAwait();
+//
+//        Observable<Long> elements = Observable
+//                .<OrientDbLiveQueryListener.LiveQueryNotification>create(emitter -> sessionProvider.withSession(session -> {
+//                    session.live("select from Inventory", new OrientDbLiveQueryListener(emitter));
+//                }))
+//                .map(OrientDbLiveQueryListener.LiveQueryNotification::sequenceNumber);
+//
+//        TestObserver<Long> testObserver = elements.doOnNext(System.out::println)
+//                .test();
+//
+//        sessionProvider.withSession(session -> {
+//            session.begin();
+//            OSequence sequence = session.getMetadata().getSequenceLibrary().getSequence("sequenceNum");
+//            OElement inventoryElement = (OElement)converter.toOrientDbObject(Inventory
+//                    .builder()
+//                    .id(UniqueId.inventoryId(1))
+//                    .name("Inventory 1")
+//                    .build());
+//
+//            inventoryElement.setProperty("__sequenceNum", sequence.next());
+//            inventoryElement.save();
+//            session.commit();
+//        });
+//
+//        testObserver.awaitCount(1)
+//                .assertValueCount(1)
+//                .assertValueAt(0, 1L);
+//    }
 
-        Observable<Long> elements = Observable
-                .<OrientDbLiveQueryListener.LiveQueryNotification>create(emitter -> sessionProvider.withSession(session -> {
-                    session.live("select from Inventory", new OrientDbLiveQueryListener(emitter, null));
-                }))
-                .map(OrientDbLiveQueryListener.LiveQueryNotification::sequenceNumber);
+//    @Test
+//    public void testRemoteBulkInsert() throws Exception {
+//        try (AutoCloseable ignored = DockerUtils.withContainer()){
+//            testBulkInsert("remote:localhost/db", 100000);
+//        }
+//    }
+//
+//    @Test
+//    public void testEmbeddedBulkInsert() {
+//        testBulkInsert("embedded:db", 100000);
+//    }
 
-        TestObserver<Long> testObserver = elements.doOnNext(System.out::println)
-                .test();
-
-        sessionProvider.withSession(session -> {
-            session.begin();
-            OSequence sequence = session.getMetadata().getSequenceLibrary().getSequence("sequenceNum");
-            OElement inventoryElement = (OElement)converter.toOrientDbObject(Inventory
-                    .builder()
-                    .id(UniqueId.inventoryId(1))
-                    .name("Inventory 1")
-                    .build());
-
-            inventoryElement.setProperty("__sequenceNum", sequence.next());
-            inventoryElement.save();
-            session.commit();
-        });
-
-        testObserver.awaitCount(1)
-                .assertValueCount(1)
-                .assertValueAt(0, 1L);
-    }
-
-    @Test
-    public void testRemoteBulkInsert() throws Exception {
-        try (AutoCloseable ignored = RemoteOrientDbTestUtils.withOrient()){
-            testBulkInsert("remote:localhost/db", 100000);
-        }
-    }
-
-    @Test
-    public void testEmbeddedBulkInsert() {
-        testBulkInsert("embedded:db", 100000);
-    }
-
-    private void testBulkInsert(String url, int count) {
-        OrientDB dbClient = new OrientDB(url, "root", "root", OrientDBConfig.defaultConfig());
-        if (dbClient.exists(dbName)) {
-            dbClient.drop(dbName);
-        }
-        dbClient.createIfNotExists(dbName, ODatabaseType.MEMORY);
-        OrientDbObjectConverter converter = OrientDbObjectConverter.create(
-                metaClass -> new ODocument(metaClass.simpleName()),
-                ((c, entity) -> (OElement) c.toOrientDbObject(entity)),
-                DigestKeyEncoder.create("SHA-1", 8));
-        OrientDbSessionProvider sessionProvider = OrientDbSessionProvider.create(() -> dbClient.open(dbName, "admin", "admin"));
-        OrientDbSchemaGenerator schemaProvider = new OrientDbSchemaGenerator(sessionProvider);
-        schemaProvider.createOrUpdate(Manufacturer.metaClass).blockingAwait();
-
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        sessionProvider.withSession(s -> {
-            IntStream.range(1, count + 1)
-                    .mapToObj(UniqueId::manufacturerId)
-                    .map(id -> Manufacturer.create(id, "Manufacturer" + id.id()))
-                    .map(converter::toOrientDbObject)
-                    .map(OElement.class::cast)
-                    .forEach(OElement::save);
-        });
-        System.out.println(MoreStrings.format("{}: {} rows stored in {} seconds", url, count, stopwatch.elapsed(TimeUnit.SECONDS)));
-    }
+//    private void testBulkInsert(String url, int count) {
+//        OrientDB dbClient = new OrientDB(url, "root", "root", OrientDBConfig.defaultConfig());
+//        if (dbClient.exists(dbName)) {
+//            dbClient.drop(dbName);
+//        }
+//        dbClient.createIfNotExists(dbName, ODatabaseType.MEMORY);
+//        OrientDbObjectConverter converter = OrientDbObjectConverter.create(
+//                metaClass -> new ODocument(metaClass.simpleName()),
+//                ((c, entity) -> (OElement) c.toOrientDbObject(entity)),
+//                DigestKeyEncoder.create("SHA-1", 8));
+//        OrientDbSessionProvider sessionProvider = OrientDbSessionProvider.create(() -> dbClient.open(dbName, "admin", "admin"));
+//        OrientDbSchemaGenerator schemaProvider = new OrientDbSchemaGenerator(sessionProvider);
+//        schemaProvider.createOrUpdate(Manufacturer.metaClass).blockingAwait();
+//
+//        Stopwatch stopwatch = Stopwatch.createStarted();
+//        sessionProvider.withSession(s -> {
+//            IntStream.range(1, count + 1)
+//                    .mapToObj(UniqueId::manufacturerId)
+//                    .map(id -> Manufacturer.create(id, "Manufacturer" + id.id()))
+//                    .map(converter::toOrientDbObject)
+//                    .map(OElement.class::cast)
+//                    .forEach(OElement::save);
+//        });
+//        System.out.println(MoreStrings.format("{}: {} rows stored in {} seconds", url, count, stopwatch.elapsed(TimeUnit.SECONDS)));
+//    }
 }

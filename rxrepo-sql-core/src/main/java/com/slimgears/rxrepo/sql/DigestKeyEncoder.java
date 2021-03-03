@@ -22,6 +22,9 @@ public class DigestKeyEncoder implements KeyEncoder {
 
     @Override
     public String encode(Object key) {
+        if (key == null) {
+            return null;
+        }
         byte[] digest = digestProvider.digest(key.toString().getBytes(StandardCharsets.UTF_8));
         String encodedKey = new String(base64.encode(digest));
         return length > 0

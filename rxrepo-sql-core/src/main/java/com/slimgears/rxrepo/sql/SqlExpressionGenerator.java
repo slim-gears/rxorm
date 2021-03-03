@@ -1,5 +1,6 @@
 package com.slimgears.rxrepo.sql;
 
+import com.google.common.reflect.TypeToken;
 import com.slimgears.rxrepo.expressions.ConstantExpression;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.expressions.PropertyExpression;
@@ -25,5 +26,10 @@ public interface SqlExpressionGenerator {
 
     default String fromConstant(Object value) {
         return toSqlExpression(ConstantExpression.of(value));
+    }
+
+    @SuppressWarnings("UnstableApiUsage")
+    default String fromNull(TypeToken<?> type) {
+        return toSqlExpression(ConstantExpression.ofNull(type));
     }
 }

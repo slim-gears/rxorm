@@ -11,6 +11,7 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequenceLibrary;
 import com.orientechnologies.orient.core.serialization.serializer.binary.impl.OLinkSerializer;
 import com.slimgears.rxrepo.annotations.Indexable;
 import com.slimgears.rxrepo.sql.SchemaGenerator;
+import com.slimgears.rxrepo.sql.SqlFields;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
 import com.slimgears.util.stream.Streams;
@@ -38,6 +39,11 @@ class OrientDbSchemaGenerator implements SchemaGenerator {
                     .save();
             emitter.onComplete();
         })).cache();
+    }
+
+    @Override
+    public Completable createDatabase() {
+        return Completable.complete();
     }
 
     @Override
@@ -86,8 +92,8 @@ class OrientDbSchemaGenerator implements SchemaGenerator {
                 addIndex(oClass, metaClassWithKey.keyProperty(), true);
             }
 
-            if (!oClass.existsProperty(OrientDbQueryProvider.sequenceNumField)) {
-                oClass.createProperty(OrientDbQueryProvider.sequenceNumField, OType.LONG);
+            if (!oClass.existsProperty(SqlFields.sequenceFieldName)) {
+                oClass.createProperty(SqlFields.sequenceFieldName, OType.LONG);
             }
         }
 

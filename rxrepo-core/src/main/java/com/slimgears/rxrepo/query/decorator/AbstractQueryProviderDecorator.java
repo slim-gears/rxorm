@@ -16,8 +16,6 @@ import io.reactivex.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.function.Supplier;
-
 import static com.slimgears.util.generic.LazyString.lazy;
 
 public class AbstractQueryProviderDecorator implements QueryProvider {
@@ -30,26 +28,34 @@ public class AbstractQueryProviderDecorator implements QueryProvider {
     }
 
     @Override
-    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
+    public <K, S> Completable insert(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
         return getUnderlyingProvider()
-                .insert(metaClass, entities, recursive)
+                .insert(metaClass, entities)
                 .doOnSubscribe(d -> log.trace("Starting insert of {}", lazy(metaClass::simpleName)))
                 .doOnError(error -> log.trace("Failed to insert {}", lazy(metaClass::simpleName), error))
                 .doOnComplete(() -> log.trace("Insert of {} complete", lazy(metaClass::simpleName)));
     }
 
     @Override
-    public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
-        return getUnderlyingProvider().insertOrUpdate(metaClass, entity, recursive)
+    public <K, S> Completable insertOrUpdate(MetaClassWithKey<K, S> metaClass, Iterable<S> entities) {
+        return getUnderlyingProvider().insertOrUpdate(metaClass, entities)
                 .doOnSubscribe(d -> log.trace("Starting insertOrUpdate of {}", lazy(metaClass::simpleName)))
                 .doOnError(error -> log.trace("Failed to insertOrUpdate {}", lazy(metaClass::simpleName), error))
-                .doOnSuccess(v -> log.trace("insertOrUpdate of {} complete", lazy(metaClass::simpleName)));
+                .doOnComplete(() -> log.trace("insertOrUpdate of {} complete", lazy(metaClass::simpleName)));
 
     }
 
     @Override
-    public <K, S> Maybe<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, boolean recursive, Function<Maybe<S>, Maybe<S>> entityUpdater) {
-        return getUnderlyingProvider().insertOrUpdate(metaClass, key, recursive, entityUpdater)
+    public <K, S> Maybe<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, K key, Function<Maybe<S>, Maybe<S>> entityUpdater) {
+        return getUnderlyingProvider().insertOrUpdate(metaClass, key, entityUpdater)
+                .doOnSubscribe(d -> log.trace("Starting insertOrUpdate of {}", lazy(metaClass::simpleName)))
+                .doOnError(error -> log.trace("Failed to insertOrUpdate {}", lazy(metaClass::simpleName), error))
+                .doOnSuccess(v -> log.trace("insertOrUpdate of {} complete", lazy(metaClass::simpleName)));
+    }
+
+    @Override
+    public <K, S> Single<Single<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity) {
+        return getUnderlyingProvider().insertOrUpdate(metaClass, entity)
                 .doOnSubscribe(d -> log.trace("Starting insertOrUpdate of {}", lazy(metaClass::simpleName)))
                 .doOnError(error -> log.trace("Failed to insertOrUpdate {}", lazy(metaClass::simpleName), error))
                 .doOnSuccess(v -> log.trace("insertOrUpdate of {} complete", lazy(metaClass::simpleName)));
