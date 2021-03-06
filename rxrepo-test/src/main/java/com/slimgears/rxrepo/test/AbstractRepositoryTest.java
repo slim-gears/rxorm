@@ -17,10 +17,7 @@ import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.ObservableTransformer;
-import io.reactivex.Scheduler;
-import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
-import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.CompletableSubject;
 import org.junit.*;
 import org.junit.rules.MethodRule;
@@ -46,7 +43,7 @@ import static java.util.Objects.requireNonNull;
 public abstract class AbstractRepositoryTest {
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
-    @Rule public final Timeout timeout = new Timeout(4, TimeUnit.MINUTES);
+    @Rule public final Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
 
     private Repository repository;
     protected EntitySet<UniqueId, Product> products;
@@ -54,7 +51,7 @@ public abstract class AbstractRepositoryTest {
 
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         this.repository = createRepository(CachedRoundRobinSchedulingProvider.create(10, Duration.ofSeconds(60)));
         this.products = repository.entities(Product.metaClass);
         this.inventories = repository.entities(Inventory.metaClass);
@@ -64,8 +61,11 @@ public abstract class AbstractRepositoryTest {
     @After
     public void tearDown() {
         System.out.println("Test finished: " + testNameRule.getMethodName());
-        this.repository.clear().doOnComplete(this.repository::close).blockingAwait();
-        this.repository.close();
+        if (System.getProperty("tearDown.noClear") != null) {
+            this.repository.clear().doOnComplete(this.repository::close).blockingAwait();
+        } else {
+            this.repository.close();
+        }
     }
 
     protected abstract Repository createRepository(SchedulingProvider schedulingProvider);
@@ -134,6 +134,7 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
+    @UseLogLevel(LogLevel.TRACE)
     public void testUpdateReferencedEntity() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         Product product = Product.builder()
@@ -145,12 +146,16 @@ public abstract class AbstractRepositoryTest {
         productSet.update(product).test().await().assertNoErrors();
         product = productSet.query().where(Product.$.key.eq(UniqueId.productId(1))).first().blockingGet();
         Assert.assertNull(product.inventory());
+
         Inventory inventory = Inventory.builder()
                 .id(UniqueId.inventoryId(1))
                 .name("Inventory 1")
                 .build();
+
         Product updatedProduct = product.toBuilder().inventory(inventory).build();
+
         productSet.update(updatedProduct).test().await().assertNoErrors();
+
         product = productSet.query()
                 .where(Product.$.key.eq(UniqueId.productId(1)))
                 .select()
@@ -308,7 +313,7 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    //@UseLogLevel(UseLogLevel.Level.FINEST)
+    @UseLogLevel(LogLevel.TRACE)
     public void testAtomicUpdate() throws InterruptedException {
         EntitySet<UniqueId, Product> productSet = repository.entities(Product.metaClass);
         CompletableSubject trigger1 = CompletableSubject.create();
@@ -919,52 +924,50 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
+    @UseLogLevel(LogLevel.TRACE)
     public void testObserveAsList() {
-        try {
+        products.update(Products.createMany(10)).blockingAwait();
+        TestObserver<List<Product>> productTestObserver = products.query()
+                .orderBy(Product.$.name)
+                .orderByDescending(Product.$.price)
+                .limit(3)
+                .skip(2)
+                .liveSelect()
+                .properties(Product.$.name, Product.$.price)
+                .observeAs(Notifications.toSlidingList())
+                .test()
+                .assertOf(countAtLeast(1))
+                .assertValueAt(0, l -> l.size() == 3)
+                .assertValueAt(0, l -> Objects.equals(l.get(0).name(), "Product 2"))
+                .assertValueAt(0, l -> Objects.equals(l.get(2).name(), "Product 4"));
 
-            products.update(Products.createMany(10)).blockingAwait();
-            TestObserver<List<Product>> productTestObserver = products.query()
-                    .orderBy(Product.$.name)
-                    .orderByDescending(Product.$.price)
-                    .limit(3)
-                    .skip(2)
-                    .observeAs(Notifications.toSlidingList())
-                    .test()
-                    .assertOf(countAtLeast(1))
-                    .assertValueAt(0, l -> l.size() == 3)
-                    .assertValueAt(0, l -> Objects.equals(l.get(0).name(), "Product 2"))
-                    .assertValueAt(0, l -> Objects.equals(l.get(2).name(), "Product 4"));
+        products.update(Arrays.asList(
+                Product.builder()
+                        .name("Product 3-1")
+                        .key(UniqueId.productId(11))
+                        .price(100)
+                        .type(ProductEntity.Type.ComputeHardware)
+                        .build(),
+                Product.builder()
+                        .name("Product 1-1")
+                        .key(UniqueId.productId(13))
+                        .price(100)
+                        .type(ProductEntity.Type.ComputeHardware)
+                        .build(),
+                Product.builder()
+                        .name("Product 5-1")
+                        .key(UniqueId.productId(12))
+                        .price(100)
+                        .type(ProductEntity.Type.ComputeHardware)
+                        .build()))
+                .blockingAwait();
 
-            products.update(Arrays.asList(
-                    Product.builder()
-                            .name("Product 3-1")
-                            .key(UniqueId.productId(11))
-                            .price(100)
-                            .type(ProductEntity.Type.ComputeHardware)
-                            .build(),
-                    Product.builder()
-                            .name("Product 1-1")
-                            .key(UniqueId.productId(13))
-                            .price(100)
-                            .type(ProductEntity.Type.ComputeHardware)
-                            .build(),
-                    Product.builder()
-                            .name("Product 5-1")
-                            .key(UniqueId.productId(12))
-                            .price(100)
-                            .type(ProductEntity.Type.ComputeHardware)
-                            .build()))
-                    .blockingAwait();
-
-            productTestObserver
-                    .assertOf(countAtLeast(2))
-                    .assertValueAt(1, l -> l.size() == 3)
-                    .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 2"))
-                    .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 3"))
-                    .assertValueAt(1, l -> Objects.equals(l.get(2).name(), "Product 3-1"));
-        } catch (Throwable e) {
-            e.printStackTrace(System.err);
-        }
+        productTestObserver
+                .assertOf(countAtLeast(2))
+                .assertValueAt(1, l -> l.size() == 3)
+                .assertValueAt(1, l -> Objects.equals(l.get(0).name(), "Product 2"))
+                .assertValueAt(1, l -> Objects.equals(l.get(1).name(), "Product 3"))
+                .assertValueAt(1, l -> Objects.equals(l.get(2).name(), "Product 3-1"));
     }
 
     @Test
@@ -1307,19 +1310,19 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
-    @UseLogLevel(LogLevel.DEBUG)
+    @UseLogLevel(LogLevel.INFO)
     public void testLargeUpdate() throws InterruptedException {
+
         int count = Optional.ofNullable(System.getProperty("testLargeUpdate.count"))
                 .map(Integer::valueOf)
-                .orElse(20000);
-        Observable.fromIterable(Products.createMany(count))
-                .buffer(10000)
-                .observeOn(Schedulers.io())
-                .flatMapCompletable(buff -> repository.entities(Product.metaClass).update(buff))
+                .orElse(100000);
+        repository.entities(Product.metaClass).update(Products.createMany(count))
                 .test()
                 .await()
                 .assertNoErrors()
                 .assertComplete();
+
+        Assert.assertEquals(Long.valueOf(count), repository.entities(Product.metaClass).query().count().blockingGet());
     }
 
     @Test
@@ -1374,12 +1377,17 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
+    @UseLogLevel(LogLevel.TRACE)
     public void testObserveCount() {
         TestObserver<Long> testObserver = repository.entities(Product.metaClass)
                 .query()
                 .where(Product.$.key.id.eq(2))
                 .observeCount()
                 .test();
+
+        testObserver.awaitCount(1)
+                .assertValueCount(1)
+                .assertValueAt(0, 0L);
 
         repository.entities(Product.metaClass).update(Products.createOne(2)).ignoreElement().blockingAwait();
 
@@ -1427,6 +1435,7 @@ public abstract class AbstractRepositoryTest {
     }
 
     @Test
+    @UseLogLevel(LogLevel.TRACE)
     public void testMassiveInsertBatch() {
         int count = 1;
 

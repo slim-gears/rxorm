@@ -5,9 +5,12 @@ import com.slimgears.rxrepo.sql.KeyEncoder;
 import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.util.PropertyResolver;
+import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+
+import java.util.stream.Collectors;
 
 public class OrientDbMappingStatementExecutor implements SqlStatementExecutor {
     private final SqlStatementExecutor underlyingExecutor;
@@ -44,6 +47,11 @@ public class OrientDbMappingStatementExecutor implements SqlStatementExecutor {
     @Override
     public Completable executeCommand(SqlStatement statement) {
         return underlyingExecutor.executeCommand(toOrientDb(statement));
+    }
+
+    @Override
+    public Completable executeCommands(Iterable<SqlStatement> statements) {
+        return underlyingExecutor.executeCommands(Streams.fromIterable(statements).map(this::toOrientDb).collect(Collectors.toList()));
     }
 
     @Override

@@ -17,6 +17,7 @@ public class MemoryRepository {
         return Repository
                 .fromProvider(
                         MemoryQueryProvider.create(schedulingProvider),
+                        RetryOnConcurrentConflictQueryProviderDecorator.create(Duration.ofMillis(1), 5),
                         //LockQueryProviderDecorator.create(SemaphoreLockProvider.create()),
                         LiveQueryProviderDecorator.create(Duration.ofMillis(2000)),
                         ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider),

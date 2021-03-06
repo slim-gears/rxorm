@@ -43,7 +43,7 @@ public abstract class AbstractOrientPropertyResolver implements PropertyResolver
         } else if (expectedType.isEnum() && obj != null) {
             return Enum.valueOf((Class)expectedType, obj.toString());
         } else if (obj instanceof ORecordId) {
-            return toValue(dbSessionProvider, dbSessionProvider.withSession((ODatabaseDocument s) -> s.load((ORecordId)obj)), expectedType);
+            return toValue(dbSessionProvider, dbSessionProvider.getWithSession(s -> s.load((ORecordId)obj)), expectedType);
         } else if (obj instanceof OTrackedList) {
             return ((OTrackedList<?>)obj)
                     .stream()

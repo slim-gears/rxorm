@@ -12,15 +12,18 @@ import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.util.generic.MoreStrings;
+import com.slimgears.util.stream.Streams;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.reactivex.functions.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ConcurrentModificationException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -73,22 +76,24 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
     }
 
     @Override
-    public Completable executeCommand(SqlStatement statement) {
-        return toObservable(session -> session.command(statement.statement(), statement.args()))
+    public Completable executeCommands(Iterable<SqlStatement> statements) {
+        return toObservable(session -> Streams.fromIterable(statements)
+                    .map(s -> session.command(s.statement(), s.args()))
+                    .reduce((first, second) -> second)
+                    .orElse(null))
                 .ignoreElements();
     }
 
     @Override
     public Observable<Notification<PropertyResolver>> executeLiveQuery(SqlStatement statement) {
-        return Observable.<OrientDbLiveQueryListener.LiveQueryNotification>create(
-                emitter -> {
+        return Observable.<OrientDbLiveQueryListener.LiveQueryNotification>create(emitter -> {
                     logStatement("Live querying", statement);
                     sessionProvider.withSession(dbSession -> {
                         OLiveQueryMonitor monitor = dbSession.live(
                                 statement.statement(),
                                 new OrientDbLiveQueryListener(emitter, statement),
                                 statement.args());
-                        emitter.setCancellable(monitor::unSubscribe);
+                        emitter.setCancellable(() -> sessionProvider.withSession(_dbSession -> monitor.unSubscribe()));
                     });
                 })
                 .map(res -> Notification.ofModified(
@@ -102,16 +107,15 @@ class OrientDbStatementExecutor implements SqlStatementExecutor {
     }
 
     private Observable<PropertyResolver> toObservable(Function<ODatabaseDocument, OResultSet> resultSetSupplier) {
-        return Observable.<OResult>create(
-                emitter -> sessionProvider.withSession(dbSession -> {
-                    long id = operationCounter.incrementAndGet();
-                    OResultSet resultSet = resultSetSupplier.apply(dbSession);
-                    resultSet.stream()
-                            .peek(res -> log.trace("[{}] Received: {}", id, res))
-                            .forEach(emitter::onNext);
-                    resultSet.close();
-                    emitter.onComplete();
-                }))
+        return sessionProvider.session().flatMapObservable(dbSession -> Observable.<OResult>create(emitter -> {
+            long id = operationCounter.incrementAndGet();
+            OResultSet resultSet = resultSetSupplier.apply(dbSession);
+            resultSet.stream()
+                    .peek(res -> log.trace("[{}] Received: {}", id, res))
+                    .forEach(emitter::onNext);
+            resultSet.close();
+            emitter.onComplete();
+        }))
                 .map(res -> OResultPropertyResolver.create(sessionProvider, res));
     }
 
