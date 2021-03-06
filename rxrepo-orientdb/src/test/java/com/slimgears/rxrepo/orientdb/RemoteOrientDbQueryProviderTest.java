@@ -3,6 +3,7 @@ package com.slimgears.rxrepo.orientdb;
 import com.orientechnologies.orient.core.db.OrientDB;
 import com.orientechnologies.orient.core.db.OrientDBConfig;
 import com.slimgears.rxrepo.query.Repository;
+import com.slimgears.rxrepo.test.DockerUtils;
 import com.slimgears.rxrepo.util.SchedulingProvider;
 import org.junit.AfterClass;
 import org.junit.Assume;
@@ -15,16 +16,16 @@ public class RemoteOrientDbQueryProviderTest extends OrientDbQueryProviderTest {
 
     @BeforeClass
     public static void setUpClass() {
-        RemoteOrientDbTestUtils.start();
-        Assume.assumeTrue(isDbAvailable(dbUrl));
+        DockerUtils.start();
+        Assume.assumeTrue(isDbAvailable());
     }
 
     @AfterClass
     public static void tearDownClass() {
-        RemoteOrientDbTestUtils.stop();
+        DockerUtils.stop();
     }
 
-    private static boolean isDbAvailable(String dbUrl) {
+    private static boolean isDbAvailable() {
         try {
             OrientDB client = new OrientDB(dbUrl, "root", "root", OrientDBConfig.defaultConfig());
             List<String> dbs = client.list();

@@ -8,9 +8,6 @@ services:
     ports:
       - 2480:2480
       - 2424:2424
-#    volumes:
-#      - dbvolume:/orientdb/databases
-    command: ["/orientdb/bin/server.sh", "-Dstorage.diskCache.bufferSize=1200", "-Dstorage.useWAL=false", "-Dtx.useLog=false"]
 
 volumes:
   dbvolume:

@@ -19,8 +19,11 @@ import io.reactivex.Scheduler;
 import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.schedulers.Schedulers;
+import org.apache.commons.io.FileUtils;
 import org.junit.*;
 
+import java.io.File;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,7 +34,8 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
     private static LoggingMeterRegistry loggingMeterRegistry;
 
     @BeforeClass
-    public static void setUpClass() {
+    public static void setUpClass() throws IOException {
+        FileUtils.deleteDirectory(new File("db"));
         loggingMeterRegistry = new LoggingMeterRegistry();
         SimpleMeterRegistry simpleMeterRegistry = new SimpleMeterRegistry();
         Metrics.globalRegistry
@@ -62,8 +66,8 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
                 .decorate(
                         SubscribeOnSchedulingQueryProviderDecorator.create(updateScheduler, queryScheduler, Schedulers.from(Runnable::run)),
                         OperationTimeoutQueryProviderDecorator.create(Duration.ofSeconds(20), Duration.ofMinutes(30)))
-                .enableBatchSupport(10000)
-                .maxConnections(12)
+                .enableBatchSupport(100)
+                .maxConnections(20)
                 .build();
     }
 
@@ -119,12 +123,14 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
     @UseLogLevels({
             @UseLogLevel(logger = "com.slimgears.rxrepo.orientdb.OrientDbLiveQueryListener", value = LogLevel.TRACE),
             @UseLogLevel(LogLevel.INFO)})
+    @Ignore
     public void testAddProductThenUpdateInventoryInOrder() throws InterruptedException {
         super.testAddProductThenUpdateInventoryInOrder();
     }
 
     @SuppressWarnings("unchecked")
     @Test
+    @UseLogLevel(LogLevel.INFO)
     public void testCreateModifyOrder() throws InterruptedException {
         Inventory inventory = Inventory.builder()
                         .id(UniqueId.inventoryId(1))
@@ -154,10 +160,11 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
         products.update(Streams.fromIterable(Products.createMany(productCount))
                 .map(p -> p.toBuilder().inventory(inventory).build())
                 .collect(Collectors.toList()))
-                .subscribe();
+                .blockingAwait();
 
         inventories.update(inventory.toBuilder().name(inventory.name() + " - Updated").build())
-                .subscribe();
+                .ignoreElement()
+                .blockingAwait();
 
         testObserver.await()
                 .assertNoErrors();
