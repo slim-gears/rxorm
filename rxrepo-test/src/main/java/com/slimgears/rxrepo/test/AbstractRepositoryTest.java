@@ -49,7 +49,6 @@ public abstract class AbstractRepositoryTest {
     protected EntitySet<UniqueId, Product> products;
     protected EntitySet<UniqueId, Inventory> inventories;
 
-
     @Before
     public void setUp() throws Exception {
         this.repository = createRepository(CachedRoundRobinSchedulingProvider.create(10, Duration.ofSeconds(60)));
