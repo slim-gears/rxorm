@@ -43,7 +43,7 @@ import static java.util.Objects.requireNonNull;
 public abstract class AbstractRepositoryTest {
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
-    @Rule public final Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
+    @Rule public final Timeout timeout = new Timeout(2, TimeUnit.MINUTES);
 
     private Repository repository;
     protected EntitySet<UniqueId, Product> products;

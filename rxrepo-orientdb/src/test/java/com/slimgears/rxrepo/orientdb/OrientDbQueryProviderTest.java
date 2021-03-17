@@ -6,27 +6,15 @@ import io.reactivex.Completable;
 import io.reactivex.Flowable;
 import io.reactivex.schedulers.Schedulers;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(Parameterized.class)
 public class OrientDbQueryProviderTest extends AbstractOrientDbQueryProviderTest {
     private static final String dbUrl = "embedded:db";
 
-    @Parameterized.Parameter public OrientDbRepository.Type dbType;
-
-    @Parameterized.Parameters
-    public static OrientDbRepository.Type[] params() {
-        return new OrientDbRepository.Type[] {
-                OrientDbRepository.Type.Memory,
-                OrientDbRepository.Type.Persistent};
-    }
-
     @Override
     protected Repository createRepository(SchedulingProvider schedulingProvider) {
-        return createRepository(schedulingProvider, dbType);
+        return createRepository(schedulingProvider, OrientDbRepository.Type.Persistent);
     }
 
     protected Repository createRepository(SchedulingProvider schedulingProvider, OrientDbRepository.Type dbType) {

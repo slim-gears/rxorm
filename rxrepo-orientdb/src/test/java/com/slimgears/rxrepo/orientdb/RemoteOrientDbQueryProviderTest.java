@@ -8,11 +8,18 @@ import com.slimgears.rxrepo.util.SchedulingProvider;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.List;
 
 public class RemoteOrientDbQueryProviderTest extends OrientDbQueryProviderTest {
     private static final String dbUrl = "remote:localhost/db";
+
+    @Override
+    protected Repository createRepository(SchedulingProvider schedulingProvider) {
+        return createRepository(schedulingProvider, OrientDbRepository.Type.Memory);
+    }
 
     @BeforeClass
     public static void setUpClass() {
