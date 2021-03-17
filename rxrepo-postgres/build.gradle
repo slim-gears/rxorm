@@ -1,6 +1,7 @@
 dependencies {
     implementation project(':rxrepo-core')
     implementation project(':rxrepo-sql-core')
+    compileOnly libs.jacksonAnnotations
     implementation libs.rxJava
     implementation libs.postgresJdbc
     implementation libs.slimStreamUtils

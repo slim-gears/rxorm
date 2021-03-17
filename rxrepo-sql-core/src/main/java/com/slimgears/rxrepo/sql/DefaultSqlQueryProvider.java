@@ -69,16 +69,11 @@ public class DefaultSqlQueryProvider implements QueryProvider {
                                         .map(e -> PropertyResolver.fromObject(metaClass, e))
                                         .collect(Collectors.toList()),
                                 referenceResolver)));
-//        return schemaGenerator.useTable(metaClass)
-//                .andThen(Observable.fromIterable(entities)
-//                        .map(e -> statementProvider.forInsert(metaClass, e, referenceResolver))
-//                        .toList()
-//                        .flatMapCompletable(statementExecutor::executeCommands));
     }
 
     @Override
     public <K, S> Completable insertOrUpdate(MetaClassWithKey<K, S> metaClass, Iterable<S> entities, boolean recursive) {
-        return insertOrUpdatePropertyResolvers(metaClass, Streams.fromIterable(entities).map(e -> PropertyResolver.fromObject(metaClass, e)), recursive);
+        return insertOrUpdatePropertyResolvers(metaClass, Streams.fromIterable(entities).map(e -> PropertyResolver.fromObject(metaClass, e)));
     }
 
     @Override
@@ -100,7 +95,7 @@ public class DefaultSqlQueryProvider implements QueryProvider {
                                     .apply(Maybe.just(oldObj))
                                     .map(newObj -> pr.mergeWith(PropertyResolver.fromObject(metaClass, newObj)))
                                     .filter(newPr -> !pr.equals(newPr))
-                                    .flatMap(newPr -> updatePropertyResolver(metaClass, newPr, recursive));
+                                    .flatMap(newPr -> updatePropertyResolver(metaClass, newPr));
                         })
                         .switchIfEmpty(Maybe.defer(() -> entityUpdater
                                 .apply(Maybe.empty())
@@ -109,24 +104,20 @@ public class DefaultSqlQueryProvider implements QueryProvider {
 
     @Override
     public <K, S> Single<Supplier<S>> insertOrUpdate(MetaClassWithKey<K, S> metaClass, S entity, boolean recursive) {
-        return updatePropertyResolver(metaClass, PropertyResolver.fromObject(metaClass, entity), recursive)
+        return updatePropertyResolver(metaClass, PropertyResolver.fromObject(metaClass, entity))
                 .toSingle();
     }
 
-    //    private <K, S> Completable updatePropertyResolvers(MetaClassWithKey<K, S> metaClass, Stream<PropertyResolver> propertyResolvers) {
-//        return insertOrUpdateStatements(metaClass, propertyResolvers.map(pr -> statementProvider.forUpdate(metaClass, pr, referenceResolver)));
-//    }
-//
-    private <K, S> Maybe<Supplier<S>> updatePropertyResolver(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver, boolean recursive) {
-        return insertOrUpdateStatement(metaClass, statementProvider.forInsertOrUpdate(metaClass, propertyResolver, referenceResolver), recursive);
+    private <K, S> Maybe<Supplier<S>> updatePropertyResolver(MetaClassWithKey<K, S> metaClass, PropertyResolver propertyResolver) {
+        return insertOrUpdateStatement(metaClass, statementProvider.forInsertOrUpdate(metaClass, propertyResolver, referenceResolver));
     }
 
-    private <K, S> Completable insertOrUpdatePropertyResolvers(MetaClassWithKey<K, S> metaClass, Stream<PropertyResolver> propertyResolvers, boolean recursive) {
+    private <K, S> Completable insertOrUpdatePropertyResolvers(MetaClassWithKey<K, S> metaClass, Stream<PropertyResolver> propertyResolvers) {
         return insertOrUpdateStatements(metaClass, propertyResolvers
-                .map(pr -> statementProvider.forInsertOrUpdate(metaClass, pr, referenceResolver)), recursive);
+                .map(pr -> statementProvider.forInsertOrUpdate(metaClass, pr, referenceResolver)));
     }
 
-    private <K, S> Completable insertOrUpdateStatements(MetaClassWithKey<K, S> metaClass, Stream<SqlStatement> statements, boolean recursive) {
+    private <K, S> Completable insertOrUpdateStatements(MetaClassWithKey<K, S> metaClass, Stream<SqlStatement> statements) {
         return schemaGenerator.useTable(metaClass)
                 .doOnSubscribe(d -> log.trace("Ensuring class {}", metaClass.simpleName()))
                 .doOnError(e -> log.trace("Error when updating class: {}", metaClass.simpleName(), e))
@@ -134,7 +125,7 @@ public class DefaultSqlQueryProvider implements QueryProvider {
                 .andThen(statementExecutor.executeCommands(statements.collect(Collectors.toList())));
     }
 
-    private <K, S> Maybe<Supplier<S>> insertOrUpdateStatement(MetaClassWithKey<K, S> metaClass, SqlStatement statement, boolean recursive) {
+    private <K, S> Maybe<Supplier<S>> insertOrUpdateStatement(MetaClassWithKey<K, S> metaClass, SqlStatement statement) {
         return schemaGenerator.useTable(metaClass)
                 .doOnSubscribe(d -> log.trace("Ensuring class {}", metaClass.simpleName()))
                 .doOnError(e -> log.trace("Error when updating class: {}", metaClass.simpleName(), e))

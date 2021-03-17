@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.deser.Deserializers;
 import com.fasterxml.jackson.databind.module.SimpleDeserializers;
 import com.fasterxml.jackson.databind.module.SimpleSerializers;
@@ -16,6 +17,7 @@ import com.slimgears.util.reflect.TypeTokens;
 
 import java.io.IOException;
 
+@SuppressWarnings({"UnstableApiUsage", "rawtypes"})
 @AutoService(Module.class)
 public class ExpressionModule extends Module {
     @Override

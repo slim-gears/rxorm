@@ -24,6 +24,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@SuppressWarnings("UnstableApiUsage")
 public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerator {
     private final ExpressionTextGenerator.Interceptor searchTextInterceptor = ExpressionTextGenerator.Interceptor.builder()
             .intercept(Expression.OperationType.Binary, ExpressionTextGenerator.Interceptor.ofType(BooleanBinaryOperationExpression.class, this::onVisitBinaryExpression))
@@ -102,15 +103,6 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
         }
 
         return visitor.apply(expression);
-    }
-
-    private String searchTextToWildcard(String searchText) {
-        searchText = searchText.replaceAll("([:+\\-*(){}\\[\\]\\\\/;%])", "?");
-        searchText = Arrays
-                .stream(searchText.split("\\s"))
-                .map(t -> "+*" + t + "*")
-                .collect(Collectors.joining(" && "));
-        return searchText;
     }
 
     protected <S, T> String reduceProperty(ObjectExpression<S, T> expression, String[] parts) {
