@@ -9,9 +9,8 @@ import com.slimgears.rxrepo.test.*;
 import com.slimgears.util.test.AnnotationRulesJUnit;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 
 import java.sql.*;
@@ -23,31 +22,15 @@ import java.util.stream.Stream;
 
 @RunWith(AnnotationRulesJUnit.class)
 public class PostgresqlRawTest {
-    private KeyEncoder keyEncoder;
-    private SqlExpressionGenerator expressionGenerator;
+    @ClassRule public static TestRule dbContainerRule = new DockerComposeRule();
     private SqlStatementProvider statementProvider;
-    private SqlTypeMapper sqlTypeMapper;
-    private SqlReferenceResolver referenceResolver;
-    private Repository repository;
     private Callable<Connection> connection;
 
-    @BeforeClass
-    public static void setUpClass() {
-        DockerUtils.start();
-    }
-
-//    @AfterClass
-//    public static void tearDownClass() {
-//        DockerUtils.stop();
-//    }
-
     @Before
-    public void setUp() throws SQLException {
-        keyEncoder = DigestKeyEncoder.create();
-        sqlTypeMapper = SqlTypes.instance;
-        expressionGenerator = new DefaultSqlExpressionGenerator();
+    public void setUp() {
+        SqlTypeMapper sqlTypeMapper = SqlTypes.instance;
+        SqlExpressionGenerator expressionGenerator = new DefaultSqlExpressionGenerator();
         statementProvider = new PostgresSqlStatementProvider(expressionGenerator, sqlTypeMapper, () -> "repository");
-        referenceResolver = new DefaultSqlReferenceResolver(keyEncoder, expressionGenerator);
         connection = () -> DriverManager.getConnection("jdbc:postgresql://localhost/test_db?user=root&password=root");
     }
 
@@ -68,27 +51,16 @@ public class PostgresqlRawTest {
     @Test
     @UseLogLevel(LogLevel.INFO)
     public void testRepository() {
-        repository = PostgresRepository
+        int count = 100000;
+        Repository repository = PostgresRepository
                 .builder()
                 .connection(connection)
                 .enableBatch(1000)
                 .build();
-//        repository.entities(Product.metaClass)
-//                .update(Product.builder()
-//                        .key(UniqueId.productId(1))
-//                        .name("Product 1")
-//                        .type(ProductEntity.Type.ComputeHardware)
-//                        .inventory(Inventory.builder()
-//                                .id(UniqueId.inventoryId(1))
-//                                .name("Inventory 1")
-//                                .build())
-//                        .price(100)
-//                        .build())
-//                .ignoreElement()
-//                .blockingAwait();
         repository.entities(Product.metaClass)
-                .update(Products.createMany(20000))
+                .update(Products.createMany(count))
                 .blockingAwait();
+        Assert.assertEquals(Long.valueOf(count), repository.entities(Product.metaClass).query().count().blockingGet());
     }
 
     @Test
