@@ -65,9 +65,11 @@ public class PostgresqlRawTest {
 
     @Test
     public void testCreateSchema() throws Exception {
+        execute(statementProvider.forCreateSchema());
         execute(statementProvider.forCreateTable(Manufacturer.metaClass));
         execute(statementProvider.forCreateTable(Inventory.metaClass));
         execute(statementProvider.forCreateTable(Product.metaClass));
+        execute(statementProvider.forDropSchema());
     }
 
     private void execute(SqlStatement statement) throws Exception {
