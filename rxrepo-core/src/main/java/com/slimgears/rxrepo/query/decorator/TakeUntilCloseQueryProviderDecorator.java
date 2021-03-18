@@ -90,9 +90,10 @@ public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decor
 
         @Override
         public void close() {
+            QueryProvider provider = getUnderlyingProvider();
             if (wasClosed.compareAndSet(false, true)) {
                 closeSubject.onComplete();
-                super.close();
+                provider.close();
             }
         }
 

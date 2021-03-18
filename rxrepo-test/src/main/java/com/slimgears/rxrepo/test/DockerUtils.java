@@ -1,19 +1,13 @@
 package com.slimgears.rxrepo.test;
 
+import javax.annotation.Nullable;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Optional;
 
 public class DockerUtils {
     private static String defaultComposeFile = "docker-compose.yaml";
-
-    public static AutoCloseable withContainer() {
-        return withContainer(defaultComposeFile);
-    }
-
-    public static AutoCloseable withContainer(String composeFile) {
-        start(composeFile);
-        return () -> stop(composeFile);
-    }
 
     public static void start() {
         start(defaultComposeFile);
@@ -26,19 +20,7 @@ public class DockerUtils {
     public static void start(String composeFilePath) {
         System.out.println("Starting container");
         try {
-            Process proc = Runtime.getRuntime().exec(new String[]{"docker-compose", "-f", composeFilePath, "up", "-d"});
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    System.out.println(line);
-                }
-            }
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getErrorStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    System.err.println(line);
-                }
-            }
+            execute("docker-compose", "-f", composeFilePath, "up", "-d");
             Thread.sleep(8000);
         } catch (Throwable e) {
             throw new RuntimeException(e);
@@ -51,10 +33,38 @@ public class DockerUtils {
             return;
         }
 
+        execute("docker-compose", "-f", composeFilePath, "down");
+    }
+
+    public static boolean isAvailable() {
+        return Optional.ofNullable(execute("docker-compose", "--version"))
+                .filter(out -> out.startsWith("docker-compose version"))
+                .isPresent();
+    }
+
+    private static @Nullable String execute(String... cmdLine) {
+        StringBuilder stdOut = new StringBuilder();
         try {
-            Runtime.getRuntime().exec(new String[]{"docker-compose", "-f", composeFilePath, "down"}).waitFor();
+            Process proc = Runtime.getRuntime().exec(cmdLine);
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    stdOut.append(line).append("\n");
+                    System.out.println(line);
+                }
+            }
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getErrorStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.err.println(line);
+                }
+            }
+            proc.waitFor();
+        } catch (IOException e) {
+            return null;
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
+        return stdOut.toString();
     }
 }

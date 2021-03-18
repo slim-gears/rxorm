@@ -1,7 +1,6 @@
 package com.slimgears.rxrepo.sql;
 
 import com.slimgears.rxrepo.query.provider.QueryProvider;
-import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.stream.Lazy;
 
 import javax.annotation.Nonnull;
@@ -17,7 +16,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     private final Lazy<SqlSchemaGenerator> schemaProvider;
     private final Lazy<SqlExpressionGenerator> expressionGenerator;
     private final Lazy<QueryProvider> queryProvider;
-    private final Lazy<SchedulingProvider> executorPool;
     private final Lazy<KeyEncoder> keyEncoder;
     private final Lazy<SqlTypeMapper> typeMapper;
     private final Lazy<Supplier<String>> dbNameProvider;
@@ -29,7 +27,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
             @Nonnull Function<SqlServiceFactory, SqlSchemaGenerator> schemaProvider,
             @Nonnull Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator,
             @Nonnull Function<SqlServiceFactory, QueryProvider> queryProviderGenerator,
-            @Nonnull Function<SqlServiceFactory, SchedulingProvider> executorPool,
             @Nonnull Function<SqlServiceFactory, KeyEncoder> keyEncoder,
             @Nonnull Function<SqlServiceFactory, SqlTypeMapper> typeMapper,
             @Nonnull Function<SqlServiceFactory, Supplier<String>> dbNameProvider) {
@@ -39,7 +36,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
         this.schemaProvider = Lazy.of(() -> CacheSqlSchemaGeneratorDecorator.decorate(schemaProvider.apply(this)));
         this.expressionGenerator = Lazy.of(() -> expressionGenerator.apply(this));
         this.queryProvider = Lazy.of(() -> queryProviderGenerator.apply(this));
-        this.executorPool = Lazy.of(() -> executorPool.apply(this));
         this.keyEncoder = Lazy.of(() -> keyEncoder.apply(this));
         this.typeMapper = Lazy.of(() -> typeMapper.apply(this));
         this.dbNameProvider = Lazy.of(() -> dbNameProvider.apply(this));
@@ -73,11 +69,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
     @Override
     public QueryProvider queryProvider() {
         return queryProvider.get();
-    }
-
-    @Override
-    public SchedulingProvider schedulingProvider() {
-        return executorPool.get();
     }
 
     @Override
@@ -117,7 +108,6 @@ public class DefaultSqlServiceFactory implements SqlServiceFactory {
                     requireNonNull(schemaProvider),
                     requireNonNull(expressionGenerator),
                     requireNonNull(queryProviderGenerator),
-                    requireNonNull(schedulingProvider),
                     requireNonNull(keyEncoder),
                     requireNonNull(typeMapper),
                     requireNonNull(dbNameProvider));

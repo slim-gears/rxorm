@@ -11,7 +11,6 @@ import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.provider.*;
 import com.slimgears.rxrepo.util.PropertyResolver;
 import com.slimgears.rxrepo.util.PropertyResolvers;
-import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import com.slimgears.util.stream.Optionals;
 import com.slimgears.util.stream.Streams;
@@ -35,19 +34,16 @@ public class DefaultSqlQueryProvider implements QueryProvider {
     private final SqlStatementExecutor statementExecutor;
     protected final SqlSchemaGenerator schemaGenerator;
     private final SqlReferenceResolver referenceResolver;
-    private final SchedulingProvider schedulingProvider;
     private final Map<SqlStatement, Observable<Notification<PropertyResolver>>> liveQueriesCache = new ConcurrentHashMap<>();
 
     protected DefaultSqlQueryProvider(SqlStatementProvider statementProvider,
                                       SqlStatementExecutor statementExecutor,
                                       SqlSchemaGenerator schemaGenerator,
-                                      SqlReferenceResolver referenceResolver,
-                                      SchedulingProvider schedulingProvider) {
+                                      SqlReferenceResolver referenceResolver) {
         this.statementProvider = statementProvider;
         this.statementExecutor = statementExecutor;
         this.schemaGenerator = schemaGenerator;
         this.referenceResolver = referenceResolver;
-        this.schedulingProvider = schedulingProvider;
     }
 
     public static QueryProvider create(SqlServiceFactory serviceFactory) {
@@ -55,8 +51,7 @@ public class DefaultSqlQueryProvider implements QueryProvider {
                 serviceFactory.statementProvider(),
                 serviceFactory.statementExecutor(),
                 serviceFactory.schemaProvider(),
-                serviceFactory.referenceResolver(),
-                serviceFactory.schedulingProvider());
+                serviceFactory.referenceResolver());
     }
 
     @Override
@@ -138,14 +133,12 @@ public class DefaultSqlQueryProvider implements QueryProvider {
     @Override
     public <K, S, T> Observable<Notification<T>> query(QueryInfo<K, S, T> query) {
         log.trace("Preparing query of {}", query.metaClass().simpleName());
-        Scheduler scheduler = schedulingProvider.scheduler();
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
         return schemaGenerator
                 .useTable(query.metaClass())
                 .andThen(statementExecutor
                         .executeQuery(statementProvider.forQuery(query))
-                        .compose(toCreateNotifications(objectType, query.mapping(), query.properties())))
-                .observeOn(scheduler);
+                        .compose(toCreateNotifications(objectType, query.mapping(), query.properties())));
     }
 
     @SuppressWarnings("unchecked")
@@ -180,13 +173,11 @@ public class DefaultSqlQueryProvider implements QueryProvider {
     public <K, S, T> Observable<Notification<T>> liveQuery(QueryInfo<K, S, T> query) {
         log.trace("Preparing live query of {}", query.metaClass().simpleName());
         TypeToken<? extends T> objectType = HasMapping.objectType(query);
-        Scheduler scheduler = schedulingProvider.scheduler();
         SqlStatement statement = statementProvider.forQuery(query.toBuilder().properties(ImmutableSet.of()).build());
         return schemaGenerator
                 .useTable(query.metaClass())
                 .andThen(liveQueryForStatement(statement))
                 .map(notification -> notification.<T>map(pr -> PropertyResolvers.withProperties(query.properties(), () -> pr.toObject(objectType))))
-                .observeOn(scheduler)
                 .doOnNext(n -> log.trace("{}: {} {}",
                         query.metaClass().simpleName(),
                         n.isCreate() ? "Create" : n.isModify() ? "Modify" : n.isDelete() ? "Delete" : "Empty",

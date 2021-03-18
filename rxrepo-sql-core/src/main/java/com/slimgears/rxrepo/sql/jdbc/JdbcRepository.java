@@ -6,6 +6,7 @@ import com.slimgears.rxrepo.query.decorator.ObserveOnSchedulingQueryProviderDeco
 import com.slimgears.rxrepo.query.decorator.UpdateReferencesFirstQueryProviderDecorator;
 import com.slimgears.rxrepo.sql.*;
 import com.slimgears.util.stream.Safe;
+import io.reactivex.schedulers.Schedulers;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -48,12 +49,11 @@ public class JdbcRepository {
                     .referenceResolver(sf -> new DefaultSqlReferenceResolver(sf.keyEncoder(), sf.expressionGenerator()))
                     .statementProvider(sf -> new DefaultSqlStatementProvider(sf.expressionGenerator(), sf.typeMapper(), sf.dbNameProvider()))
                     .statementExecutor(sf -> new JdbcSqlStatementExecutor(connectionSupplier, sf.typeMapper()))
-                    .schedulingProvider(schedulingProvider)
                     .decorateExecutor(sf -> JdbcSqlStatementExecutorDecorator.create(sf.typeMapper(), sf.keyEncoder()))
                     .decorate(
 //                            LockQueryProviderDecorator.create(SemaphoreLockProvider.create()),
 //                            LiveQueryProviderDecorator.create(Duration.ofMillis(config.aggregationDebounceTimeMillis())),
-                            ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider.get()),
+                            ObserveOnSchedulingQueryProviderDecorator.create(Schedulers.io()),
                             BatchUpdateQueryProviderDecorator.create(batchSize),
                             UpdateReferencesFirstQueryProviderDecorator.create()
                     );

@@ -3,9 +3,7 @@ package com.slimgears.rxrepo.orientdb;
 import com.slimgears.rxrepo.query.Notification;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.decorator.OperationTimeoutQueryProviderDecorator;
-import com.slimgears.rxrepo.query.decorator.SubscribeOnSchedulingQueryProviderDecorator;
 import com.slimgears.rxrepo.test.*;
-import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.generic.MoreStrings;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.logging.LogLevel;
@@ -15,7 +13,6 @@ import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.logging.LoggingMeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.reactivex.Observable;
-import io.reactivex.Scheduler;
 import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.schedulers.Schedulers;
@@ -25,7 +22,6 @@ import org.junit.*;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -51,10 +47,8 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
         }
     }
 
-    protected Repository createRepository(SchedulingProvider schedulingProvider, String dbUrl, OrientDbRepository.Type dbType) {
+    protected Repository createRepository(String dbUrl, OrientDbRepository.Type dbType) {
         String name = MoreStrings.format(dbName, dbType, testNameRule.getMethodName().replaceAll("\\[\\d+]", ""));
-        Scheduler updateScheduler = Schedulers.from(Executors.newFixedThreadPool(5));
-        Scheduler queryScheduler = Schedulers.from(Executors.newFixedThreadPool(5));
         return OrientDbRepository
                 .builder()
                 .url(dbUrl)
@@ -62,9 +56,7 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
                 .aggregationDebounceTimeMillis(2000)
                 .type(dbType)
                 .name(name)
-                .schedulingProvider(schedulingProvider)
                 .decorate(
-                        SubscribeOnSchedulingQueryProviderDecorator.create(updateScheduler, queryScheduler, Schedulers.from(Runnable::run)),
                         OperationTimeoutQueryProviderDecorator.create(Duration.ofSeconds(20), Duration.ofMinutes(30)))
                 .enableBatchSupport(100)
                 .maxConnections(20)

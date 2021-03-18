@@ -1,24 +1,21 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.google.common.collect.ImmutableMap;
+import com.orientechnologies.orient.core.Orient;
 import com.orientechnologies.orient.core.config.OGlobalConfiguration;
 import com.orientechnologies.orient.core.db.ODatabaseType;
 import com.orientechnologies.orient.core.db.OrientDB;
 import com.orientechnologies.orient.core.db.OrientDBConfig;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.slimgears.nanometer.MetricCollector;
-import com.slimgears.nanometer.Metrics;
 import com.slimgears.rxrepo.query.RepositoryConfig;
 import com.slimgears.rxrepo.query.decorator.*;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
 import com.slimgears.rxrepo.sql.*;
-import com.slimgears.rxrepo.util.CachedRoundRobinSchedulingProvider;
-import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.rxrepo.util.SemaphoreLockProvider;
 import com.slimgears.util.stream.Lazy;
 import com.slimgears.util.stream.Safe;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.reactivex.schedulers.Schedulers;
 
 import javax.annotation.Nonnull;
 import java.time.Duration;
@@ -26,7 +23,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class OrientDbRepository {
     public enum Type {
@@ -56,18 +52,8 @@ public class OrientDbRepository {
         private String serverPassword = "root";
         private boolean batchSupport = false;
         private int batchBufferSize = 2000;
-        private int maxNotificationQueues = 10;
-        private Duration maxQueueIdleTime = Duration.ofSeconds(120);
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
         private Function<Executor, Executor> executorDecorator = Function.identity();
-        private Function<SchedulingProvider, SchedulingProvider> schedulingProviderDecorator = Function.identity();
-        private Supplier<SchedulingProvider> schedulingProvider = () -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxQueueIdleTime, executorDecorator);
-//        private RepositoryConfig.Builder configBuilder = RepositoryConfig
-//                .builder()
-//                .retryCount(10)
-//                .retryInitialDurationMillis(10)
-//                .bufferDebounceTimeoutMillis(100)
-//                .aggregationDebounceTimeMillis(2000);
 
         private final Map<OGlobalConfiguration, Object> customConfig = new HashMap<>();
         private int maxConnections = 12;
@@ -87,16 +73,6 @@ public class OrientDbRepository {
             return this;
         }
 
-        public final Builder maxNotificationQueues(int maxNotificationQueues) {
-            this.maxNotificationQueues = maxNotificationQueues;
-            return this;
-        }
-
-        public final Builder maxQueueIdleTime(Duration duration) {
-            this.maxQueueIdleTime = duration;
-            return this;
-        }
-
         public final Builder maxConnections(int maxConnections) {
             //this.customConfig.put(OGlobalConfiguration.DB_POOL_MAX, maxConnections);
             this.maxConnections = maxConnections;
@@ -105,16 +81,6 @@ public class OrientDbRepository {
 
         public final Builder maxNonHeapMemory(int maxNonHeapMemoryBytes) {
             this.customConfig.put(OGlobalConfiguration.DIRECT_MEMORY_POOL_LIMIT, maxNonHeapMemoryBytes / pageSize);
-            return this;
-        }
-
-        public final Builder schedulingProvider(SchedulingProvider schedulingProvider) {
-            this.schedulingProvider = ()  -> schedulingProvider;
-            return this;
-        }
-
-        public final Builder schedulingProvider(Function<SchedulingProvider, SchedulingProvider> schedulingProvider) {
-            this.schedulingProviderDecorator = schedulingProvider;
             return this;
         }
 
@@ -231,7 +197,6 @@ public class OrientDbRepository {
                             svc.dbNameProvider()))
                     .referenceResolver(svc -> new OrientDbSqlReferenceResolver(svc.statementProvider()))
                     .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider, batchBufferSize) : DefaultSqlQueryProvider.create(svc))
-                    .schedulingProvider(() -> schedulingProviderDecorator.apply(schedulingProvider.get()))
                     .keyEncoder(DigestKeyEncoder::create);
         }
 
@@ -248,8 +213,9 @@ public class OrientDbRepository {
                             BatchUpdateQueryProviderDecorator.create(batchBufferSize),
                             LockQueryProviderDecorator.create(SemaphoreLockProvider.create()),
                             LiveQueryProviderDecorator.create(Duration.ofMillis(config.aggregationDebounceTimeMillis())),
-                            ObserveOnSchedulingQueryProviderDecorator.create(schedulingProvider.get()),
+                            ObserveOnSchedulingQueryProviderDecorator.create(Schedulers.io()),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
+                            SubscribeOnSchedulingQueryProviderDecorator.create(Schedulers.computation(), Schedulers.computation(), Schedulers.from(Runnable::run)),
                             decorator);
         }
     }

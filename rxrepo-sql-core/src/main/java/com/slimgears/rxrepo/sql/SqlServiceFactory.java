@@ -3,16 +3,12 @@ package com.slimgears.rxrepo.sql;
 import com.slimgears.rxrepo.query.Repository;
 import com.slimgears.rxrepo.query.RepositoryConfigModel;
 import com.slimgears.rxrepo.query.provider.QueryProvider;
-import com.slimgears.rxrepo.util.CachedRoundRobinSchedulingProvider;
-import com.slimgears.rxrepo.util.SchedulingProvider;
 
-import java.time.Duration;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static com.slimgears.rxrepo.query.provider.QueryProvider.Decorator.of;
-import static java.util.Objects.requireNonNull;
 
 public interface SqlServiceFactory {
     SqlStatementProvider statementProvider();
@@ -21,7 +17,6 @@ public interface SqlServiceFactory {
     SqlExpressionGenerator expressionGenerator();
     SqlReferenceResolver referenceResolver();
     QueryProvider queryProvider();
-    SchedulingProvider schedulingProvider();
     KeyEncoder keyEncoder();
     SqlTypeMapper typeMapper();
     Supplier<String> dbNameProvider();
@@ -30,15 +25,11 @@ public interface SqlServiceFactory {
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
         protected Function<SqlServiceFactory, SqlStatementExecutor.Decorator> executorDecorator = sf -> SqlStatementExecutor.Decorator.identity();
 
-        private int maxNotificationQueues = 10;
-        private Duration maxNotificationQueueIdleDuration = Duration.ofSeconds(30);
-
         protected Function<SqlServiceFactory, SqlStatementProvider> statementProvider;
         protected Function<SqlServiceFactory, SqlStatementExecutor> statementExecutor;
         protected Function<SqlServiceFactory, SqlSchemaGenerator> schemaProvider;
         protected Function<SqlServiceFactory, SqlReferenceResolver> referenceResolver;
         protected Function<SqlServiceFactory, SqlExpressionGenerator> expressionGenerator;
-        protected Function<SqlServiceFactory, SchedulingProvider> schedulingProvider = f -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxNotificationQueueIdleDuration);
         protected Function<SqlServiceFactory, KeyEncoder> keyEncoder = f -> String::valueOf;
         protected Function<SqlServiceFactory, SqlTypeMapper> typeMapper = f -> SqlTypes.instance;
         protected Function<SqlServiceFactory, Supplier<String>> dbNameProvider;
@@ -46,8 +37,7 @@ public interface SqlServiceFactory {
                 factory.statementProvider(),
                 factory.statementExecutor(),
                 factory.schemaProvider(),
-                factory.referenceResolver(),
-                factory.schedulingProvider());
+                factory.referenceResolver());
         private Runnable onClose = () -> {};
 
         @SuppressWarnings("unchecked")
@@ -114,11 +104,6 @@ public interface SqlServiceFactory {
             return self();
         }
 
-        public B schedulingProvider(Function<SqlServiceFactory, SchedulingProvider> schedulingProvider) {
-            this.schedulingProvider = schedulingProvider;
-            return self();
-        }
-
         public B keyEncoder(Function<SqlServiceFactory, KeyEncoder> keyEncoder) {
             this.keyEncoder = keyEncoder;
             return self();
@@ -131,16 +116,6 @@ public interface SqlServiceFactory {
 
         public B dbNameProvider(Function<SqlServiceFactory, Supplier<String>> dbNameProvider) {
             this.dbNameProvider = dbNameProvider;
-            return self();
-        }
-
-        public B maxNotificationQueues(int maxNotificationQueues) {
-            this.maxNotificationQueues = maxNotificationQueues;
-            return self();
-        }
-
-        public B maxNotificationQueueIdleDuration(Duration duration) {
-            this.maxNotificationQueueIdleDuration = duration;
             return self();
         }
 
@@ -178,10 +153,6 @@ public interface SqlServiceFactory {
 
         public B expressionGenerator(Supplier<SqlExpressionGenerator> expressionGenerator) {
             return expressionGenerator(f -> expressionGenerator.get());
-        }
-
-        public B schedulingProvider(Supplier<SchedulingProvider> executorPool) {
-            return schedulingProvider(f -> executorPool.get());
         }
 
         public B typeMapper(Supplier<SqlTypeMapper> typeMapper) {

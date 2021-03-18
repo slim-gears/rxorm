@@ -7,8 +7,6 @@ import com.slimgears.rxrepo.expressions.Aggregator;
 import com.slimgears.rxrepo.expressions.ObjectExpression;
 import com.slimgears.rxrepo.query.*;
 import com.slimgears.rxrepo.query.provider.QueryInfo;
-import com.slimgears.rxrepo.util.CachedRoundRobinSchedulingProvider;
-import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.generic.MoreStrings;
 import com.slimgears.util.stream.Streams;
 import com.slimgears.util.test.AnnotationRulesJUnit;
@@ -22,6 +20,7 @@ import io.reactivex.subjects.CompletableSubject;
 import org.junit.*;
 import org.junit.rules.MethodRule;
 import org.junit.rules.TestName;
+import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 
 import java.time.Duration;
@@ -44,6 +43,8 @@ public abstract class AbstractRepositoryTest {
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
     @Rule public final Timeout timeout = new Timeout(2, TimeUnit.MINUTES);
+    @Rule public final TestRule memoryMeter = new MemoryUsageRule("Test");
+    @ClassRule public static final TestRule classMemoryMeter = new MemoryUsageRule("Class");
 
     private Repository repository;
     protected EntitySet<UniqueId, Product> products;
@@ -51,7 +52,7 @@ public abstract class AbstractRepositoryTest {
 
     @Before
     public void setUp() throws Exception {
-        this.repository = createRepository(CachedRoundRobinSchedulingProvider.create(10, Duration.ofSeconds(60)));
+        this.repository = createRepository();
         this.products = repository.entities(Product.metaClass);
         this.inventories = repository.entities(Inventory.metaClass);
         System.out.println("Starting test: " + testNameRule.getMethodName());
@@ -67,7 +68,7 @@ public abstract class AbstractRepositoryTest {
         }
     }
 
-    protected abstract Repository createRepository(SchedulingProvider schedulingProvider);
+    protected abstract Repository createRepository();
 
     @Test
     @Ignore

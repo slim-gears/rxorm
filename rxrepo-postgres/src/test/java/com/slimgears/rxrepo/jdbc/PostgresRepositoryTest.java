@@ -8,7 +8,6 @@ import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.test.AbstractRepositoryTest;
 import com.slimgears.rxrepo.util.PropertyResolver;
-import com.slimgears.rxrepo.util.SchedulingProvider;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
 import io.reactivex.Completable;
@@ -127,14 +126,13 @@ public class PostgresRepositoryTest  extends AbstractRepositoryTest {
     }
 
     @Override
-    protected Repository createRepository(SchedulingProvider schedulingProvider) {
+    protected Repository createRepository() {
         return PostgresRepository
                 .builder()
                 .connection(PostgresTestUtils.connectionUrl)
                 .schemaName(PostgresTestUtils.schemaName)
                 .decorateExecutor(StopWatchDecorator.create(totalMillis, totalCount))
                 .enableBatch(1000)
-//                .schedulingProvider(schedulingProvider)
                 .build();
     }
 }

@@ -1,20 +1,21 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.orientechnologies.orient.core.Orient;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.slimgears.nanometer.MetricCollector;
 import com.slimgears.nanometer.Metrics;
 import com.slimgears.util.generic.RecurrentThreadLocal;
 import com.slimgears.util.stream.Safe;
 import io.reactivex.Completable;
+import io.reactivex.Scheduler;
 import io.reactivex.Single;
 import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subjects.CompletableSubject;
+import io.reactivex.subjects.Subject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -27,9 +28,9 @@ class OrientDbSessionProvider implements AutoCloseable {
     private final AtomicInteger currentlyActiveSessions = new AtomicInteger();
     private final MetricCollector.Gauge activeSessionsGauge = metrics.gauge("activeSessions");
     private final ExecutorService executorService;
-    private final Single<ODatabaseDocument> currentSession;
     private final Single<ODatabaseDocument> session;
     private final RecurrentThreadLocal<ODatabaseDocument> sessionThreadLocal;
+    private final CompletableSubject closedSubject = CompletableSubject.create();
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private OrientDbSessionProvider(Callable<ODatabaseDocument> databaseSessionProvider, int maxConnections) {
@@ -43,7 +44,7 @@ class OrientDbSessionProvider implements AutoCloseable {
                 .of(safeSessionProvider)
                 .onRelease(Safe.ofConsumer(ODatabaseDocument::close));
 
-        this.currentSession = Single.<ODatabaseDocument>create(emitter -> {
+        Single<ODatabaseDocument> currentSession = Single.<ODatabaseDocument>create(emitter -> {
             ODatabaseDocument s = sessionThreadLocal.acquire();
             try {
                 emitter.onSuccess(s);
@@ -60,8 +61,12 @@ class OrientDbSessionProvider implements AutoCloseable {
             activeSessionsGauge.record(newCount);
         });
 
-        this.executorService = Executors.newFixedThreadPool(maxConnections);
-        this.session = currentSession.subscribeOn(Schedulers.from(executorService));
+        this.executorService = new ThreadPoolExecutor(
+                0, maxConnections,
+                20L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>());
+        Scheduler scheduler = Schedulers.from(executorService);
+        this.session = currentSession.subscribeOn(scheduler);
     }
 
     static OrientDbSessionProvider create(Callable<ODatabaseDocument> dbSessionSupplier, int maxConnections) {
@@ -69,11 +74,7 @@ class OrientDbSessionProvider implements AutoCloseable {
     }
 
     Single<ODatabaseDocument> session() {
-        return session;
-    }
-
-    Single<ODatabaseDocument> currentSession() {
-        return currentSession;
+        return session.takeUntil(closedSubject);
     }
 
     synchronized void withSession(Consumer<ODatabaseDocument> action) {
@@ -101,9 +102,11 @@ class OrientDbSessionProvider implements AutoCloseable {
     @Override
     public void close() throws InterruptedException {
         if (closed.compareAndSet(false, true)) {
+            closedSubject.onComplete();
+            //this.executorService.shutdown();
             this.executorService.shutdownNow();
             //noinspection ResultOfMethodCallIgnored
-            this.executorService.awaitTermination(5, TimeUnit.SECONDS);
+            this.executorService.awaitTermination(10, TimeUnit.SECONDS);
             log.debug("Active threads: {}", Thread.activeCount());
         }
     }
