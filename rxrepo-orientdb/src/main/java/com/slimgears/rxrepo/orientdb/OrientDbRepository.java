@@ -215,7 +215,7 @@ public class OrientDbRepository {
                             LiveQueryProviderDecorator.create(Duration.ofMillis(config.aggregationDebounceTimeMillis())),
                             ObserveOnSchedulingQueryProviderDecorator.create(Schedulers.io()),
                             OrientDbDropDatabaseQueryProviderDecorator.create(dbClient, dbName),
-                            SubscribeOnSchedulingQueryProviderDecorator.create(Schedulers.computation(), Schedulers.computation(), Schedulers.from(Runnable::run)),
+                            SubscribeOnSchedulingQueryProviderDecorator.createDefault(),
                             decorator);
         }
     }
