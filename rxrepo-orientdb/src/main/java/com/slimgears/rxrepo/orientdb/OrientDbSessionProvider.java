@@ -1,17 +1,13 @@
 package com.slimgears.rxrepo.orientdb;
 
-import com.orientechnologies.orient.core.Orient;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.slimgears.nanometer.MetricCollector;
 import com.slimgears.nanometer.Metrics;
 import com.slimgears.util.generic.RecurrentThreadLocal;
 import com.slimgears.util.stream.Safe;
-import io.reactivex.Completable;
-import io.reactivex.Scheduler;
-import io.reactivex.Single;
+import io.reactivex.*;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.CompletableSubject;
-import io.reactivex.subjects.Subject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,10 +24,11 @@ class OrientDbSessionProvider implements AutoCloseable {
     private final AtomicInteger currentlyActiveSessions = new AtomicInteger();
     private final MetricCollector.Gauge activeSessionsGauge = metrics.gauge("activeSessions");
     private final ExecutorService executorService;
-    private final Single<ODatabaseDocument> session;
+    private final Maybe<ODatabaseDocument> session;
     private final RecurrentThreadLocal<ODatabaseDocument> sessionThreadLocal;
     private final CompletableSubject closedSubject = CompletableSubject.create();
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final Object cancellationToken = new Object();
 
     private OrientDbSessionProvider(Callable<ODatabaseDocument> databaseSessionProvider, int maxConnections) {
         Supplier<ODatabaseDocument> safeSessionProvider = Safe.ofCallable(() -> {
@@ -44,10 +41,14 @@ class OrientDbSessionProvider implements AutoCloseable {
                 .of(safeSessionProvider)
                 .onRelease(Safe.ofConsumer(ODatabaseDocument::close));
 
-        Single<ODatabaseDocument> currentSession = Single.<ODatabaseDocument>create(emitter -> {
+        Maybe<ODatabaseDocument> currentSession = Maybe.<ODatabaseDocument>create(emitter -> {
             ODatabaseDocument s = sessionThreadLocal.acquire();
             try {
-                emitter.onSuccess(s);
+                if (closed.get()) {
+                    emitter.onComplete();
+                } else {
+                    emitter.onSuccess(s);
+                }
             } finally {
                 sessionThreadLocal.release();
             }
@@ -73,8 +74,8 @@ class OrientDbSessionProvider implements AutoCloseable {
         return new OrientDbSessionProvider(dbSessionSupplier, maxConnections);
     }
 
-    Single<ODatabaseDocument> session() {
-        return session.takeUntil(closedSubject);
+    Maybe<ODatabaseDocument> session() {
+        return session.takeUntil(closedSubject.andThen(Maybe.just(cancellationToken)));
     }
 
     synchronized void withSession(Consumer<ODatabaseDocument> action) {
