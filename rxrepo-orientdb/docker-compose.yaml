@@ -8,6 +8,3 @@ services:
     ports:
       - 2480:2480
       - 2424:2424
-
-volumes:
-  dbvolume:

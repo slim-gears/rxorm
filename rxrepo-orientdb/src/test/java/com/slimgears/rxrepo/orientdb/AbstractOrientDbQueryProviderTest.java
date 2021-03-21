@@ -16,10 +16,8 @@ import io.reactivex.Observable;
 import io.reactivex.observers.BaseTestConsumer;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.schedulers.Schedulers;
-import org.apache.commons.io.FileUtils;
 import org.junit.*;
 
-import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,7 +29,7 @@ public abstract class AbstractOrientDbQueryProviderTest extends AbstractReposito
 
     @BeforeClass
     public static void setUpClass() throws IOException {
-        FileUtils.deleteDirectory(new File("db"));
+        //FileUtils.deleteDirectory(new File("db"));
         loggingMeterRegistry = new LoggingMeterRegistry();
         SimpleMeterRegistry simpleMeterRegistry = new SimpleMeterRegistry();
         Metrics.globalRegistry

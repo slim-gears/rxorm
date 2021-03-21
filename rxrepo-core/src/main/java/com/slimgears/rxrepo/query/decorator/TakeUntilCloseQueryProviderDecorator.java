@@ -9,6 +9,7 @@ import com.slimgears.rxrepo.query.provider.UpdateInfo;
 import com.slimgears.util.autovalue.annotations.MetaClassWithKey;
 import io.reactivex.*;
 import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.CompletableSubject;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -31,7 +32,9 @@ public class TakeUntilCloseQueryProviderDecorator implements QueryProvider.Decor
 
     static class Decorator extends AbstractQueryProviderDecorator {
         private final CompletableSubject closeSubject = CompletableSubject.create();
-        private final Observable<Object> closeObservable = closeSubject.andThen(Observable.just(onCloseToken));
+        private final Observable<Object> closeObservable = closeSubject
+                .observeOn(Schedulers.io())
+                .andThen(Observable.just(onCloseToken));
 
         private Decorator(QueryProvider underlyingProvider) {
             super(underlyingProvider);

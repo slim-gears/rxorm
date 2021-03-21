@@ -22,6 +22,8 @@ import org.junit.rules.MethodRule;
 import org.junit.rules.TestName;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.*;
@@ -40,6 +42,8 @@ import static java.util.Objects.requireNonNull;
 
 @SuppressWarnings("unchecked")
 public abstract class AbstractRepositoryTest {
+    private final Logger log = LoggerFactory.getLogger(getClass());
+
     @Rule public final TestName testNameRule = new TestName();
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
     @Rule public final Timeout timeout = new Timeout(2, TimeUnit.MINUTES);
@@ -1490,15 +1494,30 @@ public abstract class AbstractRepositoryTest {
                 .query().observeCount()
                 .test();
 
+        log.info("Adding entry");
         repository.entities(Product.metaClass).update(Products.createOne()).ignoreElement().blockingAwait();
+
+        log.info("Waiting for observables update");
+
+        log.info("Waiting for observer1 update...");
         productTestObserver1.awaitCount(1).assertNotComplete();
+
+        log.info("Waiting for observer2 update...");
         productTestObserver2.awaitCount(1).assertNotComplete();
+
+        log.info("Waiting for observer3 update...");
         productTestObserver3.awaitCount(1).assertNotComplete();
 
+        log.info("Closing repository");
         repository.close();
 
+        log.info("Waiting for observer1 complete");
         productTestObserver1.awaitDone(5000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
+
+        log.info("Waiting for observer2 complete");
         productTestObserver2.awaitDone(5000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
+
+        log.info("Waiting for observer3 complete");
         productTestObserver3.awaitDone(5000, TimeUnit.MILLISECONDS).assertComplete().assertNoErrors();
     }
 
