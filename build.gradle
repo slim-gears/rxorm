@@ -2,6 +2,8 @@ buildscript {
     apply from: "$projectDir/gradle/buildscript.gradle", to: it
 }
 
+rootProject.ext.sourceCompatibility = JavaVersion.VERSION_1_8
+
 apply from: "$projectDir/gradle/root.gradle"
 
 subprojects {
