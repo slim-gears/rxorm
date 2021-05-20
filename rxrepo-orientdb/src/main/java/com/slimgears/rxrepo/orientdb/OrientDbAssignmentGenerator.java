@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.slimgears.rxrepo.sql.DefaultSqlAssignmentGenerator;
+import com.slimgears.rxrepo.sql.KeyEncoder;
 import com.slimgears.rxrepo.sql.ReferenceResolver;
 import com.slimgears.rxrepo.sql.SqlExpressionGenerator;
 import com.slimgears.rxrepo.util.PropertyMetas;
@@ -16,10 +17,12 @@ import static com.slimgears.rxrepo.sql.StatementUtils.concat;
 
 class OrientDbAssignmentGenerator extends DefaultSqlAssignmentGenerator {
     private final SqlExpressionGenerator sqlExpressionGenerator;
+    private final KeyEncoder keyEncoder;
 
-    OrientDbAssignmentGenerator(SqlExpressionGenerator sqlExpressionGenerator) {
+    OrientDbAssignmentGenerator(SqlExpressionGenerator sqlExpressionGenerator, KeyEncoder keyEncoder) {
         super(sqlExpressionGenerator);
         this.sqlExpressionGenerator = sqlExpressionGenerator;
+        this.keyEncoder = keyEncoder;
     }
 
     @Override
@@ -49,7 +52,7 @@ class OrientDbAssignmentGenerator extends DefaultSqlAssignmentGenerator {
                     ? Stream.of(concat(
                             (sqlExpressionGenerator.fromProperty(propertyMeta) + "`AsString`").replace("``", ""),
                             "=",
-                            sqlExpressionGenerator.fromConstant(val.toString())),
+                            sqlExpressionGenerator.fromConstant(keyEncoder.encode(val))),
                             sequenceNumberAssignment())
                     : Stream.empty();
         }

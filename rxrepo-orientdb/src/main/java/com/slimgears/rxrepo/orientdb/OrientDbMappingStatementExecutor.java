@@ -1,6 +1,7 @@
 package com.slimgears.rxrepo.orientdb;
 
 import com.slimgears.rxrepo.query.Notification;
+import com.slimgears.rxrepo.sql.KeyEncoder;
 import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.sql.SqlStatementExecutor;
 import com.slimgears.rxrepo.util.PropertyResolver;
@@ -8,17 +9,17 @@ import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 
-import static com.slimgears.rxrepo.orientdb.OrientDbObjectConverter.toOrientDb;
-
 public class OrientDbMappingStatementExecutor implements SqlStatementExecutor {
     private final SqlStatementExecutor underlyingExecutor;
+    private final OrientDbObjectConverter objectConverter;
 
-    private OrientDbMappingStatementExecutor(SqlStatementExecutor underlyingExecutor) {
+    private OrientDbMappingStatementExecutor(SqlStatementExecutor underlyingExecutor, OrientDbObjectConverter objectConverter) {
         this.underlyingExecutor = underlyingExecutor;
+        this.objectConverter = objectConverter;
     }
 
-    static SqlStatementExecutor decorate(SqlStatementExecutor executor) {
-        return new OrientDbMappingStatementExecutor(executor);
+    static SqlStatementExecutor decorate(SqlStatementExecutor executor, KeyEncoder keyEncoder) {
+        return new OrientDbMappingStatementExecutor(executor, OrientDbObjectConverter.create(keyEncoder));
     }
 
     @Override
@@ -29,6 +30,10 @@ public class OrientDbMappingStatementExecutor implements SqlStatementExecutor {
     @Override
     public Observable<PropertyResolver> executeCommandReturnEntries(SqlStatement statement) {
         return underlyingExecutor.executeCommandReturnEntries(toOrientDb(statement));
+    }
+
+    private SqlStatement toOrientDb(SqlStatement statement) {
+        return statement.mapArgs(objectConverter::toOrientDbObject);
     }
 
     @Override

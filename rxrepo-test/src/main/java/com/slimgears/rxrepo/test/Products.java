@@ -13,10 +13,10 @@ import java.util.stream.Stream;
 
 public class Products {
     public static Iterable<Product> createMany(int count) {
-        return createMany(0, count);
+        return createMany(0, count, 10);
     }
 
-    public static Iterable<Product> createMany(int startingId, int count) {
+    public static Iterable<Product> createMany(int startingId, int count, int inventoriesFactor) {
         final Product.Type[] productTypes = {
                 ProductEntity.Type.ConsumerElectronics,
                 ProductEntity.Type.ComputeHardware,
@@ -25,7 +25,7 @@ public class Products {
 
         Manufacturer manufacturer = Manufacturer.create(UniqueId.manufacturerId(0), "Manufacturer 0");
 
-        List<Inventory> inventories = IntStream.range(0, Math.max(1, count / 10))
+        List<Inventory> inventories = IntStream.range(0, Math.max(1, count / inventoriesFactor))
                 .mapToObj(i -> Inventory
                         .builder()
                         .id(UniqueId.inventoryId(i))
@@ -68,6 +68,6 @@ public class Products {
     }
 
     public static Product createOne(int id) {
-        return Iterables.firstOf(createMany(id, 1));
+        return Iterables.firstOf(createMany(id, 1, 1));
     }
 }
