@@ -64,14 +64,14 @@ public class OrientDbRepository {
         private String serverUser = "root";
         private String serverPassword = Optional.ofNullable(System.getenv("ORIENTDB_ROOT_PASSWORD")).orElse("root");
         private boolean batchSupport = false;
-        private int batchBufferSize = 20000;
+        private int batchBufferSize = 200;
         private int maxNotificationQueues = 10;
         private Duration maxQueueIdleTime = Duration.ofSeconds(120);
         private QueryProvider.Decorator decorator = QueryProvider.Decorator.identity();
         private Function<Executor, Executor> executorDecorator = Function.identity();
         private Function<SchedulingProvider, SchedulingProvider> schedulingProviderDecorator = Function.identity();
         private Supplier<SchedulingProvider> schedulingProvider = () -> CachedRoundRobinSchedulingProvider.create(maxNotificationQueues, maxQueueIdleTime, executorDecorator);
-        private RepositoryConfig.Builder configBuilder = RepositoryConfig
+        private final RepositoryConfig.Builder configBuilder = RepositoryConfig
                 .builder()
                 .retryCount(10)
                 .retryInitialDurationMillis(10)
@@ -89,8 +89,8 @@ public class OrientDbRepository {
             return this;
         }
 
-        public final Builder enableBatchSupport(boolean enable, int bufferSize) {
-            this.batchSupport = enable;
+        public final Builder enableBatchSupport(int bufferSize) {
+            this.batchSupport = true;
             this.batchBufferSize = bufferSize;
             return this;
         }
@@ -268,13 +268,14 @@ public class OrientDbRepository {
         private SqlServiceFactory.Builder serviceFactoryBuilder(OrientDbSessionProvider dbSessionProvider) {
             return SqlServiceFactory.builder()
                     .schemaProvider(svc -> new OrientDbSchemaProvider(dbSessionProvider))
-                    .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider)))
-                    .expressionGenerator(OrientDbSqlExpressionGenerator::new)
-                    .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator()))
+                    .statementExecutor(svc -> OrientDbMappingStatementExecutor.decorate(new OrientDbStatementExecutor(dbSessionProvider), svc.keyEncoder()))
+                    .expressionGenerator(svc -> OrientDbSqlExpressionGenerator.create(svc.keyEncoder()))
+                    .assignmentGenerator(svc -> new OrientDbAssignmentGenerator(svc.expressionGenerator(), svc.keyEncoder()))
                     .statementProvider(svc -> new DefaultSqlStatementProvider(svc.expressionGenerator(), svc.assignmentGenerator(), svc.schemaProvider()))
                     .referenceResolver(svc -> new OrientDbReferenceResolver(svc.statementProvider()))
                     .queryProviderGenerator(svc -> batchSupport ? OrientDbQueryProvider.create(svc, dbSessionProvider, batchBufferSize) : SqlQueryProvider.create(svc))
-                    .schedulingProvider(() -> schedulingProviderDecorator.apply(schedulingProvider.get()));
+                    .schedulingProvider(() -> schedulingProviderDecorator.apply(schedulingProvider.get()))
+                    .keyEncoder(() -> DigestKeyEncoder.create());
         }
     }
 }

@@ -20,6 +20,7 @@ public interface SqlServiceFactory {
     ReferenceResolver referenceResolver();
     QueryProvider queryProvider();
     SchedulingProvider schedulingProvider();
+    KeyEncoder keyEncoder();
 
     static Builder builder() {
         return DefaultSqlServiceFactory.builder();
@@ -36,6 +37,7 @@ public interface SqlServiceFactory {
         public abstract Builder assignmentGenerator(Function<SqlServiceFactory, SqlAssignmentGenerator> assignmentGenerator);
         public abstract Builder queryProviderGenerator(Function<SqlServiceFactory, QueryProvider> queryProviderGenerator);
         public abstract Builder schedulingProvider(Function<SqlServiceFactory, SchedulingProvider> executorPool);
+        public abstract Builder keyEncoder(Function<SqlServiceFactory, KeyEncoder> keyEncoder);
         public abstract SqlServiceFactory build();
 
         public final Repository buildRepository(RepositoryConfigModel config, QueryProvider.Decorator... decorators) {
@@ -45,6 +47,10 @@ public interface SqlServiceFactory {
         public final SqlServiceFactory.Builder decorate(QueryProvider.Decorator... decorators) {
             this.decorator = this.decorator.andThen(of(decorators));
             return this;
+        }
+
+        public Builder keyEncoder(Supplier<KeyEncoder> keyEncoder) {
+            return keyEncoder(f -> keyEncoder.get());
         }
 
         public Builder statementProvider(Supplier<SqlStatementProvider> statementProvider) {

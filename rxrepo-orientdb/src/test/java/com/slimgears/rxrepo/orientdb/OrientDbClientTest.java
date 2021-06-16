@@ -1,9 +1,8 @@
 package com.slimgears.rxrepo.orientdb;
 
+import com.google.common.base.Stopwatch;
 import com.orientechnologies.common.exception.OException;
 import com.orientechnologies.common.serialization.types.OBinaryTypeSerializer;
-import com.orientechnologies.orient.core.command.OCommandExecutor;
-import com.orientechnologies.orient.core.command.OCommandRequestText;
 import com.orientechnologies.orient.core.db.*;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import com.orientechnologies.orient.core.index.ORuntimeKeyIndexDefinition;
@@ -16,8 +15,10 @@ import com.orientechnologies.orient.core.sql.executor.OResult;
 import com.slimgears.rxrepo.sql.CacheSchemaProviderDecorator;
 import com.slimgears.rxrepo.sql.SchemaProvider;
 import com.slimgears.rxrepo.test.Inventory;
+import com.slimgears.rxrepo.test.Manufacturer;
 import com.slimgears.rxrepo.test.Product;
 import com.slimgears.rxrepo.test.UniqueId;
+import com.slimgears.util.generic.MoreStrings;
 import com.slimgears.util.junit.AnnotationRulesJUnit;
 import com.slimgears.util.test.logging.LogLevel;
 import com.slimgears.util.test.logging.UseLogLevel;
@@ -29,7 +30,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.MethodRule;
 
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 public class OrientDbClientTest {
     @Rule public final MethodRule annotationRules = AnnotationRulesJUnit.rule();
@@ -217,7 +220,8 @@ public class OrientDbClientTest {
         dbClient.createIfNotExists(dbName, ODatabaseType.MEMORY);
         OrientDbObjectConverter converter = OrientDbObjectConverter.create(
                 metaClass -> new ODocument(metaClass.simpleName()),
-                ((c, entity) -> (OElement) c.toOrientDbObject(entity)));
+                ((c, entity) -> (OElement) c.toOrientDbObject(entity)),
+                DigestKeyEncoder.create());
         OrientDbSessionProvider sessionProvider = OrientDbSessionProvider.create(() -> dbClient.open(dbName, "admin", "admin"));
         OrientDbSchemaProvider schemaProvider = new OrientDbSchemaProvider(sessionProvider);
         schemaProvider.createOrUpdate(Inventory.metaClass)
@@ -250,5 +254,43 @@ public class OrientDbClientTest {
         testObserver.awaitCount(1)
                 .assertValueCount(1)
                 .assertValueAt(0, 1L);
+    }
+
+    @Test
+    public void testRemoteBulkInsert() throws Exception {
+        try (AutoCloseable ignored = RemoteOrientDbTestUtils.withOrient()){
+            testBulkInsert("remote:localhost/db", 10000);
+        }
+    }
+
+    @Test
+    public void testEmbeddedBulkInsert() {
+        testBulkInsert("embedded:db", 10000);
+    }
+
+    private void testBulkInsert(String url, int count) {
+        OrientDB dbClient = new OrientDB(url, "root", "root", OrientDBConfig.defaultConfig());
+        if (dbClient.exists(dbName)) {
+            dbClient.drop(dbName);
+        }
+        dbClient.createIfNotExists(dbName, ODatabaseType.MEMORY);
+        OrientDbObjectConverter converter = OrientDbObjectConverter.create(
+                metaClass -> new ODocument(metaClass.simpleName()),
+                ((c, entity) -> (OElement) c.toOrientDbObject(entity)),
+                DigestKeyEncoder.create("SHA-1", 8));
+        OrientDbSessionProvider sessionProvider = OrientDbSessionProvider.create(() -> dbClient.open(dbName, "admin", "admin"));
+        OrientDbSchemaProvider schemaProvider = new OrientDbSchemaProvider(sessionProvider);
+        schemaProvider.createOrUpdate(Manufacturer.metaClass).blockingAwait();
+
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        sessionProvider.withSession(s -> {
+            IntStream.range(1, count + 1)
+                    .mapToObj(UniqueId::manufacturerId)
+                    .map(id -> Manufacturer.create(id, "Manufacturer" + id.id()))
+                    .map(converter::toOrientDbObject)
+                    .map(OElement.class::cast)
+                    .forEach(OElement::save);
+        });
+        System.out.println(MoreStrings.format("{}: {} rows stored in {} seconds", url, count, stopwatch.elapsed(TimeUnit.SECONDS)));
     }
 }

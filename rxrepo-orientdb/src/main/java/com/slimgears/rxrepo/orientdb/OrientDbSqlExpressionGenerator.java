@@ -1,31 +1,41 @@
 package com.slimgears.rxrepo.orientdb;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.TypeToken;
-import com.slimgears.rxrepo.expressions.*;
+import com.slimgears.rxrepo.expressions.ConstantExpression;
+import com.slimgears.rxrepo.expressions.Expression;
+import com.slimgears.rxrepo.expressions.ObjectExpression;
+import com.slimgears.rxrepo.expressions.PropertyExpression;
 import com.slimgears.rxrepo.expressions.internal.BooleanBinaryOperationExpression;
 import com.slimgears.rxrepo.sql.DefaultSqlExpressionGenerator;
+import com.slimgears.rxrepo.sql.KeyEncoder;
+import com.slimgears.rxrepo.sql.SqlExpressionGenerator;
 import com.slimgears.rxrepo.util.ExpressionTextGenerator;
 import com.slimgears.rxrepo.util.PropertyExpressions;
 import com.slimgears.rxrepo.util.PropertyMetas;
-import com.slimgears.rxrepo.util.SearchTextUtils;
 import com.slimgears.util.autovalue.annotations.HasMetaClass;
-import com.slimgears.util.generic.MoreStrings;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerator {
     private final ExpressionTextGenerator.Interceptor searchTextInterceptor = ExpressionTextGenerator.Interceptor.builder()
             .intercept(Expression.OperationType.Binary, ExpressionTextGenerator.Interceptor.ofType(BooleanBinaryOperationExpression.class, this::onVisitBinaryExpression))
             .intercept(Expression.Type.SearchText, ExpressionTextGenerator.Interceptor.ofType(BooleanBinaryOperationExpression.class, this::onVisitSearchTextExpression))
             .build();
+
+    private final KeyEncoder keyEncoder;
+
+    private OrientDbSqlExpressionGenerator(KeyEncoder keyEncoder) {
+        this.keyEncoder = keyEncoder;
+    }
+
+    public static SqlExpressionGenerator create(KeyEncoder keyEncoder) {
+        return new OrientDbSqlExpressionGenerator(keyEncoder);
+    }
 
     @Override
     protected ExpressionTextGenerator.Builder createBuilder() {
@@ -77,11 +87,11 @@ public class OrientDbSqlExpressionGenerator extends DefaultSqlExpressionGenerato
             Object value = constantExpression.value();
             TypeToken<?> valueType = constantExpression.objectType();
             if (PropertyMetas.isEmbedded(valueType)) {
-                return visitor.apply(ConstantExpression.of(String.valueOf(value)));
+                return visitor.apply(ConstantExpression.of(keyEncoder.encode(value)));
             } else if (valueType.isSubtypeOf(Collection.class)) {
                 value = ((Collection<?>)value)
                         .stream()
-                        .map(val -> val instanceof HasMetaClass ? val.toString() : val)
+                        .map(val -> val instanceof HasMetaClass ? keyEncoder.encode(val) : val)
                         .collect(ImmutableList.toImmutableList());
                 return visitor.apply(ConstantExpression.of(value));
             }

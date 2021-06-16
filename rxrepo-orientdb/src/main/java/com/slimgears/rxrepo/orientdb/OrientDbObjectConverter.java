@@ -2,6 +2,7 @@ package com.slimgears.rxrepo.orientdb;
 
 import com.orientechnologies.orient.core.record.OElement;
 import com.orientechnologies.orient.core.record.impl.ODocument;
+import com.slimgears.rxrepo.sql.KeyEncoder;
 import com.slimgears.rxrepo.sql.SqlStatement;
 import com.slimgears.rxrepo.util.PropertyMetas;
 import com.slimgears.util.autovalue.annotations.*;
@@ -11,25 +12,27 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 class OrientDbObjectConverter {
-    private final static OrientDbObjectConverter instance = new OrientDbObjectConverter(meta -> new ODocument(), (converter, hasMetaClass) -> null);
+    //private final static OrientDbObjectConverter instance = new OrientDbObjectConverter(meta -> new ODocument(), (converter, hasMetaClass) -> null);
     private final Function<MetaClass<?>, OElement> elementFactory;
     private final ElementResolver elementResolver;
+    private final KeyEncoder keyEncoder;
 
     interface ElementResolver {
         OElement resolve(OrientDbObjectConverter converter, HasMetaClassWithKey<?, ?> entity);
     }
 
-    private OrientDbObjectConverter(Function<MetaClass<?>, OElement> elementFactory, ElementResolver elementResolver) {
+    private OrientDbObjectConverter(Function<MetaClass<?>, OElement> elementFactory, ElementResolver elementResolver, KeyEncoder keyEncoder) {
         this.elementFactory = elementFactory;
         this.elementResolver = elementResolver;
+        this.keyEncoder = keyEncoder;
     }
 
-    static SqlStatement toOrientDb(SqlStatement statement) {
-        return statement.mapArgs(instance::toOrientDbObject);
+    static OrientDbObjectConverter create(Function<MetaClass<?>, OElement> elementFactory, ElementResolver elementResolver, KeyEncoder keyEncoder) {
+        return new OrientDbObjectConverter(elementFactory, elementResolver, keyEncoder);
     }
 
-    static OrientDbObjectConverter create(Function<MetaClass<?>, OElement> elementFactory, ElementResolver elementResolver) {
-        return new OrientDbObjectConverter(elementFactory, elementResolver);
+    static OrientDbObjectConverter create(KeyEncoder keyEncoder) {
+        return new OrientDbObjectConverter(meta -> new ODocument(), (converter, hasMetaClass) -> null, keyEncoder);
     }
 
     @SuppressWarnings("unchecked")
@@ -59,7 +62,7 @@ class OrientDbObjectConverter {
 
             if (p.type().isSubtypeOf(HasMetaClass.class) && !p.type().isSubtypeOf(HasMetaClassWithKey.class)) {
                 Optional.ofNullable(p.getValue(entity))
-                        .map(Object::toString)
+                        .map(keyEncoder::encode)
                         .ifPresent(str -> oElement.setProperty(p.name() + "AsString", str));
             }
         });
